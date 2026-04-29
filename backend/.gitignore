@@ -1,0 +1,5 @@
+.pkl
+.env
+__pycache__
+reset_pw
+venv

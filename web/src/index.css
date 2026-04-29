@@ -1,0 +1,17 @@
+/* Atur ulang gaya dasar untuk memastikan semuanya memenuhi layar */
+body, html, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f8fafc; /* Warna latar belakang abu-abu sangat terang */
+}
+
+/* Ini memastikan container flex juga bekerja dengan benar di tinggi penuh */
+#root > div {
+    min-height: 100vh;
+}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
