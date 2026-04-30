@@ -1,5 +1,4 @@
 import json
-import bcrypt
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token
 from datetime import timedelta
@@ -20,9 +19,7 @@ def login(cursor):
     if not user:
         return jsonify({'msg': 'Email atau password salah'}), 401
 
-    # Verifikasi password dengan bcrypt
-    stored_hash = user['password'].encode('utf-8')
-    if not bcrypt.checkpw(data['password'].encode('utf-8'), stored_hash):
+    if user['password'] != data['password']:
         return jsonify({'msg': 'Email atau password salah'}), 401
 
     identity_string = json.dumps({'id': user['id'], 'role': user['role']})
