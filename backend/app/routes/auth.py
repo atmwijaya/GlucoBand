@@ -33,3 +33,35 @@ def login(cursor):
         'email': user['email'],
         'role': user['role']
     })
+
+@auth_bp.post('/register/pasien')
+@db_connection
+def register_pasien(cursor):
+    data = request.get_json()
+    if not data or 'email' not in data or 'password' not in data:
+        return jsonify({'msg': 'Data tidak lengkap'}), 400
+
+    # Cek apakah email sudah terdaftar
+    cursor.execute("SELECT id FROM users WHERE email = %s", (data['email'],))
+    if cursor.fetchone():
+        return jsonify({'msg': 'Email sudah terdaftar'}), 409
+
+    sql = """
+        INSERT INTO users (name, email, password, role, age, gender, weight_kg, height_cm,
+                          blood_pressure_sys, blood_pressure_dia, diabetes_history, smoking_history)
+        VALUES (%s, %s, %s, 'pasien', %s, %s, %s, %s, %s, %s, %s, %s)
+    """
+    cursor.execute(sql, (
+        data.get('name'),
+        data['email'],
+        data['password'],
+        data.get('age'),
+        data.get('gender'),
+        data.get('weight_kg'),
+        data.get('height_cm'),
+        data.get('blood_pressure_sys'),
+        data.get('blood_pressure_dia'),
+        data.get('diabetes_history', 0),
+        data.get('smoking_history', 0)
+    ))
+    return jsonify({'msg': 'Registrasi berhasil'}), 201

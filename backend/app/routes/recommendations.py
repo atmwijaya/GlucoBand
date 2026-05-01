@@ -3,6 +3,7 @@ from functools import wraps
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from db import get_connection
+from app import socketio
 
 recommendations_bp = Blueprint('recommendations', __name__)
 
@@ -44,6 +45,11 @@ def add_recommendation(identity, patient_id):
             (patient_id, identity['id'], data['content'])
         )
         conn.commit()
+        socketio.emit('new_recommendation', {
+            'message': data['content'],
+            'created_at': 'now'
+        }, to=f'patient_{patient_id}')
+
         return jsonify({'msg': 'Rekomendasi terkirim'}), 201
     except Exception as e:
         conn.rollback()

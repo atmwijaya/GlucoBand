@@ -1,10 +1,12 @@
 from flask import Flask
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
+from flask_socketio import SocketIO, emit
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
+socketio = SocketIO(cors_allowed_origins="*")
 
 def create_app():
     app = Flask(__name__)
@@ -13,6 +15,7 @@ def create_app():
 
     CORS(app)
     JWTManager(app)
+    socketio.init_app(app)
 
     # Register blueprints
     from app.routes.auth import auth_bp
@@ -23,7 +26,8 @@ def create_app():
     from app.routes.recommendations import recommendations_bp
     from app.routes.faq import faq_bp
     from app.routes.profile import profile_bp
-    from app.routes.dashboard import dashboard_bp 
+    from app.routes.dashboard import dashboard_bp
+    from app.routes.patientNotification import patient_notif_bp 
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(patients_bp, url_prefix='/api')
@@ -34,5 +38,6 @@ def create_app():
     app.register_blueprint(faq_bp, url_prefix='/api')
     app.register_blueprint(dashboard_bp, url_prefix='/api')
     app.register_blueprint(profile_bp, url_prefix='/api')
+    app.register_blueprint(patient_notif_bp, url_prefix='/api')
 
     return app
