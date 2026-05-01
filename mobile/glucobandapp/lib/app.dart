@@ -1,4 +1,3 @@
-// app.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'presentation/providers/authProvider.dart';
@@ -28,7 +27,6 @@ class GlucoBandApp extends StatelessWidget {
         home: Consumer<AuthProvider>(
           builder: (context, auth, _) {
             if (auth.isLoggedIn) {
-              // Hubungkan WebSocket saat aplikasi terbuka dengan sesi yang sudah ada
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 final notifProvider = Provider.of<NotificationProvider>(context, listen: false);
                 notifProvider.connectSocket(auth.token!);
