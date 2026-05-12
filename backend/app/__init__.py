@@ -28,6 +28,7 @@ def create_app():
     from app.routes.profile import profile_bp
     from app.routes.dashboard import dashboard_bp
     from app.routes.patientNotification import patient_notif_bp 
+    from app.routes.patientPrediction import patient_pred_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(patients_bp, url_prefix='/api')
@@ -39,5 +40,6 @@ def create_app():
     app.register_blueprint(dashboard_bp, url_prefix='/api')
     app.register_blueprint(profile_bp, url_prefix='/api')
     app.register_blueprint(patient_notif_bp, url_prefix='/api')
+    app.register_blueprint(patient_pred_bp, url_prefix='/api')
 
     return app

@@ -34,6 +34,12 @@ class _FaqPageState extends State<FaqPage> {
     }
   }
 
+  Future<void> _onRefresh() async {
+    _loadFaqs();
+    // Tunggu sebentar agar UI terasa smooth
+    await Future.delayed(const Duration(milliseconds: 800));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -82,103 +88,108 @@ class _FaqPageState extends State<FaqPage> {
             ),
           ),
           Expanded(
-            child: Consumer<FaqProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                
-                final filteredFaqs = _searchQuery.isEmpty
-                    ? provider.faqs
-                    : provider.faqs.where((faq) {
-                        return faq.question.toLowerCase().contains(_searchQuery) ||
-                               faq.answer.toLowerCase().contains(_searchQuery);
-                      }).toList();
+            child: RefreshIndicator(
+              onRefresh: _onRefresh,
+              color: const Color(0xFF3B82F6),
+              child: Consumer<FaqProvider>(
+                builder: (context, provider, _) {
+                  if (provider.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                if (filteredFaqs.isEmpty && _searchQuery.isNotEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.search_off, size: 64, color: Colors.grey[300]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Tidak ada hasil untuk "$_searchQuery"',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                  final filteredFaqs = _searchQuery.isEmpty
+                      ? provider.faqs
+                      : provider.faqs.where((faq) {
+                          return faq.question.toLowerCase().contains(_searchQuery) ||
+                                 faq.answer.toLowerCase().contains(_searchQuery);
+                        }).toList();
 
-                if (filteredFaqs.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.help_outline, size: 64, color: Colors.grey[300]),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Belum ada FAQ.',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: filteredFaqs.length,
-                  itemBuilder: (context, index) {
-                    final faq = filteredFaqs[index];
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: ExpansionTile(
-                        tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                        childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                        title: Text(
-                          faq.question,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF1E293B),
-                          ),
-                        ),
+                  if (filteredFaqs.isEmpty && _searchQuery.isNotEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              faq.answer,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey[700],
-                                height: 1.5,
-                              ),
-                            ),
+                          Icon(Icons.search_off, size: 64, color: Colors.grey[300]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Tidak ada hasil untuk "$_searchQuery"',
+                            style: TextStyle(color: Colors.grey[600]),
                           ),
                         ],
                       ),
                     );
-                  },
-                );
-              },
+                  }
+
+                  if (filteredFaqs.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.help_outline, size: 64, color: Colors.grey[300]),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Belum ada FAQ.',
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.all(16),
+                    itemCount: filteredFaqs.length,
+                    itemBuilder: (context, index) {
+                      final faq = filteredFaqs[index];
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.03),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: ExpansionTile(
+                          tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                          childrenPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                          title: Text(
+                            faq.question,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1E293B),
+                            ),
+                          ),
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                faq.answer,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[700],
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ),
         ],

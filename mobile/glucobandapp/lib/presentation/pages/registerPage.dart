@@ -16,6 +16,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
+  final ageController = TextEditingController();
   String gender = 'L';
   int age = 25;
 
@@ -24,86 +25,87 @@ class _RegisterPageState extends State<RegisterPage> {
     final auth = Provider.of<AuthProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Daftar')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                TextFormField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nama Lengkap',
-                    prefixIcon: Icon(Icons.person),
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (v) => v!.trim().isEmpty ? 'Nama wajib diisi' : null,
+      backgroundColor: const Color(0xFFF5F7FA),
+      appBar: AppBar(
+        title: const Text('Daftar'),
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black87,
+        elevation: 0.5,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const SizedBox(height: 16),
+              // Kartu Form
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 15,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email),
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (v) => v!.trim().contains('@') ? null : 'Email tidak valid',
+                child: Column(
+                  children: [
+                    _buildTextField(nameController, 'Nama Lengkap', Icons.person, false),
+                    const SizedBox(height: 16),
+                    _buildTextField(emailController, 'Email', Icons.email_outlined, false, TextInputType.emailAddress),
+                    const SizedBox(height: 16),
+                    _buildTextField(passwordController, 'Password', Icons.lock_outline, true),
+                    const SizedBox(height: 16),
+                    _buildTextField(confirmPasswordController, 'Konfirmasi Password', Icons.lock_outline, true),
+                    const SizedBox(height: 16),
+                    _buildDropdown(gender, 'Jenis Kelamin', Icons.person_outline, ['L', 'P'], ['Laki-laki', 'Perempuan'], (v) => setState(() => gender = v!)),
+                    const SizedBox(height: 16),
+                    _buildTextField(ageController, 'Usia', Icons.calendar_today, false, TextInputType.number),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: passwordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: Icon(Icons.lock),
-                    border: OutlineInputBorder(),
+              ),
+              if (auth.errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFFECACA)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: Color(0xFFEF4444), size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(auth.errorMessage!, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13))),
+                      ],
+                    ),
                   ),
-                  obscureText: true,
-                  validator: (v) => v!.length >= 4 ? null : 'Minimal 4 karakter',
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: confirmPasswordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Konfirmasi Password',
-                    prefixIcon: Icon(Icons.lock_outline),
-                    border: OutlineInputBorder(),
+              const SizedBox(height: 28),
+              // Tombol Daftar
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)],
                   ),
-                  obscureText: true,
-                  validator: (v) => v == passwordController.text ? null : 'Password tidak cocok',
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF3B82F6).withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: gender,
-                  decoration: const InputDecoration(
-                    labelText: 'Jenis Kelamin',
-                    prefixIcon: Icon(Icons.person_outline),
-                    border: OutlineInputBorder(),
-                  ),
-                  items: ['L', 'P'].map((e) => DropdownMenuItem(value: e, child: Text(e == 'L' ? 'Laki-laki' : 'Perempuan'))).toList(),
-                  onChanged: (v) => setState(() => gender = v!),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  initialValue: age.toString(),
-                  decoration: const InputDecoration(
-                    labelText: 'Usia',
-                    prefixIcon: Icon(Icons.calendar_today),
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                  onChanged: (v) => age = int.tryParse(v) ?? 25,
-                ),
-                if (auth.errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(auth.errorMessage!, style: const TextStyle(color: Colors.red)),
-                  ),
-                const SizedBox(height: 24),
-                ElevatedButton(
+                child: ElevatedButton(
                   onPressed: auth.isLoading
                       ? null
                       : () async {
@@ -116,7 +118,6 @@ class _RegisterPageState extends State<RegisterPage> {
                               age: age,
                             );
                             if (success) {
-                              // Kembali ke halaman login setelah berhasil mendaftar
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(builder: (_) => const LoginPage()),
@@ -125,31 +126,94 @@ class _RegisterPageState extends State<RegisterPage> {
                           }
                         },
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
                   child: auth.isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Daftar', style: TextStyle(fontSize: 16)),
+                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Daftar', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                 ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (_) => const LoginPage()),
-                    );
-                  },
-                  child: const Text('Sudah punya akun? Masuk'),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 20),
+              // Link ke Login
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Sudah punya akun? ', style: TextStyle(color: Color(0xFF64748B))),
+                  GestureDetector(
+                    onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage())),
+                    child: const Text('Masuk', style: TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 30),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon, bool isPassword,
+      [TextInputType? keyboardType]) {
+    return TextFormField(
+      controller: controller,
+      obscureText: isPassword,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
+        filled: true,
+        fillColor: const Color(0xFFF8FAFC),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade200),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+      validator: (v) {
+        if (v == null || v.trim().isEmpty) return 'Wajib diisi';
+        if (controller == emailController && !v.contains('@')) return 'Email tidak valid';
+        if (controller == confirmPasswordController && v != passwordController.text) return 'Password tidak cocok';
+        if (controller == passwordController && v.length < 4) return 'Minimal 4 karakter';
+        return null;
+      },
+    );
+  }
+
+  Widget _buildDropdown(String value, String label, IconData icon, List<String> items, List<String> labels, void Function(String?)? onChanged) {
+    return DropdownButtonFormField<String>(
+      value: value,
+      items: List.generate(items.length, (i) => DropdownMenuItem(value: items[i], child: Text(labels[i]))),
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
+        filled: true,
+        fillColor: const Color(0xFFF8FAFC),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade200),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/profileProvider.dart';
+import '../providers/authProvider.dart';
+import '../providers/predictionProvider.dart';
 import 'predictionResult.dart';
 
 class PredictionPage extends StatefulWidget {
@@ -16,28 +18,40 @@ class _PredictionPageState extends State<PredictionPage> {
   final _weightController = TextEditingController();
   final _heightController = TextEditingController();
   final _ageController = TextEditingController();
+  final _sysController = TextEditingController();
+  final _diaController = TextEditingController();
+  final _bloodGlucoseController = TextEditingController();
 
-  final List<TextEditingController> _glucoseControllers = [
+  final _glucoseControllers = [
     TextEditingController(),
     TextEditingController(),
     TextEditingController(),
   ];
 
-  String _gender = 'L';
-  String _activity = 'Ringan';
+  String _gender = 'Laki-laki';
+  String _hypertension = 'Tidak';
+  String _heartDisease = 'Tidak';
+  String _smoking = 'Tidak Pernah';
   double _bmi = 0;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _loadProfileData());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProfile();
+    });
   }
 
-  void _loadProfileData() {
-    final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+  void _loadProfile() {
+    final profileProvider = Provider.of<ProfileProvider>(
+      context,
+      listen: false,
+    );
     final profile = profileProvider.profileData;
+
     if (profile != null) {
       setState(() {
+        // Isi data dasar
         if (profile['weight_kg'] != null) {
           _weightController.text = profile['weight_kg'].toString();
         }
@@ -47,9 +61,49 @@ class _PredictionPageState extends State<PredictionPage> {
         if (profile['age'] != null) {
           _ageController.text = profile['age'].toString();
         }
-        _gender = profile['gender'] ?? 'L';
+        if (profile['blood_pressure_sys'] != null) {
+          _sysController.text = profile['blood_pressure_sys'].toString();
+        }
+        if (profile['blood_pressure_dia'] != null) {
+          _diaController.text = profile['blood_pressure_dia'].toString();
+        }
+
+        // Isi dropdowns
+        if (profile['gender'] != null) {
+          _gender = profile['gender'] == 'L' || profile['gender'] == 'Male'
+              ? 'Laki-laki'
+              : 'Perempuan';
+        }
+        if (profile['hypertension'] != null) {
+          _hypertension =
+              profile['hypertension'] == true || profile['hypertension'] == 1
+              ? 'Ya'
+              : 'Tidak';
+        }
+        if (profile['heart_disease'] != null) {
+          _heartDisease =
+              profile['heart_disease'] == true || profile['heart_disease'] == 1
+              ? 'Ya'
+              : 'Tidak';
+        }
+        if (profile['smoking_history'] != null) {
+          final smokingCode = profile['smoking_history'];
+          if (smokingCode == 0)
+            _smoking = 'Tidak Pernah';
+          else if (smokingCode == 1)
+            _smoking = 'Pernah';
+          else if (smokingCode == 2)
+            _smoking = 'Masih';
+        }
+
         _calculateBMI();
       });
+    } else {
+      // Jika profile belum ada, coba fetch lagi
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      if (auth.token != null) {
+        profileProvider.fetchProfile(auth.token!);
+      }
     }
   }
 
@@ -64,40 +118,102 @@ class _PredictionPageState extends State<PredictionPage> {
     setState(() {});
   }
 
+  void _resetForm() {
+    setState(() {
+      _weightController.clear();
+      _heightController.clear();
+      _ageController.clear();
+      _sysController.clear();
+      _diaController.clear();
+      _bloodGlucoseController.clear();
+
+      for (var controller in _glucoseControllers) {
+        controller.clear();
+      }
+
+      _gender = 'Laki-laki';
+      _hypertension = 'Tidak';
+      _heartDisease = 'Tidak';
+      _smoking = 'Tidak Pernah';
+      _bmi = 0;
+    });
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final predictionProvider = Provider.of<PredictionProvider>(
+      context,
+      listen: false,
+    );
+
+    String genderCode = _gender == 'Laki-laki' ? 'Male' : 'Female';
+    int hyperCode = _hypertension == 'Ya' ? 1 : 0;
+    int heartCode = _heartDisease == 'Ya' ? 1 : 0;
+    int smokingCode = _smoking == 'Tidak Pernah'
+        ? 0
+        : (_smoking == 'Pernah' ? 1 : 2);
+
+    List<double> glucoseHistory = _glucoseControllers
+        .map((c) => double.tryParse(c.text.trim()) ?? 0.0)
+        .toList();
+
+    if (glucoseHistory.where((v) => v > 0).length < 3) {
+      double lastValid = glucoseHistory.lastWhere(
+        (v) => v > 0,
+        orElse: () => double.tryParse(_bloodGlucoseController.text) ?? 110.0,
+      );
+
+      while (glucoseHistory.where((v) => v > 0).length < 3) {
+        glucoseHistory.add(lastValid);
+      }
+    }
+
+    final inputData = {
+      'age': int.tryParse(_ageController.text) ?? 0,
+      'gender': genderCode,
+      'bmi': _bmi,
+      'hypertension': hyperCode,
+      'heart_disease': heartCode,
+      'smoking_history': smokingCode,
+      'blood_glucose_level':
+          double.tryParse(_bloodGlucoseController.text) ?? 100,
+      'glucose_history': _glucoseControllers
+          .map((c) => double.tryParse(c.text) ?? 0)
+          .toList(),
+    };
+
+    await predictionProvider.fetchRisk(inputData, auth.token!);
+    if (!mounted) return;
+
+    if (predictionProvider.error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(predictionProvider.error!)));
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PredictionResultPage(inputData: inputData),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _weightController.dispose();
     _heightController.dispose();
     _ageController.dispose();
-    for (final c in _glucoseControllers) {
+    _sysController.dispose();
+    _diaController.dispose();
+    _bloodGlucoseController.dispose();
+    for (var c in _glucoseControllers) {
       c.dispose();
     }
     super.dispose();
-  }
-
-  void _submit() {
-    if (_formKey.currentState!.validate()) {
-      final Map<String, dynamic> predictionData = {
-        'weight': double.parse(_weightController.text),
-        'height': double.parse(_heightController.text),
-        'age': int.parse(_ageController.text),
-        'gender': _gender,
-        'activity': _activity,
-        'bmi': _bmi,
-        'glucoseHistory': [
-          double.tryParse(_glucoseControllers[0].text) ?? 0,
-          double.tryParse(_glucoseControllers[1].text) ?? 0,
-          double.tryParse(_glucoseControllers[2].text) ?? 0,
-        ],
-      };
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => PredictionResultPage(predictionData: predictionData),
-        ),
-      );
-    }
   }
 
   @override
@@ -117,7 +233,7 @@ class _PredictionPageState extends State<PredictionPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Kartu informasi
+              // Info card
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -127,90 +243,65 @@ class _PredictionPageState extends State<PredictionPage> {
                       const Color(0xFF3B82F6).withOpacity(0.1),
                       const Color(0xFF60A5FA).withOpacity(0.05),
                     ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: const Color(0xFF3B82F6).withOpacity(0.2),
                   ),
                 ),
-                child: Row(
+                child: const Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.info_outline,
-                          color: Color(0xFF3B82F6), size: 20),
-                    ),
-                    const SizedBox(width: 12),
+                    Icon(Icons.info_outline, color: Color(0xFF3B82F6)),
+                    SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Data diambil otomatis dari profil kesehatan Anda. Lengkapi data di bawah untuk hasil prediksi yang akurat.',
+                        'Data diambil dari profil kesehatan Anda. Anda dapat mengubah atau mereset form di bawah ini.',
                         style: TextStyle(
-                          color: Colors.grey[700],
+                          color: Color(0xFF475569),
                           fontSize: 13,
-                          height: 1.4,
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-              // Bagian Data Dasar
-              Row(
-                children: const [
-                  Icon(Icons.person_outline, size: 20, color: Color(0xFF64748B)),
-                  SizedBox(width: 8),
-                  Text(
-                    'Data Dasar',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1E293B),
-                    ),
+              // Tombol Reset
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: _resetForm,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Reset Form'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey[600],
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Field input berat, tinggi, usia, gender, aktivitas (pakai helper)
-              _buildTextField(
-                controller: _weightController,
-                label: 'Berat Badan (kg)',
-                icon: Icons.monitor_weight_outlined,
-                keyboardType: TextInputType.number,
-                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
-                onChanged: (_) => _calculateBMI(),
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _heightController,
-                label: 'Tinggi Badan (cm)',
-                icon: Icons.height,
-                keyboardType: TextInputType.number,
-                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
-                onChanged: (_) => _calculateBMI(),
+                ),
               ),
 
-              // Tampilkan BMI jika sudah ada
+              const SizedBox(height: 8),
+
+              _buildTextField(
+                _weightController,
+                'Berat Badan (kg)',
+                Icons.monitor_weight_outlined,
+                TextInputType.number,
+                (_) => _calculateBMI(),
+              ),
+              const SizedBox(height: 12),
+              _buildTextField(
+                _heightController,
+                'Tinggi Badan (cm)',
+                Icons.height,
+                TextInputType.number,
+                (_) => _calculateBMI(),
+              ),
+
               if (_bmi > 0)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: Container(
-                    width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -219,137 +310,100 @@ class _PredictionPageState extends State<PredictionPage> {
                     ),
                     child: Row(
                       children: [
-                        const Text('BMI:',
-                            style: TextStyle(
-                                color: Color(0xFF64748B), fontSize: 14)),
+                        const Text(
+                          'BMI:',
+                          style: TextStyle(color: Color(0xFF64748B)),
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           _bmi.toStringAsFixed(1),
                           style: TextStyle(
-                            fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: _bmi > 25
-                                ? Colors.orange
-                                : (_bmi > 18.5 ? Colors.green : Colors.blue),
+                            color: _bmi > 25 ? Colors.orange : Colors.green,
                           ),
                         ),
                         const Spacer(),
                         Text(
-                          _bmi > 25
-                              ? 'Overweight'
-                              : (_bmi > 18.5 ? 'Normal' : 'Underweight'),
+                          _bmi > 25 ? 'Overweight' : 'Normal',
                           style: TextStyle(
-                            fontSize: 13,
-                            color: _bmi > 25
-                                ? Colors.orange
-                                : (_bmi > 18.5 ? Colors.green : Colors.blue),
+                            color: _bmi > 25 ? Colors.orange : Colors.green,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
+
               const SizedBox(height: 12),
               _buildTextField(
-                controller: _ageController,
-                label: 'Usia',
-                icon: Icons.calendar_today_outlined,
-                keyboardType: TextInputType.number,
-                validator: (v) => v!.isEmpty ? 'Wajib diisi' : null,
+                _ageController,
+                'Usia',
+                Icons.calendar_today,
+                TextInputType.number,
               ),
-              const SizedBox(height: 12),
-              _buildDropdown(
-                value: _gender,
-                items: const [
-                  {'label': 'Laki-laki', 'value': 'L'},
-                  {'label': 'Perempuan', 'value': 'P'},
-                ],
-                icon: Icons.person_outline,
-                label: 'Jenis Kelamin',
-                onChanged: (v) => setState(() => _gender = v!),
-              ),
-              const SizedBox(height: 12),
-              _buildDropdown(
-                value: _activity,
-                items: const [
-                  {'label': 'Ringan', 'value': 'Ringan'},
-                  {'label': 'Sedang', 'value': 'Sedang'},
-                  {'label': 'Tinggi', 'value': 'Tinggi'},
-                ],
-                icon: Icons.fitness_center_outlined,
-                label: 'Aktivitas Fisik',
-                onChanged: (v) => setState(() => _activity = v!),
-              ),
-              const SizedBox(height: 24),
 
-              // Bagian Riwayat Glukosa (opsional)
-              Row(
-                children: [
-                  const Icon(Icons.show_chart,
-                      size: 20, color: Color(0xFF64748B)),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Riwayat 3 Pengukuran Gula Darah',
-                    style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E293B)),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '(opsional)',
-                    style: TextStyle(
-                      color: Colors.grey[400],
-                      fontSize: 13,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
+              const SizedBox(height: 12),
+              _buildDropdown(
+                'Hipertensi',
+                _hypertension,
+                ['Tidak', 'Ya'],
+                (val) => setState(() => _hypertension = val!),
               ),
               const SizedBox(height: 12),
+              _buildDropdown(
+                'Penyakit Jantung',
+                _heartDisease,
+                ['Tidak', 'Ya'],
+                (val) => setState(() => _heartDisease = val!),
+              ),
+              const SizedBox(height: 12),
+              _buildDropdown('Jenis Kelamin', _gender, [
+                'Laki-laki',
+                'Perempuan',
+              ], (val) => setState(() => _gender = val!)),
+              const SizedBox(height: 12),
+              _buildDropdown('Riwayat Merokok', _smoking, [
+                'Tidak Pernah',
+                'Pernah',
+                'Masih',
+              ], (val) => setState(() => _smoking = val!)),
+
+              const SizedBox(height: 12),
+              _buildTextField(
+                _bloodGlucoseController,
+                'Glukosa Darah Saat Ini (mg/dL)',
+                Icons.monitor_heart_outlined,
+                TextInputType.number,
+              ),
+
+              const SizedBox(height: 24),
+              const Text(
+                'Riwayat 3 Pengukuran Gula Darah (mg/dL)',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
               Row(
-                children: List.generate(3, (index) {
-                  return Expanded(
+                children: List.generate(
+                  3,
+                  (i) => Expanded(
                     child: Padding(
                       padding: EdgeInsets.only(
-                        left: index == 0 ? 0 : 6,
-                        right: index == 2 ? 0 : 6,
+                        left: i == 0 ? 0 : 6,
+                        right: i == 2 ? 0 : 6,
                       ),
-                      child: TextFormField(
-                        controller: _glucoseControllers[index],
-                        decoration: InputDecoration(
-                          labelText: 'Ke-${index + 1}',
-                          hintText: 'mg/dL',
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: Color(0xFFE2E8F0)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide:
-                                const BorderSide(color: Color(0xFFE2E8F0)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(
-                                color: Color(0xFF3B82F6), width: 1.5),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 14),
-                          labelStyle: const TextStyle(fontSize: 13),
-                        ),
-                        keyboardType: TextInputType.number,
+                      child: _buildTextField(
+                        _glucoseControllers[i],
+                        'Ke-${i + 1}',
+                        null,
+                        TextInputType.number,
+                        null,
                       ),
                     ),
-                  );
-                }),
+                  ),
+                ),
               ),
-              const SizedBox(height: 32),
 
-              // Tombol prediksi
+              const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -359,14 +413,16 @@ class _PredictionPageState extends State<PredictionPage> {
                   label: const Text(
                     'Prediksi Sekarang',
                     style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600),
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF3B82F6),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     elevation: 0,
                   ),
                 ),
@@ -379,23 +435,22 @@ class _PredictionPageState extends State<PredictionPage> {
     );
   }
 
-  // Widget helper untuk input teks
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-    void Function(String)? onChanged,
-  }) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label,
+    IconData? icon,
+    TextInputType? type, [
+    Function(String)? onChanged,
+  ]) {
     return TextFormField(
       controller: controller,
-      keyboardType: keyboardType,
-      validator: validator,
+      keyboardType: type,
       onChanged: onChanged,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
+        prefixIcon: icon != null
+            ? Icon(icon, color: const Color(0xFF64748B))
+            : null,
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
@@ -408,31 +463,34 @@ class _PredictionPageState extends State<PredictionPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF3B82F6)),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
     );
   }
 
-  // Widget helper untuk dropdown
-  Widget _buildDropdown({
-    required String value,
-    required List<Map<String, String>> items,
-    required IconData icon,
-    required String label,
-    required void Function(String?) onChanged,
-  }) {
+  Widget _buildDropdown(
+    String label,
+    String value,
+    List<String> items,
+    void Function(String?)? onChanged,
+  ) {
+    final effectiveValue = items.contains(value) ? value : items.first;
+
     return DropdownButtonFormField<String>(
-      value: value,
+      value: effectiveValue,
       items: items
-          .map((e) => DropdownMenuItem(
-              value: e['value'], child: Text(e['label']!)))
+          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
           .toList(),
-      onChanged: onChanged,
+      onChanged: (val) {
+        if (val != null) onChanged?.call(val);
+      },
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
         filled: true,
         fillColor: Colors.white,
         border: OutlineInputBorder(
@@ -445,9 +503,12 @@ class _PredictionPageState extends State<PredictionPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF3B82F6)),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
       ),
     );
   }

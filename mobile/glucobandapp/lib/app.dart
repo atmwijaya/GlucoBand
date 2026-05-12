@@ -5,6 +5,7 @@ import 'presentation/providers/measurementProvider.dart';
 import 'presentation/providers/notificationProvider.dart';
 import 'presentation/providers/faqProvider.dart';
 import 'presentation/providers/profileProvider.dart';
+import 'presentation/providers/predictionProvider.dart';
 import 'presentation/pages/loginPage.dart';
 import 'presentation/pages/homePage.dart';
 
@@ -20,6 +21,7 @@ class GlucoBandApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => FaqProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
+        ChangeNotifierProvider(create: (_) => PredictionProvider()),
       ],
       child: MaterialApp(
         title: 'GlucoBand',
