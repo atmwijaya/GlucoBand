@@ -9,11 +9,17 @@ class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<HomePage> createState() => HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class HomePageState extends State<HomePage> {
   int _currentIndex = 0;
+  
+  void setIndex(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
 
   final List<Widget> _pages = const [
     BerandaPage(),
@@ -39,7 +45,7 @@ class _HomePageState extends State<HomePage> {
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
-                top: BorderSide(color: Colors.grey.withOpacity(0.1), width: 1),
+                top: BorderSide(color: Colors.grey.withValues(alpha: 0.1), width: 1),
               ),
             ),
             child: SafeArea(
@@ -62,12 +68,12 @@ class _HomePageState extends State<HomePage> {
           Positioned(
             top: -24,
             child: GestureDetector(
-              onTap: () => setState(() => _currentIndex = 2),
+              onTap: () => setIndex(2),
               child: Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF613EEA).withOpacity(0.2), // Halo effect
+                  color: const Color(0xFF613EEA).withValues(alpha: 0.2), // Halo effect
                 ),
                 child: Container(
                   width: 56,
@@ -100,7 +106,7 @@ class _HomePageState extends State<HomePage> {
   Widget _buildNavItem(int index, IconData outlinedIcon, IconData filledIcon, String label) {
     final isSelected = _currentIndex == index;
     return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () => setIndex(index),
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),

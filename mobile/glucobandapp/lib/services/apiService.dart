@@ -21,27 +21,19 @@ class ApiService {
           final prefs = await SharedPreferences.getInstance();
           final token = prefs.getString('token');
 
-          print('🔑 [REQUEST] ${options.method} ${options.path}');
-
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
-            print('✅ Token berhasil ditambahkan');
           } else {
-            print('⚠️ Token tidak ditemukan!');
           }
         } catch (e) {
-          print('Warning: Gagal mengambil token: $e');
         }
         return handler.next(options);
       },
       onResponse: (response, handler) {
-        print('✅ [RESPONSE ${response.statusCode}] ${response.requestOptions.path}');
         return handler.next(response);
       },
       onError: (DioException e, handler) async {
-        print('❌ [ERROR ${e.response?.statusCode}] ${e.requestOptions.path}');
         if (e.response?.statusCode == 401) {
-          print('🚨 TOKEN INVALID / EXPIRED');
           
           final prefs = await SharedPreferences.getInstance();
           await prefs.clear();

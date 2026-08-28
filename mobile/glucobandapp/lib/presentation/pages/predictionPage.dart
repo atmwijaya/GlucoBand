@@ -121,6 +121,17 @@ class _PredictionPageState extends State<PredictionPage> {
     setState(() {});
   }
 
+  Future<void> _refreshProfile() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Menyinkronkan data profil...'), duration: Duration(seconds: 1)),
+    );
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.token != null) {
+      await Provider.of<ProfileProvider>(context, listen: false).fetchProfile();
+    }
+    await _loadProfile();
+  }
+
   void _resetForm() {
     setState(() {
       _weightController.clear();
@@ -243,13 +254,13 @@ class _PredictionPageState extends State<PredictionPage> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF613EEA).withOpacity(0.1),
-                      const Color(0xFF8667FF).withOpacity(0.05),
+                      const Color(0xFF613EEA).withValues(alpha: 0.1),
+                      const Color(0xFF8667FF).withValues(alpha: 0.05),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: const Color(0xFF613EEA).withOpacity(0.2),
+                    color: const Color(0xFF613EEA).withValues(alpha: 0.2),
                   ),
                 ),
                 child: const Row(
@@ -258,7 +269,7 @@ class _PredictionPageState extends State<PredictionPage> {
                     SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        'Data diambil dari profil kesehatan Anda. Anda dapat mengubah atau mereset form di bawah ini.',
+                        'Data diambil dari profil kesehatan Anda. Anda dapat mereset atau mengambil ulang data profil.',
                         style: TextStyle(
                           color: Color(0xFF475569),
                           fontSize: 13,
@@ -270,17 +281,28 @@ class _PredictionPageState extends State<PredictionPage> {
               ),
               const SizedBox(height: 16),
 
-              // Tombol Reset
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: _resetForm,
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('Reset Form'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey[600],
+              // Action Buttons
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: _resetForm,
+                    icon: const Icon(Icons.clear_all, size: 18),
+                    label: const Text('Reset Form'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.grey[600],
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: _refreshProfile,
+                    icon: const Icon(Icons.sync, size: 18),
+                    label: const Text('Refresh Data'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF613EEA),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 8),
@@ -507,8 +529,14 @@ class _PredictionPageState extends State<PredictionPage> {
         const SizedBox(height: 6),
         DropdownButtonFormField<String>(
           initialValue: effectiveValue,
+          dropdownColor: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey),
           items: items
-              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+              .map((e) => DropdownMenuItem(
+                    value: e,
+                    child: Text(e, style: const TextStyle(fontSize: 15)),
+                  ))
               .toList(),
           onChanged: (val) {
             if (val != null) onChanged?.call(val);
