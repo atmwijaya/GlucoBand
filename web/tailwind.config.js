@@ -5,6 +5,9 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
+    fontFamily: {
+      sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+    },
     extend: {
        colors: {
         primaryBlue: "#1E3A5F",

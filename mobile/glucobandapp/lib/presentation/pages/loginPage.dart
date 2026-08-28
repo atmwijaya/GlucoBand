@@ -6,7 +6,7 @@ import 'registerPage.dart';
 import 'homePage.dart';
 
 class LoginPage extends StatelessWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -33,13 +33,13 @@ class LoginPage extends StatelessWidget {
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF3B82F6).withOpacity(0.15),
+                        color: const Color(0xFF613EEA).withOpacity(0.15),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.watch, color: Color(0xFF3B82F6), size: 40),
+                  child: const Icon(Icons.watch, color: Color(0xFF613EEA), size: 40),
                 ),
                 const SizedBox(height: 24),
                 const Text(
@@ -95,7 +95,7 @@ class LoginPage extends StatelessWidget {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                            borderSide: const BorderSide(color: Color(0xFF613EEA), width: 1.5),
                           ),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         ),
@@ -121,7 +121,7 @@ class LoginPage extends StatelessWidget {
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+                            borderSide: const BorderSide(color: Color(0xFF613EEA), width: 1.5),
                           ),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         ),
@@ -156,11 +156,11 @@ class LoginPage extends StatelessWidget {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)],
+                            colors: [Color(0xFF613EEA), Color(0xFF8667FF)],
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF3B82F6).withOpacity(0.3),
+                              color: const Color(0xFF613EEA).withOpacity(0.3),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -209,7 +209,7 @@ class LoginPage extends StatelessWidget {
                       onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterPage())),
                       child: const Text(
                         'Daftar',
-                        style: TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.w600),
+                        style: TextStyle(color: Color(0xFF613EEA), fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],

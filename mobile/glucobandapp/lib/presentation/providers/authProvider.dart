@@ -5,6 +5,7 @@ import '../../data/models/userModel.dart';
 
 class AuthProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
+
   UserModel? _user;
   String? _token;
   bool _isLoading = false;
@@ -16,7 +17,7 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  /// Login – password plain text dikirim ke backend
+  /// Login
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     _errorMessage = null;
@@ -24,10 +25,11 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final response = await _apiService.login(email, password);
+      
       _token = response.data['token'];
       _user = UserModel.fromJson(response.data['user']);
 
-      // Simpan token & user secara lokal
+      // Simpan ke SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('token', _token!);
       await prefs.setString('user_name', _user!.name);
@@ -45,7 +47,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Register pasien baru
+  /// Register
   Future<bool> register({
     required String name,
     required String email,
@@ -60,20 +62,23 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _apiService.register(
-        name: name,
-        email: email,
-        password: password,
-        gender: gender,
-        age: age,
-        weight: weight,
-        height: height,
-      );
+      final data = {
+        'name': name,
+        'email': email,
+        'password': password,
+        'gender': gender,
+        'age': age,
+        'weight_kg': weight,
+        'height_cm': height,
+      };
+
+      await _apiService.register(data);   // ← Diubah sesuai ApiService terbaru
+
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
-      if (e.toString().contains('409')) {
+      if (e.toString().contains('409') || e.toString().contains('already')) {
         _errorMessage = 'Email sudah terdaftar.';
       } else {
         _errorMessage = 'Pendaftaran gagal. Silakan coba lagi.';
@@ -84,7 +89,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Logout – hapus data lokal & token
+  /// Logout
   Future<void> logout() async {
     _token = null;
     _user = null;
@@ -93,11 +98,12 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Cek apakah user sudah login sebelumnya (dari penyimpanan lokal)
+  /// Cek status login saat aplikasi dibuka
   Future<bool> checkLoginStatus() async {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('token');
-    if (_token != null) {
+
+    if (_token != null && _token!.isNotEmpty) {
       _user = UserModel(
         id: 0,
         name: prefs.getString('user_name') ?? '',

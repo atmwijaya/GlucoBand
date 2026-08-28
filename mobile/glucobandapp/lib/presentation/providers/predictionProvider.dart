@@ -21,14 +21,12 @@ class PredictionProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final raw = await _api.predictRisk(data, token);
-      if (raw is Map<String, dynamic>) {
-        if (raw.containsKey('error')) {
-          _error = raw['error'];
-        } else {
-          _riskResult = RiskPrediction.fromJson(raw);
-        }
+      if (raw.containsKey('error')) {
+        _error = raw['error'];
+      } else {
+        _riskResult = RiskPrediction.fromJson(raw);
       }
-    } catch (e) {
+        } catch (e) {
       _error = 'Gagal menghubungi server';
     }
     _loading = false;
@@ -41,22 +39,20 @@ class PredictionProvider extends ChangeNotifier {
     notifyListeners();
     try {
       final raw = await _api.predictTrend(history, horizon, token);
-      if (raw is List) {
-        if (raw.isEmpty) {
-          _trendResult = null;
-        } else if (raw.first is Map && (raw.first as Map).containsKey('error')) {
-          _error = raw.first['error'];
-        } else {
-          // List of trend points
-          final points = raw.map((e) => TrendPoint.fromJson(e as Map<String, dynamic>)).toList();
-          _trendResult = TrendPrediction(
-            points: points,
-            horizonHours: horizon,
-            modelVersion: 'lstm_v1',
-          );
-        }
+      if (raw.isEmpty) {
+        _trendResult = null;
+      } else if ((raw.first as Map).containsKey('error')) {
+        _error = raw.first['error'];
+      } else {
+        // List of trend points
+        final points = raw.map((e) => TrendPoint.fromJson(e)).toList();
+        _trendResult = TrendPrediction(
+          points: points,
+          horizonHours: horizon,
+          modelVersion: 'lstm_v1',
+        );
       }
-    } catch (e) {
+        } catch (e) {
       _error = 'Gagal memuat tren';
     }
     _loading = false;

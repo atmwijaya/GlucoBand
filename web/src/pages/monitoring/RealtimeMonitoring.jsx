@@ -63,15 +63,12 @@ export default function RealtimeMonitorPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-sm p-6 flex justify-center">
               <CircularGauge value={glucoseData.glucose_estimated} maxValue={400} label="Glukosa" unit="mg/dL" />
             </div>
             <div className="bg-white rounded-xl shadow-sm p-6 flex justify-center">
               <CircularGauge value={glucoseData.heartRate ?? 0} maxValue={200} label="Heart Rate" unit="BPM" />
-            </div>
-            <div className="bg-white rounded-xl shadow-sm p-6 flex justify-center">
-              <CircularGauge value={glucoseData.spo2 ?? 0} maxValue={100} label="SpO2" unit="%" />
             </div>
             <div className="bg-white rounded-xl shadow-sm p-6 flex justify-center">
               <CircularGauge value={glucoseData.skinTemp ?? 0} maxValue={45} label="Suhu Kulit" unit="°C" />

@@ -15,23 +15,21 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
     setLoading(true);
+
     try {
       const response = await login(email, password);
-      console.log("Response data:", response.data);
       const { token, user } = response.data;
+
       if (user.role !== "tenaga_medis") {
         setError("Hanya tenaga medis yang dapat mengakses dashboard ini.");
         return;
       }
+
       sessionStorage.setItem("token", token);
       sessionStorage.setItem("user", JSON.stringify(user));
       navigate("/admin/dashboard", { replace: true });
     } catch (err) {
       console.error("Login error:", err);
-      if (err.response) {
-        console.log("Response status:", err.response.status);
-        console.log("Response data:", err.response.data);
-      }
       setError("Email atau password salah.");
     } finally {
       setLoading(false);
@@ -39,49 +37,33 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-darkNavy via-primaryDark bg-primaryBlue items-center justify-center relative overflow-hidden">
-        <div className="absolute top-20 left-20 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-white/5 rounded-full blur-3xl" />
-        <div className="relative z-10 text-center px-12">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+      <div className="w-full max-w-md">
+        {/* Logo & Brand */}
+        <div className="flex flex-col items-center mb-10">
           <img
             src="/icons/icon-192x192.png"
             alt="GlucoBand"
-            className="w-24 h-24 mx-auto mb-6 rounded-2xl shadow-lg"
+            className="w-20 h-20 mb-4 rounded-2xl shadow-md"
           />
-          <h1 className="text-5xl font-bold text-white mb-4">
-            Gluco<span className="text-blue-300">Band</span>
+          <h1 className="text-3xl font-bold text-darkNavy">
+            Gluco<span className="text-primaryBlue">Band</span>
           </h1>
-          <p className="text-lg text-slate-300 mb-8">
-            Dashboard pemantauan gula darah non‑invasif untuk tenaga medis.
-          </p>
-          <div className="w-24 h-0.5 bg-blue-400/50 mx-auto mb-6" />
-          <p className="text-sm text-slate-400">
-            Pantau pasien Anda secara real‑time, kapan saja.
-          </p>
         </div>
-      </div>
 
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
-        <div className="w-full max-w-md">
-          <div className="lg:hidden text-center mb-8">
-            <img
-              src="/icons/icon-192x192.png"
-              alt="GlucoBand"
-              className="w-16 h-16 mx-auto mb-3 rounded-xl"
-            />
-            <h1 className="text-2xl font-bold text-darkNavy">
-              GlucoBand Medic
-            </h1>
+        {/* Login Card */}
+        <div className="bg-white rounded-2xl shadow-xl border border-lineGray p-8 md:p-10">
+          <div className="mb-8">
+            <h2 className="text-2xl font-semibold text-darkNavy text-center">
+              Selamat Datang
+            </h2>
+            <p className="text-textSecondary text-center mt-2 text-sm">
+              Masuk ke akun tenaga medis Anda
+            </p>
           </div>
-          <h2 className="text-2xl font-bold text-darkNavy mb-2">
-            Selamat Datang
-          </h2>
-          <p className="text-sm text-textSecondary mb-8">
-            Silakan login untuk mengakses dashboard tenaga medis.
-          </p>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-textPrimary mb-1.5">
                 Email
@@ -92,9 +74,11 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full px-4 py-3 border border-lineGray rounded-lg focus:outline-none focus:ring-2 focus:ring-primaryBlue focus:border-transparent transition-all"
-                placeholder="medis@glucoband.id"
+                placeholder="email@home.id"
               />
             </div>
+
+            {/* Password */}
             <div>
               <label className="block text-sm font-medium text-textPrimary mb-1.5">
                 Password
@@ -113,26 +97,33 @@ export default function LoginPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 flex items-center pr-4 text-gray-500 hover:text-primaryBlue"
                 >
-                  {showPassword ? <FiEyeOff /> : <FiEye />}
+                  {showPassword ? <FiEyeOff size={20} /> : <FiEye size={20} />}
                 </button>
               </div>
             </div>
 
+            {/* Error Message */}
             {error && (
               <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg">
                 {error}
               </div>
             )}
 
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-primaryBlue text-white font-medium rounded-lg hover:bg-blue-600 transition disabled:opacity-50"
+              className="w-full py-3.5 bg-primaryBlue text-white font-medium rounded-lg hover:bg-blue-600 transition-all disabled:opacity-50 text-base"
             >
               {loading ? "Memproses..." : "Login"}
             </button>
           </form>
         </div>
+
+        {/* Footer */}
+        <p className="text-center text-textSecondary text-xs mt-8">
+          © 2026 GlucoBand
+        </p>
       </div>
     </div>
   );

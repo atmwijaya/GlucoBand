@@ -7,7 +7,7 @@ import '../providers/notificationProvider.dart';
 import 'notificationPage.dart';
 
 class BerandaPage extends StatefulWidget {
-  const BerandaPage({Key? key}) : super(key: key);
+  const BerandaPage({super.key});
 
   @override
   State<BerandaPage> createState() => _BerandaPageState();
@@ -55,51 +55,9 @@ class _BerandaPageState extends State<BerandaPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: const Text('GlucoBand'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0.5,
-        automaticallyImplyLeading: false,
-        actions: [
-          Stack(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_outlined),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const NotificationListPage()),
-                  );
-                },
-              ),
-              if (notifProvider.unreadCount > 0)
-                Positioned(
-                  right: 8,
-                  top: 8,
-                  child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFEF4444),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Text(
-                      '${notifProvider.unreadCount}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ],
-      ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
-        color: const Color(0xFF3B82F6),
+        color: const Color(0xFF613EEA),
         backgroundColor: Colors.white,
         strokeWidth: 2.5,
         child: SafeArea(
@@ -109,114 +67,161 @@ class _BerandaPageState extends State<BerandaPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${_getGreeting()}, ${auth.user?.name ?? "Pasien"}!',
-                  style: const TextStyle(
-                    fontSize: 24,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Hello, ${auth.user?.name ?? "Arrasyid"}!',
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1E293B),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              const CircleAvatar(radius: 3, backgroundColor: Color(0xFF10B981)),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'Semarang - Laki-laki, 21',
+                                  style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Stack(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.notifications_none, size: 28, color: Color(0xFF1E293B)),
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => const NotificationListPage()),
+                            );
+                          },
+                        ),
+                        if (notifProvider.unreadCount > 0)
+                          Positioned(
+                            right: 12,
+                            top: 12,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFEF4444),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 30),
+
+                const Text(
+                  'My Device',
+                  style: TextStyle(
+                    fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFF1E293B),
                   ),
                 ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Pantau kesehatan Anda hari ini',
-                  style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
-                ),
-                const SizedBox(height: 24),
-
-                // GlucoBand Card
+                const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [const Color(0xFF3B82F6).withOpacity(0.95), const Color(0xFF60A5FA)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF3B82F6).withOpacity(0.3),
+                        color: Colors.black.withOpacity(0.04),
                         blurRadius: 20,
                         offset: const Offset(0, 8),
                       ),
                     ],
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF0EA5E9),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(Icons.memory, color: Colors.white, size: 32),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'GlucoBand (ESP32)',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                                color: Color(0xFF1E293B),
+                              ),
                             ),
-                            child: const Icon(Icons.watch, color: Colors.white, size: 28),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981).withOpacity(0.3),
-                              borderRadius: BorderRadius.circular(20),
+                            const SizedBox(height: 2),
+                            const Text(
+                              '192.168.1.1',
+                              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
                             ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
+                            const SizedBox(height: 8),
+                            Row(
                               children: [
-                                Icon(Icons.bluetooth_connected, color: Colors.white, size: 14),
-                                SizedBox(width: 4),
-                                Text('Connected', 
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981).withOpacity(0.2),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Text(
+                                    'Connected',
+                                    style: TextStyle(
+                                      color: Color(0xFF10B981),
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.battery_full, color: Color(0xFF10B981), size: 14),
+                                const SizedBox(width: 4),
+                                const Text(
+                                  'Battery: 100%',
                                   style: TextStyle(
-                                    color: Colors.white, 
-                                    fontSize: 11, 
-                                    fontWeight: FontWeight.w600
-                                  )
+                                    color: Color(0xFF64748B),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'GlucoBand (ESP32)',
-                        style: TextStyle(color: Colors.white70, fontSize: 13),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        '192.56 ± 1.5',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.5,
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: 1.0,
-                          backgroundColor: Colors.white24,
-                          valueColor: const AlwaysStoppedAnimation(Colors.greenAccent),
-                          minHeight: 4,
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          shape: BoxShape.circle,
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          const Icon(Icons.battery_full, color: Colors.greenAccent, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Battery 100%', 
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9), 
-                              fontSize: 12
-                            )
-                          ),
-                        ],
+                        child: const Icon(Icons.chevron_right, color: Color(0xFF94A3B8)),
                       ),
                     ],
                   ),
@@ -244,7 +249,7 @@ class _BerandaPageState extends State<BerandaPage> {
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.monitor_heart_outlined, color: Color(0xFF3B82F6), size: 20),
+                          const Icon(Icons.monitor_heart_outlined, color: Color(0xFF613EEA), size: 20),
                           const SizedBox(width: 8),
                           const Text(
                             'Status Terkini',
@@ -263,7 +268,7 @@ class _BerandaPageState extends State<BerandaPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${measurement.latestGlucose.toStringAsFixed(1)}',
+                                measurement.latestGlucose.toStringAsFixed(1),
                                 style: const TextStyle(
                                   fontSize: 40,
                                   fontWeight: FontWeight.w800,
@@ -320,10 +325,20 @@ class _BerandaPageState extends State<BerandaPage> {
                       ),
                       const SizedBox(height: 20),
                       SizedBox(
-                        height: 100,
+                        height: 120,
                         child: LineChart(
                           LineChartData(
-                            gridData: const FlGridData(show: false),
+                            gridData: FlGridData(
+                              show: true,
+                              drawVerticalLine: false,
+                              horizontalInterval: 20,
+                              getDrawingHorizontalLine: (value) {
+                                return FlLine(
+                                  color: Colors.grey.withOpacity(0.15),
+                                  strokeWidth: 1,
+                                );
+                              },
+                            ),
                             titlesData: const FlTitlesData(show: false),
                             borderData: FlBorderData(show: false),
                             lineBarsData: [
@@ -336,11 +351,13 @@ class _BerandaPageState extends State<BerandaPage> {
                                   FlSpot(4, 120),
                                 ],
                                 isCurved: true,
-                                color: const Color(0xFF3B82F6),
-                                barWidth: 2,
+                                color: const Color(0xFF613EEA),
+                                barWidth: 3,
+                                isStrokeCapRound: true,
+                                dotData: const FlDotData(show: true),
                                 belowBarData: BarAreaData(
                                   show: true,
-                                  color: const Color(0xFF3B82F6).withOpacity(0.1),
+                                  color: const Color(0xFF613EEA).withOpacity(0.1),
                                 ),
                               ),
                             ],
@@ -357,65 +374,49 @@ class _BerandaPageState extends State<BerandaPage> {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [const Color(0xFF3B82F6), const Color(0xFF60A5FA)],
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF3B82F6).withOpacity(0.3),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          // TODO: Navigate to history
+                        },
+                        icon: const Icon(Icons.history, color: Color(0xFF613EEA), size: 18),
+                        label: const Text(
+                          'Riwayat',
+                          style: TextStyle(color: Color(0xFF613EEA), fontWeight: FontWeight.w600, fontSize: 14),
                         ),
-                        child: ElevatedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.add_circle_outline, color: Colors.white),
-                          label: const Text(
-                            'Mulai Pengukuran',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF1F5F9), // Lighter grey/blue
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
                           ),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.3)),
-                          borderRadius: BorderRadius.circular(16),
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          // TODO: Navigate to analytics/details
+                        },
+                        icon: const Icon(Icons.analytics_outlined, color: Color(0xFF613EEA), size: 18),
+                        label: const Text(
+                          'Analisis',
+                          style: TextStyle(color: Color(0xFF613EEA), fontWeight: FontWeight.w600, fontSize: 14),
                         ),
-                        child: OutlinedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.trending_up),
-                          label: const Text('Prediksi Tren'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF3B82F6),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            side: BorderSide.none,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFF1F5F9),
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
                           ),
                         ),
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 40),
               ],
             ),
           ),

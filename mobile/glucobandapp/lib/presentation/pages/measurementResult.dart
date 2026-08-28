@@ -7,20 +7,20 @@ class MeasurementResultPage extends StatelessWidget {
   final double temperature;
 
   const MeasurementResultPage({
-    Key? key,
+    super.key,
     required this.glucose,
     required this.heartRate,
     required this.spo2,
     required this.temperature,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
     final status = glucose > 200
         ? 'Hiperglikemia'
         : glucose < 70
-            ? 'Hipoglikemia'
-            : 'Normal';
+        ? 'Hipoglikemia'
+        : 'Normal';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -44,25 +44,26 @@ class MeasurementResultPage extends StatelessWidget {
                     glucose > 200
                         ? const Color(0xFFEF4444)
                         : glucose < 70
-                            ? const Color(0xFFF59E0B)
-                            : const Color(0xFF10B981),
+                        ? const Color(0xFFF59E0B)
+                        : const Color(0xFF10B981),
                     (glucose > 200
                             ? const Color(0xFFEF4444)
                             : glucose < 70
-                                ? const Color(0xFFF59E0B)
-                                : const Color(0xFF10B981))
+                            ? const Color(0xFFF59E0B)
+                            : const Color(0xFF10B981))
                         .withOpacity(0.7),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: (glucose > 200
-                            ? const Color(0xFFEF4444)
-                            : glucose < 70
+                    color:
+                        (glucose > 200
+                                ? const Color(0xFFEF4444)
+                                : glucose < 70
                                 ? const Color(0xFFF59E0B)
                                 : const Color(0xFF10B981))
-                        .withOpacity(0.4),
+                            .withOpacity(0.4),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -70,7 +71,11 @@ class MeasurementResultPage extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  const Icon(Icons.monitor_heart, color: Colors.white, size: 48),
+                  const Icon(
+                    Icons.monitor_heart,
+                    color: Colors.white,
+                    size: 48,
+                  ),
                   const SizedBox(height: 12),
                   Text(
                     '${glucose.toInt()} mg/dL',
@@ -82,14 +87,21 @@ class MeasurementResultPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       status,
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -112,7 +124,7 @@ class MeasurementResultPage extends StatelessWidget {
                 Expanded(
                   child: _buildInfoCard(
                     Icons.air,
-                    const Color(0xFF3B82F6),
+                    const Color(0xFF613EEA),
                     '$spo2%',
                     'SpO2',
                     'Oksigen',
@@ -139,7 +151,11 @@ class MeasurementResultPage extends StatelessWidget {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
                 ],
               ),
               child: Column(
@@ -147,16 +163,36 @@ class MeasurementResultPage extends StatelessWidget {
                 children: [
                   const Text(
                     'Detail Pengukuran',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1E293B),
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  _buildDetailRow(Icons.wifi, 'Sensor NIR', 'AS7263 (610–860 nm)'),
+                  _buildDetailRow(
+                    Icons.wifi,
+                    'Sensor NIR',
+                    'AS7263 (610–860 nm)',
+                  ),
                   const Divider(height: 16),
-                  _buildDetailRow(Icons.favorite, 'Sensor PPG', 'MAX30105 (Red/IR/Green)'),
+                  _buildDetailRow(
+                    Icons.favorite,
+                    'Sensor PPG',
+                    'MAX30105 (Red/IR/Green)',
+                  ),
                   const Divider(height: 16),
-                  _buildDetailRow(Icons.thermostat, 'Sensor Suhu', 'MLX90614 (Inframerah)'),
+                  _buildDetailRow(
+                    Icons.thermostat,
+                    'Sensor Suhu',
+                    'MLX90614 (Inframerah)',
+                  ),
                   const Divider(height: 16),
-                  _buildDetailRow(Icons.psychology, 'Model AI', 'XGBoost Regressor v1.0'),
+                  _buildDetailRow(
+                    Icons.psychology,
+                    'Model AI',
+                    'XGBoost Regressor v1.0',
+                  ),
                 ],
               ),
             ),
@@ -170,9 +206,11 @@ class MeasurementResultPage extends StatelessWidget {
                 icon: const Icon(Icons.arrow_back),
                 label: const Text('Ukur Lagi'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF3B82F6),
-                  side: const BorderSide(color: Color(0xFF3B82F6)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  foregroundColor: const Color(0xFF613EEA),
+                  side: const BorderSide(color: Color(0xFF613EEA)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
               ),
             ),
@@ -183,26 +221,56 @@ class MeasurementResultPage extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoCard(IconData icon, Color color, String value, String unit, String label) {
+  Widget _buildInfoCard(
+    IconData icon,
+    Color color,
+    String value,
+    String unit,
+    String label,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
-      child: Column(children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, color: color, size: 22),
-        ),
-        const SizedBox(height: 8),
-        Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-        Text(unit, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-        const SizedBox(height: 2),
-        Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
-      ]),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+          Text(
+            unit,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -211,16 +279,29 @@ class MeasurementResultPage extends StatelessWidget {
       children: [
         Container(
           padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, size: 18, color: const Color(0xFF3B82F6)),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFF6FF),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 18, color: const Color(0xFF613EEA)),
         ),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
-              Text(detail, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              Text(
+                detail,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              ),
             ],
           ),
         ),

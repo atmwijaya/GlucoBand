@@ -7,7 +7,7 @@ import '../../data/models/predictionModel.dart';
 
 class PredictionResultPage extends StatelessWidget {
   final Map<String, dynamic> inputData;
-  const PredictionResultPage({Key? key, required this.inputData}) : super(key: key);
+  const PredictionResultPage({super.key, required this.inputData});
 
   @override
   Widget build(BuildContext context) {
@@ -34,63 +34,116 @@ class PredictionResultPage extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: const Text('Hasil Prediksi'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0.5,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            if (provider.riskResult != null) _buildRiskCard(provider.riskResult!),
-            if (provider.riskResult != null) const SizedBox(height: 24),
-
-            if (hasTrendData && provider.trendResult != null)
-              _buildTrendCard(provider.trendResult!),
-            
-            if (provider.loading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: CircularProgressIndicator(),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: provider.loading
+            ? const Center(child: CircularProgressIndicator())
+            : SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Back button
+                    Align(
+                      alignment: Alignment.topLeft,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                    if (provider.riskResult != null) ...[
+                      const SizedBox(height: 16),
+                      _buildHeader(provider.trendResult, provider.riskResult!),
+                      const SizedBox(height: 32),
+                      if (hasTrendData && provider.trendResult != null)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: _buildTrendCard(provider.trendResult!),
+                        ),
+                      const SizedBox(height: 16),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _buildWarningCard(provider.riskResult!),
+                      ),
+                      const SizedBox(height: 40),
+                    ]
+                  ],
                 ),
               ),
-          ],
-        ),
       ),
     );
   }
 
-  Widget _buildRiskCard(RiskPrediction risk) {
-    final level = risk.riskLevel;
-    final score = risk.riskScore;
-    final model = risk.modelVersion;
-    Color c = level == 'Tinggi' ? Colors.red : (level == 'Sedang' ? Colors.orange : Colors.green);
+  Widget _buildHeader(TrendPrediction? trend, RiskPrediction risk) {
+    // We use the predicted glucose if available, else from input
+    final predictedGlucose = (trend != null && trend.points.isNotEmpty)
+        ? trend.points.last.glucose
+        : (inputData['blood_glucose_level'] as num).toDouble();
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [c.withOpacity(0.9), c.withOpacity(0.6)]),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: c.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 8))],
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.health_and_safety, color: Colors.white, size: 40),
-          const SizedBox(height: 12),
-          const Text('Risiko Diabetes', style: TextStyle(color: Colors.white70, fontSize: 16)),
-          const SizedBox(height: 8),
-          Text(level, style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 4),
-          Text('Skor: ${score.toStringAsFixed(3)}', style: const TextStyle(color: Colors.white70)),
-          const SizedBox(height: 8),
-          Text('Model: $model', style: const TextStyle(color: Colors.white54, fontSize: 12)),
-        ],
-      ),
+    String statusTitle = 'Normal';
+    String statusSubtitle = 'Kadar gula aman';
+    Color mainColor = const Color(0xFF10B981); // Green
+    IconData icon = Icons.check;
+
+    if (predictedGlucose > 140) {
+      statusTitle = 'Hiperglikemia';
+      statusSubtitle = 'Sangat tinggi!!';
+      mainColor = const Color(0xFFFF5252); // Red from mockup
+      icon = Icons.warning_amber_rounded;
+    } else if (predictedGlucose < 70) {
+      statusTitle = 'Hipoglikemia';
+      statusSubtitle = 'Terlalu rendah!!';
+      mainColor = const Color(0xFFFFB74D); // Orange
+      icon = Icons.error_outline;
+    }
+
+    return Column(
+      children: [
+        Container(
+          width: 90,
+          height: 90,
+          decoration: BoxDecoration(
+            color: mainColor.withOpacity(0.55),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: Colors.white, size: 44),
+        ),
+        const SizedBox(height: 24),
+        Text(
+          predictedGlucose.toStringAsFixed(2),
+          style: TextStyle(
+            fontSize: 64,
+            fontWeight: FontWeight.w800,
+            color: mainColor,
+            height: 1,
+            letterSpacing: -1.5,
+          ),
+        ),
+        Text(
+          'mg/dL',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: mainColor,
+          ),
+        ),
+        const SizedBox(height: 32),
+        Text(
+          statusTitle,
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w800,
+            color: mainColor,
+            letterSpacing: -0.5,
+          ),
+        ),
+        Text(
+          statusSubtitle,
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: mainColor,
+          ),
+        ),
+      ],
     );
   }
 
@@ -98,22 +151,106 @@ class PredictionResultPage extends StatelessWidget {
     final spots = trend.points.asMap().entries.map((e) =>
         FlSpot(e.key.toDouble(), e.value.glucose)).toList();
 
-    // Ambil prediksi terakhir (t+6 jam)
-    final lastPoint = trend.points.isNotEmpty ? trend.points.last : null;
-    final predictedGlucose = lastPoint?.glucose ?? 0;
-    final lastGlucoseFormatted = predictedGlucose.toStringAsFixed(1);
-
-    // Klasifikasi sederhana
-    String status = 'Normal';
-    Color statusColor = Colors.green;
-    
-    if (predictedGlucose > 140) {
-      status = 'Hiperglikemia';
-      statusColor = Colors.red;
-    } else if (predictedGlucose < 70) {
-      status = 'Hipoglikemia';
-      statusColor = Colors.orange;
+    double maxY = 250;
+    for (var p in trend.points) {
+      if (p.glucose > maxY) maxY = p.glucose + 20;
     }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Statistik Tren Gula Darah',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.black87),
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            height: 180,
+            child: LineChart(
+              LineChartData(
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  getDrawingHorizontalLine: (value) => FlLine(
+                    color: Colors.grey.withOpacity(0.4),
+                    strokeWidth: 1,
+                    dashArray: [4, 4],
+                  ),
+                ),
+                titlesData: FlTitlesData(
+                  show: true,
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 22,
+                      getTitlesWidget: (value, meta) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: Text(
+                            '0${(value * 4).toInt() % 24}.00',
+                            style: const TextStyle(fontSize: 9, color: Colors.black54),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 32,
+                      getTitlesWidget: (value, meta) {
+                        return Text(
+                          value.toInt().toString(),
+                          style: const TextStyle(fontSize: 10, color: Colors.black54),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                borderData: FlBorderData(show: false),
+                minY: 0,
+                maxY: maxY,
+                lineBarsData: [
+                  LineChartBarData(
+                    spots: spots,
+                    isCurved: false,
+                    color: const Color(0xFF613EEA),
+                    barWidth: 2,
+                    dotData: const FlDotData(show: false),
+                    belowBarData: BarAreaData(
+                      show: true,
+                      color: const Color(0xFF613EEA).withOpacity(0.12),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWarningCard(RiskPrediction risk) {
+    final isHigh = risk.riskLevel == 'Tinggi';
+    final c = isHigh ? const Color(0xFFFF5252) : (risk.riskLevel == 'Sedang' ? const Color(0xFFFFB74D) : const Color(0xFF10B981));
+    final msg = isHigh ? 'Anda Berisiko Tinggi Diabetes' : (risk.riskLevel == 'Sedang' ? 'Anda Berisiko Sedang' : 'Risiko Diabetes Rendah');
 
     return Container(
       width: double.infinity,
@@ -123,109 +260,52 @@ class PredictionResultPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 20,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Row(
-            children: [
-              const Text(
-                'Prediksi Tren Glukosa',
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  trend.modelVersion,
-                  style: TextStyle(color: Colors.blue.shade700, fontSize: 12, fontWeight: FontWeight.w500),
-                ),
-              ),
-            ],
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: c.withOpacity(0.55),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isHigh ? Icons.warning_amber_rounded : (risk.riskLevel == 'Sedang' ? Icons.info_outline : Icons.check),
+              color: Colors.white,
+              size: 28,
+            ),
           ),
-          const SizedBox(height: 16),
-
-          // Prediksi Utama
-          Center(
+          const SizedBox(width: 16),
+          Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  lastGlucoseFormatted,
+                  msg,
                   style: TextStyle(
-                    fontSize: 52,
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: c,
                   ),
                 ),
-                Text(
-                  'mg/dL (6 jam ke depan)',
+                const SizedBox(height: 4),
+                const Text(
+                  'Berdasarkan profil dan data pengukuran Anda. Silakan konsultasi lebih lanjut dengan dokter.',
                   style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    status,
-                    style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                    ),
+                    fontSize: 10,
+                    color: Colors.black54,
+                    height: 1.3,
                   ),
                 ),
               ],
             ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Chart
-          SizedBox(
-            height: 220,
-            child: LineChart(
-              LineChartData(
-                gridData: FlGridData(show: true, drawVerticalLine: false),
-                titlesData: FlTitlesData(show: true),
-                borderData: FlBorderData(show: false),
-                lineBarsData: [
-                  LineChartBarData(
-                    spots: spots,
-                    isCurved: true,
-                    color: const Color(0xFF3B82F6),
-                    barWidth: 3,
-                    dotData: FlDotData(show: true),
-                    belowBarData: BarAreaData(
-                      show: true,
-                      color: const Color(0xFF3B82F6).withOpacity(0.08),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-          const Text(
-            'Grafik di atas menunjukkan prediksi glukosa darah 6 jam ke depan',
-            style: TextStyle(fontSize: 12, color: Colors.grey),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
