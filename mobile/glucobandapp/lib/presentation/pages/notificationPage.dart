@@ -4,7 +4,7 @@ import '../providers/notificationProvider.dart';
 import '../providers/authProvider.dart';
 
 class NotificationListPage extends StatefulWidget {
-  const NotificationListPage({Key? key}) : super(key: key);
+  const NotificationListPage({super.key});
 
   @override
   State<NotificationListPage> createState() => _NotificationListPageState();
@@ -37,7 +37,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
       ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
-        color: const Color(0xFF3B82F6),
+        color: const Color(0xFF613EEA),
         child: Consumer<NotificationProvider>(
           builder: (context, provider, _) {
             if (provider.isLoading) {
@@ -84,7 +84,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
                 final isSubTypeHypo = notif.subtype == 'hipoglikemia';
                 final isSubTypeHyper = notif.subtype == 'hiperglikemia';
 
-                Color accentColor = const Color(0xFF3B82F6);
+                Color accentColor = const Color(0xFF613EEA);
                 IconData accentIcon = Icons.message_outlined;
                 Color accentBg = const Color(0xFFEFF6FF);
 
@@ -152,7 +152,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
                                         width: 8,
                                         height: 8,
                                         decoration: const BoxDecoration(
-                                          color: Color(0xFF3B82F6),
+                                          color: Color(0xFF613EEA),
                                           shape: BoxShape.circle,
                                         ),
                                       ),

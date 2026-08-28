@@ -25,7 +25,7 @@ def login(cursor):
     identity_string = json.dumps({'id': user['id'], 'role': user['role']})
     token = create_access_token(
         identity=identity_string,
-        expires_delta=timedelta(hours=24)
+        expires_delta=timedelta(days=30)
     )
     return jsonify(token=token, user={
         'id': user['id'],

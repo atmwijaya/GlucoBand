@@ -4,7 +4,7 @@ import '../providers/authProvider.dart';
 import 'loginPage.dart';
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({Key? key}) : super(key: key);
+  const RegisterPage({super.key});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -95,11 +95,11 @@ class _RegisterPageState extends State<RegisterPage> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF3B82F6), Color(0xFF60A5FA)],
+                    colors: [Color(0xFF613EEA), Color(0xFF8667FF)],
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF3B82F6).withOpacity(0.3),
+                      color: const Color(0xFF613EEA).withOpacity(0.3),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -144,7 +144,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   const Text('Sudah punya akun? ', style: TextStyle(color: Color(0xFF64748B))),
                   GestureDetector(
                     onTap: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginPage())),
-                    child: const Text('Masuk', style: TextStyle(color: Color(0xFF3B82F6), fontWeight: FontWeight.w600)),
+                    child: const Text('Masuk', style: TextStyle(color: Color(0xFF613EEA), fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
@@ -177,7 +177,7 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF613EEA), width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
@@ -193,7 +193,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Widget _buildDropdown(String value, String label, IconData icon, List<String> items, List<String> labels, void Function(String?)? onChanged) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       items: List.generate(items.length, (i) => DropdownMenuItem(value: items[i], child: Text(labels[i]))),
       onChanged: onChanged,
       decoration: InputDecoration(
@@ -211,7 +211,7 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF613EEA), width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),

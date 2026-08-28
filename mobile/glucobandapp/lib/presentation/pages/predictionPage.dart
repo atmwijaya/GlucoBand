@@ -6,7 +6,7 @@ import '../providers/predictionProvider.dart';
 import 'predictionResult.dart';
 
 class PredictionPage extends StatefulWidget {
-  const PredictionPage({Key? key}) : super(key: key);
+  const PredictionPage({super.key});
 
   @override
   State<PredictionPage> createState() => _PredictionPageState();
@@ -42,14 +42,22 @@ class _PredictionPageState extends State<PredictionPage> {
     });
   }
 
-  void _loadProfile() {
+  Future<void> _loadProfile() async {
     final profileProvider = Provider.of<ProfileProvider>(
       context,
       listen: false,
     );
+    
+    if (profileProvider.profileData == null) {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      if (auth.token != null) {
+        await profileProvider.fetchProfile();
+      }
+    }
+
     final profile = profileProvider.profileData;
 
-    if (profile != null) {
+    if (profile != null && mounted) {
       setState(() {
         // Isi data dasar
         if (profile['weight_kg'] != null) {
@@ -88,22 +96,17 @@ class _PredictionPageState extends State<PredictionPage> {
         }
         if (profile['smoking_history'] != null) {
           final smokingCode = profile['smoking_history'];
-          if (smokingCode == 0)
+          if (smokingCode == 0) {
             _smoking = 'Tidak Pernah';
-          else if (smokingCode == 1)
+          } else if (smokingCode == 1) {
             _smoking = 'Pernah';
-          else if (smokingCode == 2)
+          } else if (smokingCode == 2) {
             _smoking = 'Masih';
+          }
         }
 
         _calculateBMI();
       });
-    } else {
-      // Jika profile belum ada, coba fetch lagi
-      final auth = Provider.of<AuthProvider>(context, listen: false);
-      if (auth.token != null) {
-        profileProvider.fetchProfile(auth.token!);
-      }
     }
   }
 
@@ -240,18 +243,18 @@ class _PredictionPageState extends State<PredictionPage> {
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF3B82F6).withOpacity(0.1),
-                      const Color(0xFF60A5FA).withOpacity(0.05),
+                      const Color(0xFF613EEA).withOpacity(0.1),
+                      const Color(0xFF8667FF).withOpacity(0.05),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: const Color(0xFF3B82F6).withOpacity(0.2),
+                    color: const Color(0xFF613EEA).withOpacity(0.2),
                   ),
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.info_outline, color: Color(0xFF3B82F6)),
+                    Icon(Icons.info_outline, color: Color(0xFF613EEA)),
                     SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -406,11 +409,17 @@ class _PredictionPageState extends State<PredictionPage> {
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
+                height: 56, // Slightly taller for modern look
+                child: ElevatedButton(
                   onPressed: _submit,
-                  icon: const Icon(Icons.insights, color: Colors.white),
-                  label: const Text(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF613EEA),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text(
                     'Prediksi Sekarang',
                     style: TextStyle(
                       color: Colors.white,
@@ -418,16 +427,9 @@ class _PredictionPageState extends State<PredictionPage> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B82F6),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 40),
             ],
           ),
         ),
@@ -442,34 +444,44 @@ class _PredictionPageState extends State<PredictionPage> {
     TextInputType? type, [
     Function(String)? onChanged,
   ]) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: type,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: icon != null
-            ? Icon(icon, color: const Color(0xFF64748B))
-            : null,
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: Color(0xFF1E293B), // Dark text for label
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: controller,
+          keyboardType: type,
+          onChanged: onChanged,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30),
+              borderSide: const BorderSide(color: Color(0xFF613EEA)),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 14,
+            ),
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF3B82F6)),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-      ),
+      ],
     );
   }
 
@@ -481,35 +493,48 @@ class _PredictionPageState extends State<PredictionPage> {
   ) {
     final effectiveValue = items.contains(value) ? value : items.first;
 
-    return DropdownButtonFormField<String>(
-      value: effectiveValue,
-      items: items
-          .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-          .toList(),
-      onChanged: (val) {
-        if (val != null) onChanged?.call(val);
-      },
-      decoration: InputDecoration(
-        labelText: label,
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: Color(0xFF1E293B),
+          ),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<String>(
+          initialValue: effectiveValue,
+          items: items
+              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+              .toList(),
+          onChanged: (val) {
+            if (val != null) onChanged?.call(val);
+          },
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30),
+              borderSide: const BorderSide(color: Color(0xFF613EEA)),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 14,
+            ),
+          ),
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF3B82F6)),
-        ),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-      ),
+      ],
     );
   }
 }

@@ -9,8 +9,12 @@ import 'presentation/providers/predictionProvider.dart';
 import 'presentation/pages/loginPage.dart';
 import 'presentation/pages/homePage.dart';
 
+import 'package:google_fonts/google_fonts.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 class GlucoBandApp extends StatelessWidget {
-  const GlucoBandApp({Key? key}) : super(key: key);
+  const GlucoBandApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -24,8 +28,22 @@ class GlucoBandApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PredictionProvider()),
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: 'GlucoBand',
-        theme: ThemeData(primarySwatch: Colors.blue),
+        theme: ThemeData(
+          primaryColor: const Color(0xFF613EEA),
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF613EEA)),
+          textTheme: GoogleFonts.plusJakartaSansTextTheme(
+            Theme.of(context).textTheme,
+          ),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.white,
+            foregroundColor: Color(0xFF1E293B),
+            elevation: 0,
+            centerTitle: true,
+          ),
+          scaffoldBackgroundColor: const Color(0xFFF5F7FA),
+        ),
         home: Consumer<AuthProvider>(
           builder: (context, auth, _) {
             if (auth.isLoggedIn) {

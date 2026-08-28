@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/profileProvider.dart';
-import '../providers/authProvider.dart';
 
 class EditHealthProfilePage extends StatefulWidget {
-  const EditHealthProfilePage({Key? key}) : super(key: key);
+  const EditHealthProfilePage({super.key});
+
   @override
   State<EditHealthProfilePage> createState() => _EditHealthProfilePageState();
 }
@@ -24,9 +24,13 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final profile = Provider.of<ProfileProvider>(context, listen: false).profileData;
-      if (profile != null) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadProfile());
+  }
+
+  void _loadProfile() {
+    final profile = Provider.of<ProfileProvider>(context, listen: false).profileData;
+    if (profile != null) {
+      setState(() {
         weightController.text = '${profile['weight_kg'] ?? ''}';
         heightController.text = '${profile['height_cm'] ?? ''}';
         sysController.text = '${profile['blood_pressure_sys'] ?? ''}';
@@ -36,8 +40,8 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
         diabetesHistory = profile['diabetes_history'] == 1;
         smokingHistory = profile['smoking_history'] == 1;
         _calculateBMI();
-      }
-    });
+      });
+    }
   }
 
   void _calculateBMI() {
@@ -54,7 +58,6 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final auth = Provider.of<AuthProvider>(context, listen: false);
     final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
 
     final data = {
@@ -68,7 +71,7 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
       'smoking_history': smokingHistory ? 1 : 0,
     };
 
-    final success = await profileProvider.updateProfile(auth.token!, data);
+    final success = await profileProvider.updateProfile(data);
     if (success) {
       if (mounted) Navigator.pop(context);
     } else {
@@ -227,7 +230,7 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
                       title: const Text('Riwayat Diabetes', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                       subtitle: const Text('Pernah didiagnosis diabetes melitus'),
                       value: diabetesHistory,
-                      activeColor: const Color(0xFF3B82F6),
+                      activeThumbColor: const Color(0xFF613EEA),
                       onChanged: (v) => setState(() => diabetesHistory = v),
                     ),
                     const Divider(height: 1, indent: 16, endIndent: 16),
@@ -235,7 +238,7 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
                       title: const Text('Riwayat Merokok', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                       subtitle: const Text('Pernah atau sedang merokok'),
                       value: smokingHistory,
-                      activeColor: const Color(0xFF3B82F6),
+                      activeThumbColor: const Color(0xFF613EEA),
                       onChanged: (v) => setState(() => smokingHistory = v),
                     ),
                   ],
@@ -250,7 +253,7 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
                   icon: const Icon(Icons.check_circle_outline, color: Colors.white),
                   label: const Text('Simpan', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3B82F6),
+                    backgroundColor: const Color(0xFF613EEA),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     elevation: 0,
                   ),
@@ -285,7 +288,7 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF613EEA), width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
@@ -295,7 +298,7 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
   Widget _buildDropdown(String value, IconData icon, String label, List<String> items,
       void Function(String?)? onChanged, {List<String>? itemsLabel}) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
@@ -311,7 +314,7 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF613EEA), width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),

@@ -6,7 +6,7 @@ import 'faqPage.dart';
 import 'profilePage.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -38,13 +38,9 @@ class _HomePageState extends State<HomePage> {
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, -5),
-                ),
-              ],
+              border: Border(
+                top: BorderSide(color: Colors.grey.withOpacity(0.1), width: 1),
+              ),
             ),
             child: SafeArea(
               child: Padding(
@@ -53,60 +49,44 @@ class _HomePageState extends State<HomePage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
-                    _buildNavItem(1, Icons.trending_up_outlined, Icons.trending_up, 'Predict'),
-                    const SizedBox(width: 48), // ruang untuk tombol tengah
-                    _buildNavItem(3, Icons.help_outline_outlined, Icons.help_outline, 'FAQ'),
+                    _buildNavItem(1, Icons.show_chart, Icons.show_chart, 'Predict'),
+                    const SizedBox(width: 56), // ruang untuk tombol tengah
+                    _buildNavItem(3, Icons.help_outline, Icons.help, 'FAQ'),
                     _buildNavItem(4, Icons.person_outline, Icons.person, 'Profile'),
                   ],
                 ),
               ),
             ),
           ),
-          // Tombol Ukur melayang
+          // Tombol Ukur melayang (FAB)
           Positioned(
-            top: -28,
+            top: -24,
             child: GestureDetector(
               onTap: () => setState(() => _currentIndex = 2),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 300),
-                curve: Curves.easeInOut,
-                padding: const EdgeInsets.all(4),
+              child: Container(
+                padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: _currentIndex == 2
-                      ? const Color(0xFF3B82F6)
-                      : const Color(0xFFEFF6FF),
-                  boxShadow: _currentIndex == 2
-                      ? [
-                          BoxShadow(
-                            color: const Color(0xFF3B82F6).withOpacity(0.4),
-                            blurRadius: 20,
-                            offset: const Offset(0, 4),
-                          )
-                        ]
-                      : [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
-                            blurRadius: 10,
-                            offset: const Offset(0, 2),
-                          )
-                        ],
+                  color: const Color(0xFF613EEA).withOpacity(0.2), // Halo effect
                 ),
                 child: Container(
                   width: 56,
                   height: 56,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _currentIndex == 2
-                        ? const Color(0xFF3B82F6)
-                        : Colors.white,
+                    color: Color(0xFF613EEA),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Color(0x66613EEA),
+                        blurRadius: 10,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.monitor_heart_outlined,
-                    color: _currentIndex == 2
-                        ? Colors.white
-                        : const Color(0xFF3B82F6),
-                    size: 28,
+                    color: Colors.white,
+                    size: 30,
                   ),
                 ),
               ),
@@ -122,22 +102,14 @@ class _HomePageState extends State<HomePage> {
     return GestureDetector(
       onTap: () => setState(() => _currentIndex = index),
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+      child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? const Color(0xFF3B82F6).withOpacity(0.08)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               isSelected ? filledIcon : outlinedIcon,
-              color: isSelected ? const Color(0xFF3B82F6) : const Color(0xFF94A3B8),
+              color: isSelected ? const Color(0xFF613EEA) : const Color(0xFF94A3B8),
               size: 24,
             ),
             const SizedBox(height: 4),
@@ -146,7 +118,7 @@ class _HomePageState extends State<HomePage> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? const Color(0xFF3B82F6) : const Color(0xFF94A3B8),
+                color: isSelected ? const Color(0xFF613EEA) : const Color(0xFF94A3B8),
               ),
             ),
           ],

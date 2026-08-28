@@ -25,7 +25,6 @@ def get_patient_notifications():
         return jsonify({'msg': 'Koneksi database gagal'}), 500
 
     try:
-        # Ambil notifikasi alert (tanpa is_read)
         cursor.execute("""
             SELECT id, type, glucose_value, created_at
             FROM notifications
@@ -35,7 +34,6 @@ def get_patient_notifications():
         """, (patient_id,))
         alerts = cursor.fetchall()
 
-        # Ambil rekomendasi (dengan is_read)
         cursor.execute("""
             SELECT id, content, created_at, is_read
             FROM recommendations
@@ -45,16 +43,15 @@ def get_patient_notifications():
         """, (patient_id,))
         recommendations = cursor.fetchall()
 
-        # Gabungkan
         notifications = []
         for alert in alerts:
             notifications.append({
                 'id': alert['id'],
                 'type': 'alert',
-                'subtype': alert['type'],          # 'hipoglikemia' atau 'hiperglikemia'
+                'subtype': alert['type'], 
                 'message': f"Kadar gula {alert['glucose_value']} mg/dL ({alert['type']})",
                 'created_at': alert['created_at'].isoformat() if alert['created_at'] else None,
-                'is_read': False                   # notifikasi alert selalu belum dibaca (default)
+                'is_read': False 
             })
 
         for rec in recommendations:
@@ -93,7 +90,6 @@ def mark_recommendation_read(id):
         return jsonify({'msg': 'Koneksi database gagal'}), 500
 
     try:
-        # Pastikan rekomendasi milik pasien ini
         cursor.execute(
             "UPDATE recommendations SET is_read = 1 WHERE id = %s AND patient_id = %s",
             (id, patient_id)

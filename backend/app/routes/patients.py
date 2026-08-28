@@ -7,7 +7,6 @@ from db import get_connection
 patients_bp = Blueprint('patients', __name__)
 
 def medis_required(fn):
-    """Decorator untuk memvalidasi JWT dan role tenaga medis."""
     @wraps(fn)
     @jwt_required()
     def wrapper(*args, **kwargs):
@@ -20,13 +19,11 @@ def medis_required(fn):
             return jsonify({'msg': 'Token rusak'}), 422
         if identity.get('role') != 'tenaga_medis':
             return jsonify({'msg': 'Hanya tenaga medis yang dapat mengakses'}), 403
-        # Teruskan identity ke fungsi yang dibungkus
         return fn(identity, *args, **kwargs)
     return wrapper
 
 
 def _get_cursor():
-    """Helper: dapatkan koneksi dan cursor, atau return None."""
     conn = get_connection()
     if conn is None:
         return None, None

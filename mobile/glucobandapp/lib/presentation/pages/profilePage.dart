@@ -7,7 +7,7 @@ import 'editHealthProfile.dart';
 import 'loginPage.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({Key? key}) : super(key: key);
+  const ProfilePage({super.key});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -23,17 +23,12 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadProfile() async {
-    final auth = Provider.of<AuthProvider>(context, listen: false);
     final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
-    
-    if (auth.token != null) {
-      await profileProvider.fetchProfile(auth.token!);
-    }
+    await profileProvider.fetchProfile();
   }
 
   Future<void> _onRefresh() async {
     await _loadProfile();
-    // Delay kecil agar animasi refresh terasa lebih natural
     await Future.delayed(const Duration(milliseconds: 600));
   }
 
@@ -44,238 +39,265 @@ class _ProfilePageState extends State<ProfilePage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-      appBar: AppBar(
-        title: const Text('Profile'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0.5,
-      ),
       body: RefreshIndicator(
         onRefresh: _onRefresh,
-        color: const Color(0xFF3B82F6),
+        color: const Color(0xFF613EEA),
         backgroundColor: Colors.white,
-        strokeWidth: 2.5,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // Profile Header
+              // Purple Header
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
+                color: const Color(0xFF613EEA),
+                padding: const EdgeInsets.only(top: 60, bottom: 40, left: 16, right: 16),
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: const Color(0xFFE8F0FE),
-                      child: Text(
-                        (user?.name ?? '?')[0].toUpperCase(),
-                        style: const TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Color.fromARGB(255, 171, 59, 246),
-                        ),
+                    // Top Bar (Settings icon)
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: IconButton(
+                        icon: const Icon(Icons.settings_outlined, color: Colors.white),
+                        onPressed: () {
+                          // Settings action
+                        },
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      user?.name ?? 'Nama Pengguna',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                    const SizedBox(height: 10),
+                    // Avatar with Camera Badge
+                    Stack(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 3),
+                          ),
+                          child: CircleAvatar(
+                            radius: 45,
+                            backgroundColor: Colors.white,
+                            backgroundImage: null, // Use user image if available
+                            child: user?.name == null
+                                ? const Icon(Icons.person, size: 45, color: Colors.grey)
+                                : Text(
+                                    user!.name[0].toUpperCase(),
+                                    style: const TextStyle(
+                                      fontSize: 36,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF613EEA),
+                                    ),
+                                  ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF10B981),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.camera_alt, color: Colors.white, size: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    // Name and Edit Icon
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          user?.name ?? 'Nama Pengguna',
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () {
+                            // Edit name action
+                          },
+                          child: const Icon(Icons.edit, color: Colors.white70, size: 18),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
                       user?.email ?? 'email@example.com',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
                     ),
                   ],
                 ),
               ),
 
-              const SizedBox(height: 16),
-
-              // Health Metrics
-              Consumer<ProfileProvider>(
-                builder: (context, provider, _) {
-                  if (provider.profileData == null) {
-                    return const SizedBox(
-                      height: 60,
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-
-                  final p = provider.profileData!;
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.03),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Health Metrics',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildHealthMetric('BMI', (p['bmi'] ?? 0).toStringAsFixed(1)),
-                            _buildHealthMetric('Weight', '${p['weight_kg'] ?? '-'} kg'),
-                            _buildHealthMetric('Height', '${p['height_cm'] ?? '-'} cm'),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'Blood Pressure: ${p['blood_pressure_sys'] ?? '-'} / ${p['blood_pressure_dia'] ?? '-'}',
-                              style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Center(
-                          child: TextButton.icon(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const EditHealthProfilePage(),
+              // Health Profile Data & Menu Options
+              Transform.translate(
+                offset: const Offset(0, -20), // Overlap slightly
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      // Health Profile Section
+                      Consumer<ProfileProvider>(
+                        builder: (context, profileProvider, child) {
+                          final profile = profileProvider.profileData;
+                          final weight = profile?['weight_kg']?.toString() ?? '-';
+                          final height = profile?['height_cm']?.toString() ?? '-';
+                          final age = profile?['age']?.toString() ?? '-';
+                          
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
                                 ),
-                              ).then((_) => _loadProfile());
-                            },
-                            icon: const Icon(Icons.edit_outlined, size: 16),
-                            label: const Text('Edit'),
-                            style: TextButton.styleFrom(
-                              foregroundColor: const Color(0xFF3B82F6),
+                              ],
                             ),
-                          ),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Profil Kesehatan',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () async {
+                                        await Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (_) => const EditHealthProfilePage()),
+                                        );
+                                        // Refresh data after edit
+                                        _loadProfile();
+                                      },
+                                      child: const Icon(Icons.edit_note, color: Color(0xFF613EEA)),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 20),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  children: [
+                                    _buildHealthMetric('Umur', '$age th'),
+                                    Container(width: 1, height: 40, color: Colors.grey[200]),
+                                    _buildHealthMetric('Tinggi', '$height cm'),
+                                    Container(width: 1, height: 40, color: Colors.grey[200]),
+                                    _buildHealthMetric('Berat', '$weight kg'),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Account Security Section
+                      Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              // Account Security
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Padding(
-                      padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
-                      child: Text(
-                        'Account Security',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
+                              child: Text(
+                                'Account Security',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
+                            _buildModernMenuItem(
+                              icon: Icons.lock_outline,
+                              title: 'Change Password',
+                              onTap: () {},
+                              iconColor: const Color(0xFF613EEA),
+                              iconBgColor: const Color(0xFF613EEA).withOpacity(0.1),
+                            ),
+                            const Divider(height: 1, indent: 68, endIndent: 16, color: Color(0xFFE2E8F0)),
+                            _buildModernMenuItem(
+                              icon: Icons.shield_outlined,
+                              title: 'Two-Factor Authentication',
+                              onTap: () {},
+                              iconColor: const Color(0xFF613EEA),
+                              iconBgColor: const Color(0xFF613EEA).withOpacity(0.1),
+                              trailing: Switch(
+                                value: false,
+                                onChanged: (val) {},
+                                activeThumbColor: const Color(0xFF613EEA),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    _buildMenuItem(Icons.lock_outline, 'Change Password', () {}),
-                    const Divider(height: 1, indent: 52, endIndent: 16),
-                    _buildMenuItem(
-                      Icons.fingerprint,
-                      'Two-Factor Authentication',
-                      () {},
-                      trailing: Text(
-                        'Off',
-                        style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                      const SizedBox(height: 16),
+
+                      // Help & Support Single Card
+                      _buildSingleCardMenu(
+                        icon: Icons.help_outline,
+                        title: 'Help & Support',
+                        onTap: () {},
+                        iconColor: const Color(0xFF613EEA),
+                        iconBgColor: const Color(0xFF613EEA).withOpacity(0.1),
                       ),
-                    ),
-                  ],
-                ),
-              ),
+                      const SizedBox(height: 16),
 
-              const SizedBox(height: 16),
+                      // About App Single Card
+                      _buildSingleCardMenu(
+                        icon: Icons.info_outline,
+                        title: 'About App',
+                        onTap: () {},
+                        iconColor: const Color(0xFF613EEA),
+                        iconBgColor: const Color(0xFF613EEA).withOpacity(0.1),
+                      ),
+                      const SizedBox(height: 16),
 
-              // Help & Support
-              Container(
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    _buildMenuItem(Icons.help_outline, 'Help & Support', () {}),
-                    const Divider(height: 1, indent: 52, endIndent: 16),
-                    _buildMenuItem(Icons.info_outline, 'About App', () {}),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Logout Button
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => _showLogoutDialog(context, auth),
-                  icon: const Icon(Icons.logout, color: Colors.red),
-                  label: const Text(
-                    'Log Out',
-                    style: TextStyle(color: Colors.red, fontSize: 16),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    side: BorderSide(color: Colors.red.shade200),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                      // Logout Single Card
+                      _buildSingleCardMenu(
+                        icon: Icons.logout,
+                        title: 'Log Out',
+                        onTap: () => _showLogoutDialog(context, auth),
+                        iconColor: Colors.red,
+                        iconBgColor: Colors.red.withOpacity(0.1),
+                        titleColor: Colors.red,
+                        hideChevron: true,
+                      ),
+                      const SizedBox(height: 40),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -303,25 +325,79 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildMenuItem(IconData icon, String title, VoidCallback onTap, {Widget? trailing}) {
+  Widget _buildSingleCardMenu({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    required Color iconColor,
+    required Color iconBgColor,
+    Color? titleColor,
+    bool hideChevron = false,
+  }) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: _buildModernMenuItem(
+        icon: icon,
+        title: title,
+        onTap: onTap,
+        iconColor: iconColor,
+        iconBgColor: iconBgColor,
+        titleColor: titleColor,
+        trailing: hideChevron ? const SizedBox() : null,
+      ),
+    );
+  }
+
+  Widget _buildModernMenuItem({
+    required IconData icon,
+    required String title,
+    required VoidCallback onTap,
+    required Color iconColor,
+    required Color iconBgColor,
+    Color? titleColor,
+    Widget? trailing,
+  }) {
     return InkWell(
       onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Row(
           children: [
-            Icon(icon, color: const Color(0xFF64748B), size: 22),
-            const SizedBox(width: 14),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: iconColor, size: 22),
+            ),
+            const SizedBox(width: 16),
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(fontSize: 15, color: Color(0xFF1E293B)),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: titleColor ?? const Color(0xFF1E293B),
+                ),
               ),
             ),
             if (trailing != null)
               trailing
             else
-              Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+              Icon(Icons.chevron_right, color: Colors.grey[400], size: 24),
           ],
         ),
       ),

@@ -63,7 +63,6 @@ def update_profile():
     conn, cursor = _get_cursor()
     if not conn:
         return jsonify({'msg': 'Koneksi database gagal'}), 500
-
     try:
         allowed_fields = ['age', 'gender', 'weight_kg', 'height_cm',
                           'blood_pressure_sys', 'blood_pressure_dia',
