@@ -101,7 +101,7 @@ class PredictionResultPage extends StatelessWidget {
           width: 90,
           height: 90,
           decoration: BoxDecoration(
-            color: mainColor.withOpacity(0.55),
+            color: mainColor.withValues(alpha: 0.55),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: Colors.white, size: 44),
@@ -164,7 +164,7 @@ class PredictionResultPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -186,7 +186,7 @@ class PredictionResultPage extends StatelessWidget {
                   show: true,
                   drawVerticalLine: false,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: Colors.grey.withOpacity(0.4),
+                    color: Colors.grey.withValues(alpha: 0.4),
                     strokeWidth: 1,
                     dashArray: [4, 4],
                   ),
@@ -235,7 +235,7 @@ class PredictionResultPage extends StatelessWidget {
                     dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: const Color(0xFF613EEA).withOpacity(0.12),
+                      color: const Color(0xFF613EEA).withValues(alpha: 0.12),
                     ),
                   ),
                 ],
@@ -260,7 +260,7 @@ class PredictionResultPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 20,
             offset: const Offset(0, 4),
           ),
@@ -273,7 +273,7 @@ class PredictionResultPage extends StatelessWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: c.withOpacity(0.55),
+              color: c.withValues(alpha: 0.55),
               shape: BoxShape.circle,
             ),
             child: Icon(

@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
+import 'measurementPage.dart';
 
 class MeasurementResultPage extends StatelessWidget {
   final double glucose;
   final int heartRate;
-  final int spo2;
   final double temperature;
 
   const MeasurementResultPage({
     super.key,
     required this.glucose,
     required this.heartRate,
-    required this.spo2,
     required this.temperature,
   });
 
@@ -25,6 +24,10 @@ class MeasurementResultPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text('Hasil Pengukuran'),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
@@ -51,7 +54,7 @@ class MeasurementResultPage extends StatelessWidget {
                             : glucose < 70
                             ? const Color(0xFFF59E0B)
                             : const Color(0xFF10B981))
-                        .withOpacity(0.7),
+                        .withValues(alpha: 0.7),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(20),
@@ -63,7 +66,7 @@ class MeasurementResultPage extends StatelessWidget {
                                 : glucose < 70
                                 ? const Color(0xFFF59E0B)
                                 : const Color(0xFF10B981))
-                            .withOpacity(0.4),
+                            .withValues(alpha: 0.4),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -92,7 +95,7 @@ class MeasurementResultPage extends StatelessWidget {
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
@@ -123,16 +126,6 @@ class MeasurementResultPage extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildInfoCard(
-                    Icons.air,
-                    const Color(0xFF613EEA),
-                    '$spo2%',
-                    'SpO2',
-                    'Oksigen',
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildInfoCard(
                     Icons.thermostat,
                     const Color(0xFFF59E0B),
                     '${temperature.toStringAsFixed(1)}°C',
@@ -152,7 +145,7 @@ class MeasurementResultPage extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
+                    color: Colors.black.withValues(alpha: 0.03),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -197,22 +190,76 @@ class MeasurementResultPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            // Tombol kembali
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: OutlinedButton.icon(
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.arrow_back),
-                label: const Text('Ukur Lagi'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF613EEA),
-                  side: const BorderSide(color: Color(0xFF613EEA)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+            // Tombol-tombol aksi
+            Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // Tindakan saat data disimpan
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Data berhasil disimpan!'),
+                          backgroundColor: Color(0xFF10B981),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                      Navigator.pop(context); // Kembali ke Beranda
+                    },
+                    icon: const Icon(Icons.save),
+                    label: const Text(
+                      'Simpan Data',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF613EEA),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const MeasurementPage(autoStart: true),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.refresh),
+                    label: const Text(
+                      'Ukur Lagi',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF613EEA),
+                      side: const BorderSide(
+                        color: Color(0xFF613EEA),
+                        width: 1.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 20),
           ],
@@ -235,7 +282,7 @@ class MeasurementResultPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -246,7 +293,7 @@ class MeasurementResultPage extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: color, size: 22),

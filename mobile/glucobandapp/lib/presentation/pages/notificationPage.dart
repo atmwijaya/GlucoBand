@@ -79,7 +79,6 @@ class _NotificationListPageState extends State<NotificationListPage> {
               itemBuilder: (context, index) {
                 // ... (kode item notification tetap sama)
                 final notif = provider.notifications[index];
-                final isRecommendation = notif.type == 'recommendation';
                 final isAlert = notif.type == 'alert';
                 final isSubTypeHypo = notif.subtype == 'hipoglikemia';
                 final isSubTypeHyper = notif.subtype == 'hiperglikemia';
@@ -107,7 +106,7 @@ class _NotificationListPageState extends State<NotificationListPage> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
+                        color: Colors.black.withValues(alpha: 0.03),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),

@@ -107,7 +107,7 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -135,8 +135,8 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
                           color: bmi > 25
-                              ? const Color(0xFFF59E0B).withOpacity(0.1)
-                              : const Color(0xFF10B981).withOpacity(0.1),
+                              ? const Color(0xFFF59E0B).withValues(alpha: 0.1)
+                              : const Color(0xFF10B981).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -161,7 +161,7 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -190,7 +190,7 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -218,7 +218,7 @@ class _EditHealthProfilePageState extends State<EditHealthProfilePage> {
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),

@@ -50,13 +50,23 @@ class _FaqPageState extends State<FaqPage> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
-              child: const Text(
-                'FAQ',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E293B),
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'FAQ',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, color: Color(0xFF1E293B)),
+                    onPressed: _onRefresh,
+                    tooltip: 'Refresh',
+                  ),
+                ],
               ),
             ),
             Container(
@@ -157,7 +167,7 @@ class _FaqPageState extends State<FaqPage> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.03),
+                              color: Colors.black.withValues(alpha: 0.03),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),

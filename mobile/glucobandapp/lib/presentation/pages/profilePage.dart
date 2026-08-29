@@ -160,7 +160,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               borderRadius: BorderRadius.circular(16),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.04),
+                                  color: Colors.black.withValues(alpha: 0.04),
                                   blurRadius: 20,
                                   offset: const Offset(0, 10),
                                 ),
@@ -218,7 +218,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           borderRadius: BorderRadius.circular(16),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.04),
+                              color: Colors.black.withValues(alpha: 0.04),
                               blurRadius: 20,
                               offset: const Offset(0, 10),
                             ),
@@ -243,7 +243,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               title: 'Change Password',
                               onTap: () {},
                               iconColor: const Color(0xFF613EEA),
-                              iconBgColor: const Color(0xFF613EEA).withOpacity(0.1),
+                              iconBgColor: const Color(0xFF613EEA).withValues(alpha: 0.1),
                             ),
                             const Divider(height: 1, indent: 68, endIndent: 16, color: Color(0xFFE2E8F0)),
                             _buildModernMenuItem(
@@ -251,7 +251,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               title: 'Two-Factor Authentication',
                               onTap: () {},
                               iconColor: const Color(0xFF613EEA),
-                              iconBgColor: const Color(0xFF613EEA).withOpacity(0.1),
+                              iconBgColor: const Color(0xFF613EEA).withValues(alpha: 0.1),
                               trailing: Switch(
                                 value: false,
                                 onChanged: (val) {},
@@ -269,7 +269,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         title: 'Help & Support',
                         onTap: () {},
                         iconColor: const Color(0xFF613EEA),
-                        iconBgColor: const Color(0xFF613EEA).withOpacity(0.1),
+                        iconBgColor: const Color(0xFF613EEA).withValues(alpha: 0.1),
                       ),
                       const SizedBox(height: 16),
 
@@ -279,7 +279,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         title: 'About App',
                         onTap: () {},
                         iconColor: const Color(0xFF613EEA),
-                        iconBgColor: const Color(0xFF613EEA).withOpacity(0.1),
+                        iconBgColor: const Color(0xFF613EEA).withValues(alpha: 0.1),
                       ),
                       const SizedBox(height: 16),
 
@@ -289,7 +289,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         title: 'Log Out',
                         onTap: () => _showLogoutDialog(context, auth),
                         iconColor: Colors.red,
-                        iconBgColor: Colors.red.withOpacity(0.1),
+                        iconBgColor: Colors.red.withValues(alpha: 0.1),
                         titleColor: Colors.red,
                         hideChevron: true,
                       ),
@@ -341,7 +341,7 @@ class _ProfilePageState extends State<ProfilePage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -408,14 +408,37 @@ class _ProfilePageState extends State<ProfilePage> {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Konfirmasi Logout'),
-        content: const Text('Apakah Anda yakin ingin keluar?'),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        title: const Text(
+          'Konfirmasi Logout',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+        content: const Text(
+          'Apakah Anda yakin ingin keluar dari akun ini?',
+          style: TextStyle(
+            color: Color(0xFF475569),
+            fontSize: 15,
+          ),
+        ),
+        actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.grey[600],
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            ),
+            child: const Text('Batal', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
           ),
-          TextButton(
+          ElevatedButton(
             onPressed: () {
               final notifProvider = Provider.of<NotificationProvider>(context, listen: false);
               notifProvider.disconnectSocket();
@@ -426,7 +449,16 @@ class _ProfilePageState extends State<ProfilePage> {
                 (_) => false,
               );
             },
-            child: const Text('Keluar', style: TextStyle(color: Colors.red)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Keluar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           ),
         ],
       ),

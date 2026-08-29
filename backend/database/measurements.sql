@@ -9,7 +9,6 @@ CREATE TABLE measurements (
     nir_810nm           FLOAT,
     nir_860nm           FLOAT,
     ppg_heart_rate      FLOAT,
-    ppg_spo2            FLOAT,
     ppg_ir_value        FLOAT,
     skin_temp_celsius   DECIMAL(5,2),
     glucose_estimated   DECIMAL(6,2),

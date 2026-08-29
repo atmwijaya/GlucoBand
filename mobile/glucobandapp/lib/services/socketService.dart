@@ -16,19 +16,16 @@ class SocketService {
     );
 
     _socket!.onConnect((_) {
-      print('Socket connected');
       _socket!.emit('join', {'token': token});
     });
 
     _socket!.on('new_recommendation', (data) {
-      print('New recommendation received: $data');
       if (onNewNotification != null) {
         onNewNotification!();
       }
     });
 
     _socket!.on('new_notification', (data) {
-      print('New notification received: $data');
       if (onNewNotification != null) {
         onNewNotification!();
       }
