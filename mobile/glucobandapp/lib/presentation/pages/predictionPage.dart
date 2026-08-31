@@ -20,7 +20,6 @@ class _PredictionPageState extends State<PredictionPage> {
   final _ageController = TextEditingController();
   final _sysController = TextEditingController();
   final _diaController = TextEditingController();
-  final _bloodGlucoseController = TextEditingController();
 
   final _glucoseControllers = [
     TextEditingController(),
@@ -139,7 +138,6 @@ class _PredictionPageState extends State<PredictionPage> {
       _ageController.clear();
       _sysController.clear();
       _diaController.clear();
-      _bloodGlucoseController.clear();
 
       for (var controller in _glucoseControllers) {
         controller.clear();
@@ -154,7 +152,15 @@ class _PredictionPageState extends State<PredictionPage> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Terdapat data yang belum diisi. Harap lengkapi form!'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final predictionProvider = Provider.of<PredictionProvider>(
@@ -173,14 +179,14 @@ class _PredictionPageState extends State<PredictionPage> {
         .map((c) => double.tryParse(c.text.trim()) ?? 0.0)
         .toList();
 
-    if (glucoseHistory.where((v) => v > 0).length < 3) {
-      double lastValid = glucoseHistory.lastWhere(
-        (v) => v > 0,
-        orElse: () => double.tryParse(_bloodGlucoseController.text) ?? 110.0,
-      );
+    double latestGlucose = 100.0;
+    if (glucoseHistory.any((v) => v > 0)) {
+      latestGlucose = glucoseHistory.lastWhere((v) => v > 0);
+    }
 
+    if (glucoseHistory.where((v) => v > 0).length < 3) {
       while (glucoseHistory.where((v) => v > 0).length < 3) {
-        glucoseHistory.add(lastValid);
+        glucoseHistory.add(latestGlucose);
       }
     }
 
@@ -191,14 +197,14 @@ class _PredictionPageState extends State<PredictionPage> {
       'hypertension': hyperCode,
       'heart_disease': heartCode,
       'smoking_history': smokingCode,
-      'blood_glucose_level':
-          double.tryParse(_bloodGlucoseController.text) ?? 100,
+      'blood_glucose_level': latestGlucose,
       'glucose_history': _glucoseControllers
           .map((c) => double.tryParse(c.text) ?? 0)
           .toList(),
     };
 
     await predictionProvider.fetchRisk(inputData, auth.token!);
+    await predictionProvider.fetchTrend(inputData, 6, auth.token!);
     if (!mounted) return;
 
     if (predictionProvider.error != null) {
@@ -223,7 +229,6 @@ class _PredictionPageState extends State<PredictionPage> {
     _ageController.dispose();
     _sysController.dispose();
     _diaController.dispose();
-    _bloodGlucoseController.dispose();
     for (var c in _glucoseControllers) {
       c.dispose();
     }
@@ -394,14 +399,6 @@ class _PredictionPageState extends State<PredictionPage> {
               ], (val) => setState(() => _smoking = val!)),
 
               const SizedBox(height: 12),
-              _buildTextField(
-                _bloodGlucoseController,
-                'Glukosa Darah Saat Ini (mg/dL)',
-                Icons.monitor_heart_outlined,
-                TextInputType.number,
-              ),
-
-              const SizedBox(height: 24),
               const Text(
                 'Riwayat 3 Pengukuran Gula Darah (mg/dL)',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
@@ -482,6 +479,12 @@ class _PredictionPageState extends State<PredictionPage> {
           controller: controller,
           keyboardType: type,
           onChanged: onChanged,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Wajib diisi';
+            }
+            return null;
+          },
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.white,
