@@ -33,12 +33,12 @@ class PredictionProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchTrend(List<double> history, int horizon, String token) async {
+  Future<void> fetchTrend(Map<String, dynamic> data, int horizon, String token) async {
     _loading = true;
     _error = null;
     notifyListeners();
     try {
-      final raw = await _api.predictTrend(history, horizon, token);
+      final raw = await _api.predictTrend(data, horizon, token);
       if (raw.isEmpty) {
         _trendResult = null;
       } else if ((raw.first as Map).containsKey('error')) {

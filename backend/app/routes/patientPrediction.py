@@ -1,7 +1,9 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.services.ml.rf_service import RFService
 from app.services.ml.lstm_service import LSTMService
+from db import db_connection
+import json
 import traceback
 
 patient_pred_bp = Blueprint('patient_predictions', __name__)
@@ -10,7 +12,8 @@ lstm_service = LSTMService()
 
 @patient_pred_bp.post('/predict/risk')
 @jwt_required()
-def predict_risk():
+@db_connection
+def predict_risk(cursor):
     data = request.get_json()
     if not data:
         return jsonify({"error": "Data tidak lengkap"}), 400
@@ -26,6 +29,21 @@ def predict_risk():
     }
     try:
         result = rf_service.predict_risk(features)
+        
+        identity_raw = get_jwt_identity()
+        try:
+            patient_id = json.loads(identity_raw).get('id')
+        except:
+            patient_id = identity_raw
+        risk_level = result.get("risk_level", "rendah").lower()
+        risk_score = result.get("risk_score", 0)
+        model_version = result.get("model version", "1.0")
+
+        cursor.execute("""
+            INSERT INTO predictions_risk (patient_id, feature_vector, risk_level, risk_score, model_version)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (patient_id, json.dumps(features), risk_level, risk_score, model_version))
+        
         return jsonify(result)
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 503
@@ -36,7 +54,8 @@ def predict_risk():
 
 @patient_pred_bp.post('/predict/trend')
 @jwt_required()
-def predict_trend():
+@db_connection
+def predict_trend(cursor):
     data = request.get_json()
     if not data or 'glucose_history' not in data:
         return jsonify({"error": "glucose_history diperlukan"}), 400
@@ -70,6 +89,33 @@ def predict_trend():
             gender=gender,
             smoking_history=smoking
         )
+        identity_raw = get_jwt_identity()
+        try:
+            patient_id = json.loads(identity_raw).get('id')
+        except:
+            patient_id = identity_raw
+        health_snapshot = {
+            "age": age,
+            "bmi": bmi,
+            "hypertension": hypertension,
+            "heart_disease": heart_disease,
+            "gender": gender,
+            "smoking_history": smoking,
+            "glucose_history": history
+        }
+
+        cursor.execute("""
+            INSERT INTO predictions_trend (patient_id, input_measurement_ids, health_snapshot, predicted_values, horizon_hours, model_version)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            patient_id,
+            json.dumps([]),
+            json.dumps(health_snapshot),
+            json.dumps(result),
+            horizon,
+            "1.0"
+        ))
+        
         return jsonify(result)
     except Exception as e:
         print("=== ERROR in predict_trend ===")
