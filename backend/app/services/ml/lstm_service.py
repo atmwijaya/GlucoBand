@@ -75,7 +75,8 @@ class LSTMService:
 
         predictions = []
         current_input = X_input.copy()
-        now = datetime.utcnow()
+        now = datetime.now()
+        base_time = now.replace(minute=0, second=0, microsecond=0)
 
         for i in range(horizon_hours):
             y_pred_scaled = self.model.predict(current_input, verbose=0)[0, 0]
@@ -87,8 +88,9 @@ class LSTMService:
 
             y_pred = max(40.0, min(400.0, float(y_pred)))
 
+            # Gunakan astimezone() agar offset zona waktu (+07:00) ikut disertakan
             predictions.append({
-                "timestamp": (now + timedelta(hours=i + 1)).isoformat(),
+                "timestamp": (base_time + timedelta(hours=i + 1)).astimezone().isoformat(),
                 "glucose": round(y_pred, 2)
             })
             

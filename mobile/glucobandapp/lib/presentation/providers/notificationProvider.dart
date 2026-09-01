@@ -40,7 +40,17 @@ class NotificationProvider extends ChangeNotifier {
     try {
       final response = await dio.get('/patient/notifications');
       final List data = response.data;
-      _notifications = data.map((json) => NotificationItem.fromJson(json)).toList();
+      final newNotifications = data.map((json) => NotificationItem.fromJson(json)).toList();
+      
+      if (_notifications.isNotEmpty) {
+        for (var n in newNotifications) {
+          if (!_notifications.any((old) => old.id == n.id)) {
+            n.isNew = true;
+          }
+        }
+      }
+      
+      _notifications = newNotifications;
       _unreadCount = _notifications.where((n) => !n.isRead).length;
 
       if (markAsRead) {

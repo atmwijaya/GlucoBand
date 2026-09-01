@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   FaHome, FaHeartbeat, FaUser, FaClipboardList,
-  FaQuestionCircle, FaSignOutAlt
+  FaQuestionCircle, FaSignOutAlt, FaCog
 } from 'react-icons/fa'
 import ReusableModal from './Modal'
 
@@ -12,6 +12,7 @@ const menuItems = [
   { to: '/admin/data-pasien', icon: FaUser, text: 'Data Pasien' },
   { to: '/admin/notifications', icon: FaClipboardList, text: 'Notifikasi' },
   { to: '/admin/faq', icon: FaQuestionCircle, text: 'FAQ' },
+  { to: '/admin/settings', icon: FaCog, text: 'Pengaturan' },
 ]
 
 export default function Sidebar() {

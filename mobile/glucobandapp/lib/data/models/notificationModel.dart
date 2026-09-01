@@ -7,6 +7,7 @@ class NotificationItem {
   final String message;
   final String? createdAt;
   bool isRead;
+  bool isNew;
 
   NotificationItem({
     required this.id,
@@ -15,6 +16,7 @@ class NotificationItem {
     required this.message,
     this.createdAt,
     this.isRead = false,
+    this.isNew = false,
   });
 
   factory NotificationItem.fromJson(Map<String, dynamic> json) {

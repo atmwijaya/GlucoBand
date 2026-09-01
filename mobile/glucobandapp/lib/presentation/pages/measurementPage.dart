@@ -94,7 +94,7 @@ class _MeasurementPageState extends State<MeasurementPage>
 
     // Navigasi ke hasil
     if (!mounted) return;
-    Navigator.pushReplacement(
+    final bool? shouldRestart = await Navigator.push<bool>(
       context,
       MaterialPageRoute(
         builder: (_) => MeasurementResultPage(
@@ -104,6 +104,13 @@ class _MeasurementPageState extends State<MeasurementPage>
         ),
       ),
     );
+
+    if (shouldRestart == true && mounted) {
+      // Tunggu sedikit agar animasi transisi selesai sebelum mulai lagi
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) _startMeasurement();
+      });
+    }
   }
 
   Future<void> _simulateStep(String label, VoidCallback onDone) async {
@@ -255,10 +262,7 @@ class _MeasurementPageState extends State<MeasurementPage>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
-                    onPressed: () => Navigator.pop(context),
-                  ),
+                  const SizedBox(width: 48),
                   const Text(
                     'GlucoBand',
                     style: TextStyle(

@@ -35,6 +35,7 @@ class _BerandaPageState extends State<BerandaPage> {
     
     if (auth.token != null) {
       notifProvider.fetchNotifications(auth.token!);
+      notifProvider.connectSocket(auth.token!);
       profileProvider.fetchProfile();
       articleProvider.fetchArticles();
     }
@@ -94,14 +95,29 @@ class _BerandaPageState extends State<BerandaPage> {
                         ),
                         if (notifProvider.unreadCount > 0)
                           Positioned(
-                            right: 0,
-                            top: 0,
+                            right: 4,
+                            top: 4,
                             child: Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFEF4444),
+                              padding: const EdgeInsets.all(2),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEF4444),
                                 shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 1.5),
+                              ),
+                              child: Center(
+                                child: Text(
+                                  '${notifProvider.unreadCount}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
                             ),
                           ),

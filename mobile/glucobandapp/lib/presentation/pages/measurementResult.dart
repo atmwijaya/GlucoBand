@@ -232,12 +232,7 @@ class MeasurementResultPage extends StatelessWidget {
                   height: 50,
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const MeasurementPage(autoStart: true),
-                        ),
-                      );
+                      Navigator.pop(context, true);
                     },
                     icon: const Icon(Icons.refresh),
                     label: const Text(

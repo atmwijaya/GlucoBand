@@ -4,6 +4,7 @@ import '../providers/profileProvider.dart';
 import '../providers/authProvider.dart';
 import '../providers/predictionProvider.dart';
 import 'predictionResult.dart';
+import 'predictionHistoryPage.dart';
 
 class PredictionPage extends StatefulWidget {
   const PredictionPage({super.key});
@@ -32,6 +33,7 @@ class _PredictionPageState extends State<PredictionPage> {
   String _heartDisease = 'Tidak';
   String _smoking = 'Tidak Pernah';
   double _bmi = 0;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -152,6 +154,8 @@ class _PredictionPageState extends State<PredictionPage> {
   }
 
   Future<void> _submit() async {
+    if (_isLoading) return;
+
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -162,64 +166,72 @@ class _PredictionPageState extends State<PredictionPage> {
       return;
     }
 
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-    final predictionProvider = Provider.of<PredictionProvider>(
-      context,
-      listen: false,
-    );
+    setState(() => _isLoading = true);
 
-    String genderCode = _gender == 'Laki-laki' ? 'Male' : 'Female';
-    int hyperCode = _hypertension == 'Ya' ? 1 : 0;
-    int heartCode = _heartDisease == 'Ya' ? 1 : 0;
-    int smokingCode = _smoking == 'Tidak Pernah'
-        ? 0
-        : (_smoking == 'Pernah' ? 1 : 2);
+    try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final predictionProvider = Provider.of<PredictionProvider>(
+        context,
+        listen: false,
+      );
 
-    List<double> glucoseHistory = _glucoseControllers
-        .map((c) => double.tryParse(c.text.trim()) ?? 0.0)
-        .toList();
+      String genderCode = _gender == 'Laki-laki' ? 'Male' : 'Female';
+      int hyperCode = _hypertension == 'Ya' ? 1 : 0;
+      int heartCode = _heartDisease == 'Ya' ? 1 : 0;
+      int smokingCode = _smoking == 'Tidak Pernah'
+          ? 0
+          : (_smoking == 'Pernah' ? 1 : 2);
 
-    double latestGlucose = 100.0;
-    if (glucoseHistory.any((v) => v > 0)) {
-      latestGlucose = glucoseHistory.lastWhere((v) => v > 0);
-    }
+      List<double> glucoseHistory = _glucoseControllers
+          .map((c) => double.tryParse(c.text.trim()) ?? 0.0)
+          .toList();
 
-    if (glucoseHistory.where((v) => v > 0).length < 3) {
-      while (glucoseHistory.where((v) => v > 0).length < 3) {
-        glucoseHistory.add(latestGlucose);
+      double latestGlucose = 100.0;
+      if (glucoseHistory.any((v) => v > 0)) {
+        latestGlucose = glucoseHistory.lastWhere((v) => v > 0);
+      }
+
+      if (glucoseHistory.where((v) => v > 0).length < 3) {
+        while (glucoseHistory.where((v) => v > 0).length < 3) {
+          glucoseHistory.add(latestGlucose);
+        }
+      }
+
+      final inputData = {
+        'age': int.tryParse(_ageController.text) ?? 0,
+        'gender': genderCode,
+        'bmi': _bmi,
+        'hypertension': hyperCode,
+        'heart_disease': heartCode,
+        'smoking_history': smokingCode,
+        'blood_glucose_level': latestGlucose,
+        'glucose_history': _glucoseControllers
+            .map((c) => double.tryParse(c.text) ?? 0)
+            .toList(),
+      };
+
+      await predictionProvider.fetchRisk(inputData, auth.token!);
+      await predictionProvider.fetchTrend(inputData, 6, auth.token!);
+      if (!mounted) return;
+
+      if (predictionProvider.error != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(predictionProvider.error!)));
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PredictionResultPage(inputData: inputData),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
       }
     }
-
-    final inputData = {
-      'age': int.tryParse(_ageController.text) ?? 0,
-      'gender': genderCode,
-      'bmi': _bmi,
-      'hypertension': hyperCode,
-      'heart_disease': heartCode,
-      'smoking_history': smokingCode,
-      'blood_glucose_level': latestGlucose,
-      'glucose_history': _glucoseControllers
-          .map((c) => double.tryParse(c.text) ?? 0)
-          .toList(),
-    };
-
-    await predictionProvider.fetchRisk(inputData, auth.token!);
-    await predictionProvider.fetchTrend(inputData, 6, auth.token!);
-    if (!mounted) return;
-
-    if (predictionProvider.error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(predictionProvider.error!)));
-      return;
-    }
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PredictionResultPage(inputData: inputData),
-      ),
-    );
   }
 
   @override
@@ -244,6 +256,20 @@ class _PredictionPageState extends State<PredictionPage> {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
         elevation: 0.5,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PredictionHistoryPage(),
+                ),
+              );
+            },
+            tooltip: 'Riwayat Prediksi',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -430,22 +456,32 @@ class _PredictionPageState extends State<PredictionPage> {
                 width: double.infinity,
                 height: 56, // Slightly taller for modern look
                 child: ElevatedButton(
-                  onPressed: _submit,
+                  onPressed: _isLoading ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF613EEA),
+                    disabledBackgroundColor: const Color(0xFF613EEA).withValues(alpha: 0.7),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Prediksi Sekarang',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 24,
+                          width: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                      : const Text(
+                          'Prediksi Sekarang',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(height: 40),
