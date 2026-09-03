@@ -6,35 +6,39 @@ class SocketService {
   Function? onNewNotification;
 
   void connect(String token) {
+    if (_socket != null && _socket!.connected) return;
+    String url = ApiConstants.baseUrl;
+    if (url.endsWith('/api')) {
+      url = url.substring(0, url.length - 4);
+    }
     _socket = IO.io(
-      ApiConstants.baseUrl,
+      url,
       IO.OptionBuilder()
           .setTransports(['websocket'])
           .setQuery({'token': token})
-          .enableAutoConnect()
+          .disableAutoConnect()
           .build(),
     );
 
     _socket!.onConnect((_) {
-      print('Socket connected');
       _socket!.emit('join', {'token': token});
     });
 
     _socket!.on('new_recommendation', (data) {
-      print('New recommendation received: $data');
       if (onNewNotification != null) {
         onNewNotification!();
       }
     });
 
     _socket!.on('new_notification', (data) {
-      print('New notification received: $data');
       if (onNewNotification != null) {
         onNewNotification!();
       }
     });
 
     _socket!.onDisconnect((_) => print('Socket disconnected'));
+
+    _socket!.connect();
   }
 
   void disconnect() {

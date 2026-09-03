@@ -16,12 +16,29 @@ class PredictionApi {
     return response.data;
   }
 
-  Future<List<Map<String, dynamic>>> predictTrend(List<double> history, int horizon, String token) async {
+  Future<List<Map<String, dynamic>>> predictTrend(Map<String, dynamic> data, int horizon, String token) async {
+    final Map<String, dynamic> requestData = Map.from(data);
+    requestData['horizon_hours'] = horizon;
     final response = await _dio.post(
       '/predict/trend',
-      data: {'glucose_history': history, 'horizon_hours': horizon},
+      data: requestData,
       options: Options(headers: {'Authorization': 'Bearer $token'}),
     );
     return List<Map<String, dynamic>>.from(response.data);
+  }
+
+  Future<List<Map<String, dynamic>>> getTrendHistory(int patientId, String token) async {
+    final response = await _dio.get(
+      '/predictions/trend/$patientId/history',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return List<Map<String, dynamic>>.from(response.data);
+  }
+
+  Future<void> deleteTrendHistory(int predictionId, String token) async {
+    await _dio.delete(
+      '/predictions/trend/$predictionId',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
   }
 }

@@ -10,18 +10,19 @@ MODEL_DIR = os.path.join(BASE_DIR, '..', '..', 'ml_models')
 class LSTMService:
     def __init__(self):
         self.model = None
-        self.scaler = None
+        self.scaler_features = None
+        self.scaler_target = None
         self.n_features = 7
         self.feature_order = [
-            'age', 'bmi', 'blood_glucose_level', 
-            'hypertension', 'heart_disease', 'gender', 'smoking_history'
+            'blood_glucose_level', 'age', 'bmi', 'HbA1c_level',
+            'hypertension', 'heart_disease', 'smoking_history'
         ]
         self._load_assets()
 
     def _load_assets(self):
         try:
             self.model = tf.keras.models.load_model(
-                os.path.join(MODEL_DIR, 'lstm_glucose_trend.keras')
+                os.path.join(MODEL_DIR, 'glucoband_lstm_model.h5')
             )
             print("LSTM Model loaded successfully")
         except Exception as e:
@@ -29,11 +30,18 @@ class LSTMService:
             self.model = None
 
         try:
-            self.scaler = joblib.load(os.path.join(MODEL_DIR, 'scaler.pkl'))
-            print("Scaler loaded successfully")
+            self.scaler_features = joblib.load(os.path.join(MODEL_DIR, 'scaler_features.pkl'))
+            print("Scaler features loaded successfully")
         except Exception as e:
-            print("Gagal memuat scaler:", e)
-            self.scaler = None
+            print("Gagal memuat scaler features:", e)
+            self.scaler_features = None
+
+        try:
+            self.scaler_target = joblib.load(os.path.join(MODEL_DIR, 'scaler_target.pkl'))
+            print("Scaler target loaded successfully")
+        except Exception as e:
+            print("Gagal memuat scaler target:", e)
+            self.scaler_target = None
 
     def predict_trend(self, glucose_history: list, horizon_hours: int = 6, 
                      age: int = 40, bmi: float = 25.0, hypertension: int = 0,
@@ -49,19 +57,17 @@ class LSTMService:
         glucose_values = np.array(glucose_history[-3:], dtype=np.float32)
 
         dummy_features = np.array([
-            [age, bmi, g, hypertension, heart_disease, 
-             0 if gender == "Male" else 1, smoking_history]
+            [g, age, bmi, 5.5, hypertension, heart_disease, smoking_history]
             for g in glucose_values
         ])
 
-        X = np.concatenate([
-            glucose_values.reshape(-1, 1),
-            dummy_features[:, 0:6]  
-        ], axis=1)
+        X = dummy_features
 
         # Scaling
-        if self.scaler:
-            X_scaled = self.scaler.transform(X)
+        if self.scaler_features:
+            import pandas as pd
+            X_df = pd.DataFrame(X, columns=self.feature_order)
+            X_scaled = self.scaler_features.transform(X_df)
         else:
             X_scaled = X / 400.0  
 
@@ -69,26 +75,34 @@ class LSTMService:
 
         predictions = []
         current_input = X_input.copy()
-        now = datetime.utcnow()
+        now = datetime.now()
+        base_time = now.replace(minute=0, second=0, microsecond=0)
 
         for i in range(horizon_hours):
             y_pred_scaled = self.model.predict(current_input, verbose=0)[0, 0]
 
-            if self.scaler:
-                dummy_row = np.zeros((1, self.n_features))
-                dummy_row[0, 2] = y_pred_scaled  
-                y_pred = self.scaler.inverse_transform(dummy_row)[0, 2]
+            if self.scaler_target:
+                y_pred = self.scaler_target.inverse_transform([[y_pred_scaled]])[0, 0]
             else:
                 y_pred = y_pred_scaled * 400.0
 
             y_pred = max(40.0, min(400.0, float(y_pred)))
 
+            # Gunakan astimezone() agar offset zona waktu (+07:00) ikut disertakan
             predictions.append({
-                "timestamp": (now + timedelta(hours=i + 1)).isoformat(),
+                "timestamp": (base_time + timedelta(hours=i + 1)).astimezone().isoformat(),
                 "glucose": round(y_pred, 2)
             })
-            new_row = X_input[0, -1, :].copy()
-            new_row[2] = y_pred_scaled if self.scaler is None else y_pred_scaled
+            
+            if self.scaler_features and self.scaler_target:
+                next_raw = np.array([[y_pred, age, bmi, 5.5, hypertension, heart_disease, smoking_history]])
+                import pandas as pd
+                next_df = pd.DataFrame(next_raw, columns=self.feature_order)
+                new_row = self.scaler_features.transform(next_df)[0]
+            else:
+                new_row = current_input[0, -1, :].copy()
+                new_row[0] = y_pred_scaled
+                
             current_input = np.roll(current_input, -1, axis=1)
             current_input[0, -1, :] = new_row
 

@@ -6,10 +6,11 @@ import 'presentation/providers/notificationProvider.dart';
 import 'presentation/providers/faqProvider.dart';
 import 'presentation/providers/profileProvider.dart';
 import 'presentation/providers/predictionProvider.dart';
+import 'presentation/providers/articleProvider.dart';
+import 'presentation/providers/settingsProvider.dart';
 import 'presentation/pages/loginPage.dart';
 import 'presentation/pages/homePage.dart';
 
-import 'package:google_fonts/google_fonts.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
@@ -26,6 +27,8 @@ class GlucoBandApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => FaqProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => PredictionProvider()),
+        ChangeNotifierProvider(create: (_) => ArticleProvider()),
+        ChangeNotifierProvider(create: (_) => SettingsProvider()..fetchEmergencyContact()),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
@@ -33,9 +36,6 @@ class GlucoBandApp extends StatelessWidget {
         theme: ThemeData(
           primaryColor: const Color(0xFF613EEA),
           colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF613EEA)),
-          textTheme: GoogleFonts.plusJakartaSansTextTheme(
-            Theme.of(context).textTheme,
-          ),
           appBarTheme: const AppBarTheme(
             backgroundColor: Colors.white,
             foregroundColor: Color(0xFF1E293B),

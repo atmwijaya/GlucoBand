@@ -23,7 +23,6 @@ class ProfileProvider extends ChangeNotifier {
 
       if (response.statusCode == 200) {
         _profileData = Map<String, dynamic>.from(response.data);
-        print('✅ Profile berhasil di-load');
       } else {
         _errorMessage = 'Gagal memuat profil (${response.statusCode})';
       }

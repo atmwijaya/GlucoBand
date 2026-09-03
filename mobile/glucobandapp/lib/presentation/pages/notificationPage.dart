@@ -79,7 +79,6 @@ class _NotificationListPageState extends State<NotificationListPage> {
               itemBuilder: (context, index) {
                 // ... (kode item notification tetap sama)
                 final notif = provider.notifications[index];
-                final isRecommendation = notif.type == 'recommendation';
                 final isAlert = notif.type == 'alert';
                 final isSubTypeHypo = notif.subtype == 'hipoglikemia';
                 final isSubTypeHyper = notif.subtype == 'hiperglikemia';
@@ -100,19 +99,27 @@ class _NotificationListPageState extends State<NotificationListPage> {
                   }
                 }
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                return TweenAnimationBuilder<Color?>(
+                  tween: ColorTween(
+                    begin: notif.isNew ? const Color(0xFFE0E7FF) : Colors.white,
+                    end: Colors.white,
                   ),
+                  duration: const Duration(seconds: 3),
+                  onEnd: () => notif.isNew = false,
+                  builder: (context, color, child) {
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
                   child: InkWell(
                     onTap: () {},
                     borderRadius: BorderRadius.circular(16),
@@ -173,6 +180,8 @@ class _NotificationListPageState extends State<NotificationListPage> {
                       ),
                     ),
                   ),
+                    );
+                  },
                 );
               },
             );
