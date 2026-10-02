@@ -4,6 +4,9 @@ import 'predictionPage.dart';
 import 'measurementPage.dart';
 import 'faqPage.dart';
 import 'profilePage.dart';
+import 'package:provider/provider.dart';
+import '../providers/settingsProvider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -36,6 +39,93 @@ class HomePageState extends State<HomePage> {
         index: _currentIndex,
         children: _pages,
       ),
+      floatingActionButton: _currentIndex != 2 ? FloatingActionButton(
+        onPressed: () {
+          final settings = Provider.of<SettingsProvider>(context, listen: false);
+          final number = settings.emergencyContact ?? '119';
+          
+          showModalBottomSheet(
+            context: context,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            builder: (context) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Hubungi Darurat',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.chat, color: Colors.green),
+                    ),
+                    title: const Text('WhatsApp', style: TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text(number),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      String waNumber = number;
+                      if (waNumber.startsWith('0')) {
+                        waNumber = '62${waNumber.substring(1)}';
+                      }
+                      final url = Uri.parse('https://wa.me/$waNumber');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                      } else {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Tidak dapat membuka WhatsApp')),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withValues(alpha: 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.phone, color: Colors.blue),
+                    ),
+                    title: const Text('Telepon Pulsa', style: TextStyle(fontWeight: FontWeight.w600)),
+                    subtitle: Text(number),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      final url = Uri.parse('tel:$number');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url);
+                      } else {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Tidak dapat melakukan panggilan telepon')),
+                          );
+                        }
+                      }
+                    },
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+        backgroundColor: Colors.redAccent,
+        child: const Icon(Icons.phone, color: Colors.white),
+      ) : null,
       bottomNavigationBar: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,

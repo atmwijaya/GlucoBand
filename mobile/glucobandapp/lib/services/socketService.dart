@@ -6,12 +6,17 @@ class SocketService {
   Function? onNewNotification;
 
   void connect(String token) {
+    if (_socket != null && _socket!.connected) return;
+    String url = ApiConstants.baseUrl;
+    if (url.endsWith('/api')) {
+      url = url.substring(0, url.length - 4);
+    }
     _socket = IO.io(
-      ApiConstants.baseUrl,
+      url,
       IO.OptionBuilder()
           .setTransports(['websocket'])
           .setQuery({'token': token})
-          .enableAutoConnect()
+          .disableAutoConnect()
           .build(),
     );
 
@@ -32,6 +37,8 @@ class SocketService {
     });
 
     _socket!.onDisconnect((_) => print('Socket disconnected'));
+
+    _socket!.connect();
   }
 
   void disconnect() {

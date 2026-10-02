@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.services.ml.rf_service import RFService
 from app.services.ml.lstm_service import LSTMService
 from db import db_connection
+from app import socketio
 import json
 import traceback
 
@@ -115,6 +116,19 @@ def predict_trend(cursor):
             horizon,
             "1.0"
         ))
+        
+        cursor.execute("SELECT LAST_INSERT_ID() AS id")
+        new_id = cursor.fetchone()['id']
+        import datetime
+        
+        new_prediction_event = {
+            "id": new_id,
+            "patient_id": patient_id,
+            "created_at": datetime.datetime.now().isoformat(),
+            "predicted_values": result,
+            "horizon_hours": horizon
+        }
+        socketio.emit('new_prediction_trend', new_prediction_event)
         
         return jsonify(result)
     except Exception as e:

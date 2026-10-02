@@ -10,6 +10,7 @@ import EditPasien from './pages/EditPasien'
 import PatientDetailPage from './pages/PatientDetail'
 import NotificationPage from './pages/NotificationPage'
 import FAQManagePage from './pages/FAQManagement'
+import SettingsPage from './pages/Settings'
 import NotFound from './pages/NotFound'
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/admin/detail-pasien/:id" element={<PatientDetailPage />} />
             <Route path="/admin/notifications" element={<NotificationPage />} />
             <Route path="/admin/faq" element={<FAQManagePage />} />
+            <Route path="/admin/settings" element={<SettingsPage />} />
           </Route>
         </Route>
         <Route path="/" element={<Navigate to="/admin/dashboard" replace />} />

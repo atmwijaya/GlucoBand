@@ -9,11 +9,16 @@ class PredictionProvider extends ChangeNotifier {
   TrendPrediction? _trendResult;
   String? _error;
   bool _loading = false;
+  
+  List<Map<String, dynamic>> _history = [];
+  bool _loadingHistory = false;
 
   RiskPrediction? get riskResult => _riskResult;
   TrendPrediction? get trendResult => _trendResult;
   String? get error => _error;
   bool get loading => _loading;
+  List<Map<String, dynamic>> get history => _history;
+  bool get loadingHistory => _loadingHistory;
 
   Future<void> fetchRisk(Map<String, dynamic> data, String token) async {
     _loading = true;
@@ -57,5 +62,29 @@ class PredictionProvider extends ChangeNotifier {
     }
     _loading = false;
     notifyListeners();
-}
+  }
+
+  Future<void> fetchHistory(int patientId, String token) async {
+    _loadingHistory = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _history = await _api.getTrendHistory(patientId, token);
+    } catch (e) {
+      _error = 'Gagal memuat riwayat prediksi';
+    }
+    _loadingHistory = false;
+    notifyListeners();
+  }
+
+  Future<void> deleteHistoryItem(int predictionId, String token) async {
+    try {
+      await _api.deleteTrendHistory(predictionId, token);
+      _history.removeWhere((item) => item['id'] == predictionId);
+      notifyListeners();
+    } catch (e) {
+      _error = 'Gagal menghapus riwayat';
+      notifyListeners();
+    }
+  }
 }

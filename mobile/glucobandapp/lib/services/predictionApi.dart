@@ -26,4 +26,19 @@ class PredictionApi {
     );
     return List<Map<String, dynamic>>.from(response.data);
   }
+
+  Future<List<Map<String, dynamic>>> getTrendHistory(int patientId, String token) async {
+    final response = await _dio.get(
+      '/predictions/trend/$patientId/history',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+    return List<Map<String, dynamic>>.from(response.data);
+  }
+
+  Future<void> deleteTrendHistory(int predictionId, String token) async {
+    await _dio.delete(
+      '/predictions/trend/$predictionId',
+      options: Options(headers: {'Authorization': 'Bearer $token'}),
+    );
+  }
 }

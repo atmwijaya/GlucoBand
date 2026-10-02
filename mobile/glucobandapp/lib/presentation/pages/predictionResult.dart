@@ -55,7 +55,13 @@ class PredictionResultPage extends StatelessWidget {
                       if (hasTrendData && provider.trendResult != null)
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: _buildTrendCard(provider.trendResult!),
+                          child: Column(
+                            children: [
+                              _buildTrendCard(provider.trendResult!),
+                              const SizedBox(height: 16),
+                              _buildPredictionGrid(provider.trendResult!),
+                            ],
+                          ),
                         ),
                       const SizedBox(height: 16),
                       Padding(
@@ -145,6 +151,17 @@ class PredictionResultPage extends StatelessWidget {
             color: mainColor,
           ),
         ),
+        if (trend != null && trend.points.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            '(Prediksi pada 6 jam kedepan)',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: mainColor.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -233,7 +250,7 @@ class PredictionResultPage extends StatelessWidget {
                               return Padding(
                                 padding: const EdgeInsets.only(top: 8.0),
                                 child: Text(
-                                  '$h:$m',
+                                  '$h.$m',
                                   style: const TextStyle(
                                     fontSize: 10,
                                     color: Colors.black54,
@@ -309,13 +326,13 @@ class PredictionResultPage extends StatelessWidget {
     String suggestion = '';
     if (isHigh) {
       suggestion =
-          '⚠️ PERINGATAN KRITIS: Segera jadwalkan konsultasi dengan dokter spesialis. Sangat disarankan untuk membatasi konsumsi gula berlebih, mengelola pola makan dengan ketat, dan memantau glukosa setiap hari.';
+          'Segera konsultasikan dengan dokter. Sangat disarankan untuk membatasi konsumsi gula berlebih, mengelola pola makan dengan ketat, dan memantau glukosa setiap hari.';
     } else if (isMedium) {
       suggestion =
-          '⚠️ PERINGATAN DINI: Mulai kurangi asupan karbohidrat sederhana dan tingkatkan aktivitas fisik Anda. Dianjurkan untuk berkonsultasi dengan dokter untuk pencegahan lebih awal.';
+          'Mulai kurangi asupan karbohidrat dan tingkatkan aktivitas fisik Anda. Dianjurkan untuk berkonsultasi dengan dokter untuk pencegahan lebih awal.';
     } else {
       suggestion =
-          '✨ PERTAHANKAN: Gaya hidup Anda sudah cukup sehat! Lanjutkan olahraga rutin 30 menit sehari, jaga pola makan gizi seimbang, dan pastikan istirahat cukup.';
+          'Gaya hidup Anda sudah cukup sehat! Lanjutkan olahraga rutin 30 menit sehari, jaga pola makan gizi seimbang, dan pastikan istirahat cukup.';
     }
 
     return Column(
@@ -496,6 +513,106 @@ class PredictionResultPage extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildPredictionGrid(TrendPrediction trend) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Detail Prediksi (6 Jam Ke Depan)',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 16),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              childAspectRatio: 0.9,
+            ),
+            itemCount: trend.points.length,
+            itemBuilder: (context, index) {
+              final point = trend.points[index];
+              String timeLabel = '+${index + 1} Jam';
+              try {
+                final dt = DateTime.parse(point.timestamp).toLocal();
+                final h = dt.hour.toString().padLeft(2, '0');
+                final m = dt.minute.toString().padLeft(2, '0');
+                timeLabel = '$h.$m';
+              } catch (e) {
+                // Ignore
+              }
+
+              Color numColor = const Color(0xFF10B981);
+              if (point.glucose > 140) {
+                numColor = const Color(0xFFFF5252);
+              } else if (point.glucose < 70) {
+                numColor = const Color(0xFFFFB74D);
+              }
+
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      timeLabel,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black54,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      point.glucose.round().toString(),
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: numColor,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      'mg/dL',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.black45,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }

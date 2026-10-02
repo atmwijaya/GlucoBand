@@ -33,3 +33,46 @@ def get_risk(cursor, patient_id):
     if not risk:
         return jsonify({'risk_level': 'unknown', 'risk_score': 0})
     return jsonify(risk)
+
+@predictions_bp.get('/predictions/trend/<int:patient_id>/history')
+@jwt_required()
+@db_connection
+def get_trend_history(cursor, patient_id):
+    cursor.execute("""
+        SELECT * FROM predictions_trend
+        WHERE patient_id = %s
+        ORDER BY created_at DESC
+    """, (patient_id,))
+    trends = cursor.fetchall()
+    
+    import json
+    for trend in trends:
+        if 'created_at' in trend and hasattr(trend['created_at'], 'isoformat'):
+            trend['created_at'] = trend['created_at'].isoformat()
+        # Parse JSON fields before sending
+        if isinstance(trend.get('health_snapshot'), str):
+            try:
+                trend['health_snapshot'] = json.loads(trend['health_snapshot'])
+            except:
+                pass
+        if isinstance(trend.get('predicted_values'), str):
+            try:
+                trend['predicted_values'] = json.loads(trend['predicted_values'])
+            except:
+                pass
+
+    return jsonify(trends)
+
+@predictions_bp.delete('/predictions/trend/<int:prediction_id>')
+@jwt_required()
+@db_connection
+def delete_trend_history(cursor, prediction_id):
+    cursor.execute("""
+        DELETE FROM predictions_trend
+        WHERE id = %s
+    """, (prediction_id,))
+    
+    if cursor.rowcount == 0:
+        return jsonify({'message': 'Data tidak ditemukan'}), 404
+        
+    return jsonify({'message': 'Riwayat prediksi berhasil dihapus'})

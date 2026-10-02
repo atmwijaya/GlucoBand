@@ -70,7 +70,6 @@ export default function PatientDetailPage() {
 
       <RecommendationForm
         patientId={patient.id}
-        onSuccess={() => setModal({ isOpen: true, title: 'Terkirim', message: 'Rekomendasi telah dikirim ke pasien.', type: 'success' })}
       />
 
       <ReusableModal isOpen={modal.isOpen} onClose={() => setModal({ ...modal, isOpen: false })}
