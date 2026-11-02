@@ -4,7 +4,7 @@ import { FaUser, FaChartLine, FaHistory, FaChevronDown, FaChevronUp, FaSearch, F
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import apiClient from '../../api/axios'
 import PatientSelectionModal from '../../components/common/PatientSelectionModal'
-import CircularGauge from '../../components/common/CircularGauge'
+import CircularGauge from '../../components/common/circularGauge'
 import RecommendationForm from '../../components/common/recommendationForm'
 import ReusableModal from '../../components/common/modal'
 
