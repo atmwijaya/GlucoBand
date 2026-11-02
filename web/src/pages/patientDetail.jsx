@@ -5,7 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import apiClient from '../api/axios'
 import LoadingSkeleton from '../components/common/loading'
 import RecommendationForm from '../components/common/recommendationForm'
-import ReusableModal from '../components/common/Modal'
+import ReusableModal from '../components/common/modal'
 
 export default function PatientDetailPage() {
   const { id } = useParams()

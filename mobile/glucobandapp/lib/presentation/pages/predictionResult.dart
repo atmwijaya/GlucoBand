@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import '../providers/predictionProvider.dart';
 import '../providers/authProvider.dart';
 import '../../data/models/predictionModel.dart';
+import '../widgets/recommendationCard.dart';
 
 class PredictionResultPage extends StatelessWidget {
   final Map<String, dynamic> inputData;
@@ -320,7 +321,6 @@ class PredictionResultPage extends StatelessWidget {
     double rfConfidence = risk.riskScore >= 0.5
         ? (risk.riskScore * 100)
         : ((1.0 - risk.riskScore) * 100);
-    // Tambahkan sedikit noise agar tidak membulat sempurna (simulasi)
     rfConfidence = rfConfidence > 99.0 ? 98.9 : rfConfidence;
 
     String suggestion = '';
@@ -402,47 +402,7 @@ class PredictionResultPage extends StatelessWidget {
         const SizedBox(height: 16),
 
         // Saran AI Health Section
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [c.withValues(alpha: 0.1), c.withValues(alpha: 0.05)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: c.withValues(alpha: 0.2)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.auto_awesome, color: c, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Saran AI Kesehatan',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: c,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                suggestion,
-                style: const TextStyle(
-                  fontSize: 13,
-                  height: 1.5,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-        ),
+        RecommendationCard(risk: risk, trend: trend, themeColor: c),
         const SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -601,10 +561,7 @@ class PredictionResultPage extends StatelessWidget {
                     const SizedBox(height: 2),
                     const Text(
                       'mg/dL',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: Colors.black45,
-                      ),
+                      style: TextStyle(fontSize: 10, color: Colors.black45),
                     ),
                   ],
                 ),
