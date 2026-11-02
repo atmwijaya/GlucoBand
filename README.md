@@ -4,7 +4,7 @@ Glucoband adalah platform ekosistem kesehatan IoT dan AI untuk pemantauan kadar 
 
 ---
 
-## 🏛 Arsitektur Sistem
+## Arsitektur Sistem
 
 ```mermaid
 flowchart LR
@@ -32,7 +32,7 @@ flowchart LR
 
 ---
 
-## 📖 Ringkasan Alur Penggunaan (Manual Book)
+## Ringkasan Alur Penggunaan.
 
 - **Tenaga Medis (Web Dashboard):**
   1. Login menggunakan akun dengan role `tenaga_medis`.
@@ -46,7 +46,7 @@ flowchart LR
 
 ---
 
-## 📡 Daftar Endpoint API
+## Daftar Endpoint API
 
 Semua request privat wajib menyertakan header: `Authorization: Bearer <JWT_TOKEN>`.
 
@@ -95,7 +95,7 @@ Semua request privat wajib menyertakan header: `Authorization: Bearer <JWT_TOKEN
 
 ---
 
-## 📂 Struktur Direktori Proyek
+## Struktur Proyek
 
 ```text
 glucoband/
@@ -126,6 +126,3 @@ glucoband/
 ```
 
 ---
-
-## 📄 Lisensi
-MIT License © 2026 Tim Glucoband.
