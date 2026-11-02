@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FaSignOutAlt } from 'react-icons/fa'
-import ReusableModal from './Modal'
+import ReusableModal from './modal'
 
 export default function Navbar() {
   const user = JSON.parse(sessionStorage.getItem('user')) || { name: 'Tenaga Medis' }

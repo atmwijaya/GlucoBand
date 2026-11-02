@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { FaTrash, FaEdit, FaSearch, FaChevronLeft, FaChevronRight } from 'react-icons/fa'
 import { useNavigate } from 'react-router-dom'
 import apiClient from '../api/axios'
-import ReusableModal from '../components/common/Modal'
+import ReusableModal from '../components/common/modal'
 import LoadingSkeleton from '../components/common/loading'
 
 export default function PatientListPage() {
@@ -85,9 +85,8 @@ export default function PatientListPage() {
                       <td className="py-3 text-sm">{user.age} th</td>
                       <td className="py-3 text-sm">{user.bmi}</td>
                       <td className="py-3">
-                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
-                          user.risk_level === 'high' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
-                        }`}>
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${user.risk_level === 'high' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                          }`}>
                           {user.risk_level === 'high' ? 'Tinggi' : 'Rendah'}
                         </span>
                       </td>
@@ -122,9 +121,8 @@ export default function PatientListPage() {
                     className="p-2 rounded-lg border border-lineGray disabled:opacity-30 hover:bg-gray-50"><FaChevronLeft /></button>
                   {Array.from({ length: totalPages }, (_, i) => (
                     <button key={i} onClick={() => setCurrentPage(i + 1)}
-                      className={`w-10 h-10 rounded-lg text-sm font-medium ${
-                        currentPage === i + 1 ? 'bg-primaryBlue text-white' : 'border border-lineGray hover:bg-gray-50'
-                      }`}>{i + 1}</button>
+                      className={`w-10 h-10 rounded-lg text-sm font-medium ${currentPage === i + 1 ? 'bg-primaryBlue text-white' : 'border border-lineGray hover:bg-gray-50'
+                        }`}>{i + 1}</button>
                   ))}
                   <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
                     className="p-2 rounded-lg border border-lineGray disabled:opacity-30 hover:bg-gray-50"><FaChevronRight /></button>

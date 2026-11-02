@@ -4,7 +4,7 @@ import {
   FaHome, FaHeartbeat, FaUser, FaClipboardList,
   FaQuestionCircle, FaSignOutAlt, FaCog
 } from 'react-icons/fa'
-import ReusableModal from './Modal'
+import ReusableModal from './modal'
 
 const menuItems = [
   { to: '/admin/dashboard', icon: FaHome, text: 'Dashboard' },
@@ -43,10 +43,9 @@ export default function Sidebar() {
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                  isActive
-                    ? 'bg-primaryBlue text-white shadow-md shadow-primaryBlue/30'
-                    : 'text-white hover:bg-[#1E293B] hover:text-white'
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${isActive
+                  ? 'bg-primaryBlue text-white shadow-md shadow-primaryBlue/30'
+                  : 'text-white hover:bg-[#1E293B] hover:text-white'
                 }`
               }
             >
