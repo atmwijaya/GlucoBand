@@ -164,6 +164,8 @@ class _RegisterPageState extends State<RegisterPage> {
       keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
+        helperText: isPassword && controller == passwordController ? 'Minimal 8 karakter (kombinasi huruf & angka)' : null,
+        helperStyle: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
         prefixIcon: Icon(icon, color: const Color(0xFF64748B)),
         filled: true,
         fillColor: const Color(0xFFF8FAFC),
@@ -184,8 +186,14 @@ class _RegisterPageState extends State<RegisterPage> {
       validator: (v) {
         if (v == null || v.trim().isEmpty) return 'Wajib diisi';
         if (controller == emailController && !v.contains('@')) return 'Email tidak valid';
-        if (controller == confirmPasswordController && v != passwordController.text) return 'Password tidak cocok';
-        if (controller == passwordController && v.length < 4) return 'Minimal 4 karakter';
+        if (controller == passwordController) {
+          if (v.length < 8) return 'Minimal 8 karakter';
+          if (!RegExp(r'[A-Za-z]').hasMatch(v)) return 'Harus mengandung minimal 1 huruf';
+          if (!RegExp(r'\d').hasMatch(v)) return 'Harus mengandung minimal 1 angka';
+        }
+        if (controller == confirmPasswordController && v != passwordController.text) {
+          return 'Konfirmasi password tidak cocok';
+        }
         return null;
       },
     );

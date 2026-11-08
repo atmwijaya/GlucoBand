@@ -1,8 +1,6 @@
-import json
-from functools import wraps
 from flask import Blueprint, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
 from db import get_connection
+from app.utils.decorators import medis_only
 
 notifications_bp = Blueprint('notifications', __name__)
 
@@ -13,8 +11,12 @@ def _get_cursor():
     return conn, conn.cursor(dictionary=True)
 
 @notifications_bp.get('/notifications')
-@jwt_required()
+@medis_only
 def get_notifications():
+    """
+    Mengambil daftar notifikasi peringatan glukosa klinik/rumah sakit.
+    Hanya dapat diakses oleh Tenaga Medis (Role-based access control).
+    """
     conn, cursor = _get_cursor()
     if not conn:
         return jsonify({'msg': 'Koneksi database gagal'}), 500

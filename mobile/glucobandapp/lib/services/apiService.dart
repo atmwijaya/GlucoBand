@@ -1,12 +1,13 @@
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import '../core/constants/apiConstant.dart';
 import '../app.dart';
 import '../presentation/pages/loginPage.dart';
+import 'secureStorageService.dart';
 
 class ApiService {
   final Dio _dio;
+  final SecureStorageService _secureStorage = SecureStorageService();
 
   ApiService()
       : _dio = Dio(BaseOptions(
@@ -18,15 +19,13 @@ class ApiService {
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         try {
-          final prefs = await SharedPreferences.getInstance();
-          final token = prefs.getString('token');
+          // Ambil token secara aman dari Android Keystore / iOS Keychain
+          final token = await _secureStorage.getToken();
 
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
-          } else {
           }
-        } catch (e) {
-        }
+        } catch (_) {}
         return handler.next(options);
       },
       onResponse: (response, handler) {
@@ -34,9 +33,8 @@ class ApiService {
       },
       onError: (DioException e, handler) async {
         if (e.response?.statusCode == 401) {
-          
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.clear();
+          // Jika token ditolak / kedaluwarsa, bersihkan sesi dari Keystore
+          await _secureStorage.clearAll();
 
           if (navigatorKey.currentContext != null) {
             Navigator.pushAndRemoveUntil(

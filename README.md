@@ -1,6 +1,6 @@
-# Glucoband - Sistem Pemantauan Gula Darah Non-Invasive
+# Glucoband - Sistem Pemantauan Gula Darah Non-Invasif
 
-Glucoband adalah platform ekosistem kesehatan IoT dan AI untuk pemantauan kadar gula darah secara **non-invasif**. Sistem mengintegrasikan gelang pintar (ESP32 dengan sensor NIR multi-spektral & PPG), aplikasi mobile pasien (Flutter), web dashboard dokter (React), serta backend (Flask) yang dilengkapi model Machine Learning (Random Forest & LSTM).
+Glucoband adalah platform ekosistem kesehatan berbasis Internet of Things (IoT) dan Artificial Intelligence (AI) untuk pemantauan kadar glukosa darah secara non-invasif. Sistem ini mengintegrasikan perangkat keras gelang pintar (ESP32 dengan sensor NIR multi-spektral dan PPG), aplikasi mobile pasien (Flutter), web dashboard tenaga medis (React), serta backend API (Flask) yang dilengkapi model Machine Learning (Random Forest dan LSTM) serta mekanisme keamanan tingkat lanjut.
 
 ---
 
@@ -8,121 +8,158 @@ Glucoband adalah platform ekosistem kesehatan IoT dan AI untuk pemantauan kadar 
 
 ```mermaid
 flowchart LR
-    ESP[Smartband ESP32<br>NIR & PPG] -->|HTTP POST| NGINX[Nginx Reverse Proxy]
-    NGINX -->|/api/*| FLASK[Flask Backend API<br>JWT & SocketIO]
-    NGINX -->|/| WEB_BUILD[Web Dashboard<br>React/Vite]
-    FLASK --> DB[(MySQL 8.0)]
-    FLASK --> ML[AI Models<br>RF & LSTM]
+    ESP["Smartband ESP32<br>Sensor NIR, PPG, Suhu"] -->|HTTP POST / Telemetri| NGINX["Nginx Reverse Proxy"]
+    NGINX -->|/api/*| FLASK["Flask Backend API<br>JWT, SocketIO, Security Guard"]
+    NGINX -->|/| WEB_BUILD["Web Dashboard Medis<br>React / Vite"]
+    FLASK --> DB[("Database MySQL 8.0")]
+    FLASK --> ML["AI Inference Engine<br>Random Forest & LSTM"]
     
-    WEB[Web Medis<br>React] <-->|REST & WSS| NGINX
-    APP[Mobile Pasien<br>Flutter] <-->|REST & WSS| NGINX
+    WEB["Web Medis (Dokter/Perawat)<br>React 19"] <-->|REST API & WebSocket| NGINX
+    APP["Aplikasi Pasien (Mobile)<br>Flutter / Keystore"] <-->|REST API & WebSocket| NGINX
 ```
 
 ### Komponen Utama
-- **IoT Smartband (ESP32):** Membaca data sensor optik spektrometri NIR (610–860nm), denyut nadi (PPG), SpO2, dan suhu kulit.
-- **Backend (Python Flask):** REST API, autentikasi JWT, WebSocket (Socket.IO), dan orkestrasi model AI.
-- **AI Models:** 
-  - *Random Forest* (`rf_diabetes.pkl`): Klasifikasi tingkat risiko diabetes.
-  - *LSTM Neural Network* (`glucoband_lstm_model.h5`): Peramalan (*forecasting*) tren glukosa multi-jam.
-- **Web Dashboard (React 19 + Vite):** Monitoring real-time pasien, grafik riwayat, dan input rekomendasi klinis dokter.
-- **Mobile App (Flutter):** Tampilan status glukosa pasien, tren harian, notifikasi bahaya, dan tanya jawab kesehatan via Gemini AI.
-- **Database (MySQL 8.0):** Penyimpanan data pengguna, telemetri sensor, riwayat prediksi, dan rekomendasi.
+- **IoT Smartband (ESP32):** Mengukur spektrometri serapan optik NIR (610 nm hingga 860 nm), fotopletismografi (PPG untuk denyut jantung dan estimasi SpO2), serta sensor suhu inframerah non-kontak.
+- **Backend Service (Python Flask):** Menyediakan REST API, otentikasi JWT, komunikasi WebSocket real-time (Flask-SocketIO), kontrol otorisasi rekam medis, dan inferensi model AI.
+- **AI & Machine Learning Engine:**
+  - *Random Forest Classifier* (`rf_diabetes.pkl`): Mengestimasi tingkat risiko diabetes berdasarkan parameter klinis dan profil glukosa.
+  - *LSTM Neural Network* (`glucoband_lstm_model.h5`): Memprediksi tren fluktuasi kadar glukosa darah dalam rentang waktu 3 hingga 6 jam ke depan.
+- **Web Dashboard (React 19 + Vite + Tailwind CSS):** Pusat monitoring real-time untuk tenaga medis, visualisasi grafik riwayat, deteksi status pasien aktif/online, dan pengiriman rekomendasi klinis.
+- **Aplikasi Mobile (Flutter):** Antarmuka pasien untuk memantau kadar glukosa harian, riwayat pengukuran, penerimaan notifikasi peringatan/rekomendasi dokter, konfigurasi Wi-Fi smartband, dan asisten edukasi kesehatan berbasis Gemini AI.
+- **Database (MySQL 8.0):** Penyimpanan relasional data kredensial terenkripsi, profil pasien, catatan pengukuran sensor, riwayat prediksi AI, dan pesan rekomendasi.
 
 ---
 
+## Keamanan Sistem
+
+Sistem Glucoband menerapkan prinsip keamanan bertingkat defense-in-depth untuk melindungi data sensitif rekam medis pasien:
+
+1. **Enkripsi Kata Sandi:**
+   - Menggunakan algoritma fungsi hash kriptografi `scrypt` via Werkzeug.
+   - Dilengkapi mekanisme *transparent auto-upgrade* saat proses login berlangsung untuk memperbarui data kata sandi lama secara otomatis tanpa mengganggu kenyamanan pengguna.
+
+2. **Validasi Kredensial & Proteksi Brute Force:**
+   - Validasi ketat kata sandi minimal 8 karakter dengan kombinasi huruf dan angka pada saat registrasi maupun pembaruan data.
+   - Fitur proteksi *Login Rate Limiting*: Batas maksimal 5 kali kegagalan login berturut-turut. Jika batas terlampaui, akun ditangguhkan (*lockout*) selama 5 menit dengan respons HTTP 429 Too Many Requests untuk mencegah serangan brute force dan dictionary attack.
+
+3. **Penyimpanan Token Berbasis Hardware:**
+   - Pada aplikasi mobile, token akses JWT disimpan menggunakan `FlutterSecureStorage` dengan opsi `encryptedSharedPreferences: true`.
+   - Kunci enkripsi AES-256 GCM dikelola langsung oleh Android Keystore / iOS Keychain pada level sistem operasi perangkat keras, mencegah ekstraksi token melalui proses *reverse engineering* atau inspeksi data lokal.
+
+4. **Otorisasi Rekam Medis:**
+   - Setiap endpoint rekam medis, riwayat pengukuran, dan prediksi AI dilindungi oleh decorator otorisasi terpusat (`@patient_owner_or_medis` dan `@patient_body_owner_or_medis`).
+   - Pasien hanya memiliki izin untuk melihat dan mengunggah data atas nama akunnya sendiri (`user_id == patient_id`). Upaya manipulasi ID pasien pada parameter URL maupun payload JSON akan langsung ditolak dengan status HTTP 403 Forbidden.
+   - Evaluasi otorisasi dijalankan sebelum pembukaan koneksi database (*early rejection*) guna mencegah pemborosan resource database dari serangan scraping atau manipulasi parameter.
+   - Akun dengan wewenang `tenaga_medis` memiliki izin menyeluruh untuk membaca data seluruh pasien dalam rangka observasi medis.
+
 ---
 
-## Ringkasan Alur Penggunaan.
+## Alur Penggunaan Sistem
 
-- **Tenaga Medis (Web Dashboard):**
-  1. Login menggunakan akun dengan role `tenaga_medis`.
-  2. Buka menu **Data Pasien** untuk mendaftarkan atau memantau rekam medis pasien.
-  3. Akses **Realtime Monitoring** untuk melihat kadar glukosa live (status: Normal, Rendah/Hipoglikemia, atau Tinggi/Hiperglikemia).
-  4. Analisis grafik prediksi tren AI (LSTM) dan kirim **Rekomendasi Medis** langsung ke aplikasi pasien.
-- **Pasien (Mobile App):**
-  1. Login atau register akun pasien.
-  2. Kenakan gelang Glucoband (pastikan gelang terhubung ke Wi-Fi).
-  3. Cek kadar gula terkini pada kartu beranda, grafik tren harian, pesan peringatan, rekomendasi dokter, serta konsultasi FAQ/Gemini AI.
+### 1. Tenaga Medis (Web Dashboard)
+- Melakukan login menggunakan akun berwewenang `tenaga_medis`.
+- Mengakses halaman **Data Pasien** untuk mengelola profil pasien baru atau melihat riwayat klinis.
+- Membuka menu **Real-time Monitoring** untuk mengamati data sensor langsung dari pasien yang sedang terhubung dan mengenakan perangkat.
+- Meninjau hasil analisis grafik prediksi tren AI (LSTM) dan tingkat risiko (Random Forest).
+- Mengirimkan instruksi atau **Rekomendasi Medis** langsung ke perangkat mobile pasien.
+
+### 2. Pasien (Aplikasi Mobile)
+- Mendaftar atau login ke akun pasien melalui aplikasi mobile.
+- Mengonfigurasi jaringan Wi-Fi perangkat gelang melalui dialog koneksi GlucoBand.
+- Memasang perangkat pada pergelangan tangan dan jari untuk memulai pengukuran.
+- Melihat hasil estimasi kadar gula darah, denyut jantung, suhu kulit, serta status kesehatan (Normal, Hipoglikemia, atau Hiperglikemia).
+- Menerima notifikasi darurat dan rekomendasi penanganan langsung dari tenaga medis.
+- Mengakses menu edukasi dan asisten konsultasi berbasis Gemini AI.
 
 ---
 
-## Daftar Endpoint API
+## Daftar Endpoint REST API
 
-Semua request privat wajib menyertakan header: `Authorization: Bearer <JWT_TOKEN>`.
+Semua request yang membutuhkan otentikasi wajib menyertakan header HTTP:
+`Authorization: Bearer <JWT_TOKEN>`
 
 ### 1. Autentikasi (`/api/auth`)
-| Method | Endpoint | Deskripsi |
-| :--- | :--- | :--- |
-| `POST` | `/auth/login` | Login (Email & Password), mengembalikan JWT token & info user |
-| `POST` | `/auth/register/pasien` | Pendaftaran akun baru pasien |
-
-### 2. Manajemen Pasien (`/api/patients`)
-| Method | Endpoint | Role | Deskripsi |
+| Method | Endpoint | Akses | Deskripsi |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/patients` | Medis | Mengambil daftar semua pasien |
-| `GET` | `/patients/<id>` | Medis | Detail data & parameter klinis pasien |
-| `POST` | `/patients` | Medis | Menambahkan data pasien baru |
-| `PUT` | `/patients/<id>` | Medis | Memperbarui profil medis pasien |
-| `DELETE`| `/patients/<id>` | Medis | Menghapus data pasien |
+| `POST` | `/auth/login` | Publik | Otentikasi pengguna (email dan password). Dilengkapi rate limiter brute force. |
+| `POST` | `/auth/register/pasien` | Publik | Registrasi akun baru pasien dengan validasi password ketat dan hashing otomatis. |
 
-### 3. Pengukuran Sensor & Glukosa (`/api/measurements`)
-| Method | Endpoint | Deskripsi |
-| :--- | :--- | :--- |
-| `POST` | `/measurements` | **Ingest Data IoT ESP32** (NIR 6-ch, PPG HR/SpO2/IR, suhu, estimasi glukosa) |
-| `GET` | `/measurements` | 100 riwayat pengukuran terakhir |
-| `GET` | `/patients/<id>/measurements` | Riwayat pengukuran pasien tertentu (`?limit=20`) |
-| `GET` | `/patients/<id>/latest` | Data pengukuran paling mutakhir pasien |
+### 2. Pengukuran & Telemetri Sensor (`/api/measurements`)
+| Method | Endpoint | Akses | Deskripsi |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/measurements` | IoT / Pasien | Ingest data telemetri sensor (NIR, PPG, Suhu) dan estimasi glukosa. Dilindungi verifikasi kepemilikan payload. |
+| `GET` | `/measurements` | Pasien / Medis | Mengambil riwayat pengukuran. Khusus pasien otomatis difilter hanya menampilkan data milik sendiri. |
+| `GET` | `/patients/<id>/measurements` | Pemilik / Medis | Mengambil riwayat pengukuran pasien berdasarkan ID (Anti-IDOR protected). |
+| `GET` | `/patients/<id>/latest` | Pemilik / Medis | Mengambil data pengukuran paling mutakhir dari pasien tertentu. |
+| `POST` | `/measurements/live-stream` | Pasien | Streaming data denyut jantung dan sensor secara real-time via WebSocket. |
 
-### 4. Prediksi AI & Machine Learning
+### 3. Prediksi AI & Machine Learning
 | Method | Endpoint | Model | Deskripsi |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/predict/risk` | Random Forest | Input: data klinis + glukosa. Output: level & skor risiko |
-| `POST` | `/predict/trend` | LSTM | Input: `glucose_history` (min 3 titik). Output: ramalan glukosa 3–6 jam ke depan |
-| `GET` | `/predictions/risk/<patient_id>` | - | Mengambil status risiko terakhir pasien |
-| `GET` | `/predictions/trend/<patient_id>` | - | Mengambil ramalan tren glukosa terakhir |
-| `GET` | `/predictions/trend/<patient_id>/history` | - | Riwayat prediksi tren glukosa pasien |
+| `POST` | `/predict/risk` | Random Forest | Input: parameter klinis dan glukosa. Output: level risiko dan skor probabilitas. |
+| `POST` | `/predict/trend` | LSTM | Input: riwayat glukosa historis. Output: perkiraan kurva glukosa 3 hingga 6 jam ke depan. |
+| `GET` | `/predictions/risk/<patient_id>` | - | Mengambil hasil evaluasi risiko diabetes pasien (Anti-IDOR protected). |
+| `GET` | `/predictions/trend/<patient_id>` | - | Mengambil data tren prediksi glukosa terkini pasien (Anti-IDOR protected). |
+| `GET` | `/predictions/trend/<patient_id>/history` | - | Mengambil riwayat seluruh prediksi tren glukosa pasien (Anti-IDOR protected). |
+| `DELETE`| `/predictions/trend/<prediction_id>` | Pemilik / Medis | Menghapus satu entri riwayat prediksi tren glukosa. |
 
-### 5. Rekomendasi, Notifikasi, & Lainnya
-| Method | Endpoint | Role | Deskripsi |
+### 4. Manajemen Pasien (`/api/patients`)
+| Method | Endpoint | Akses | Deskripsi |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/patients/<id>/recommendations` | Medis | Kirim rekomendasi klinis dokter ke pasien |
-| `GET` | `/patient/notifications` | Pasien | Notifikasi peringatan & rekomendasi milik pasien |
-| `PUT` | `/patient/recommendations/<id>/read` | Pasien | Menandai rekomendasi telah dibaca |
-| `GET` | `/notifications` | Medis | Daftar seluruh peringatan darurat pasien |
-| `GET/PUT`| `/profile` | User | Mengambil atau memperbarui profil pengguna |
-| `GET/POST`| `/faq` | User/Medis | Mengambil atau mengelola artikel FAQ |
-| `GET` | `/dashboard/stats` | Medis | Statistik total pasien, alert hari ini, dan bacaan |
+| `GET` | `/patients` | Medis | Mengambil seluruh daftar pasien terdaftar. |
+| `GET` | `/patients/<id>` | Medis | Mengambil rincian data klinis pasien berdasarkan ID. |
+| `POST` | `/patients` | Medis | Mendaftarkan pasien baru ke dalam database. |
+| `PUT` | `/patients/<id>` | Medis | Memperbarui informasi profil atau riwayat medis pasien. |
+| `DELETE`| `/patients/<id>` | Medis | Menghapus data akun pasien dari sistem. |
+| `GET` | `/patients/online` | Medis | Mengambil daftar ID pasien yang sedang aktif/terkoneksi WebSocket. |
+
+### 5. Notifikasi, Rekomendasi, & Profil
+| Method | Endpoint | Akses | Deskripsi |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/notifications` | Medis | Mengambil seluruh daftar peringatan kondisi darurat pasien secara global. |
+| `POST` | `/patients/<id>/recommendations` | Medis | Mengirimkan catatan rekomendasi klinis dari dokter ke akun pasien terkait. |
+| `GET` | `/patient/notifications` | Pasien | Mengambil riwayat notifikasi peringatan dan rekomendasi milik akun pasien aktif. |
+| `PUT` | `/patient/recommendations/<id>/read` | Pasien | Menandai rekomendasi medis tertentu telah dibaca oleh pasien. |
+| `GET` | `/profile` | Pengguna | Mengambil profil pengguna yang sedang login. |
+| `PUT` | `/profile` | Pengguna | Memperbarui parameter kesehatan mandiri (tinggi, berat badan, tekanan darah). |
+| `GET` | `/dashboard/stats` | Medis | Mengambil ringkasan statistik total pasien, alert hari ini, dan jumlah pengukuran. |
+| `GET/POST`| `/faq` | Pengguna / Medis | Mengambil daftar artikel FAQ atau mengunggah konten tanya-jawab baru. |
 
 ---
 
-## Struktur Proyek
+## Struktur Direktori Proyek
 
 ```text
 glucoband/
-├── backend/                  # REST API Flask & Machine Learning
-│   ├── app/
-│   │   ├── ml_models/        # Bobot Model (rf_diabetes.pkl, lstm_model.h5)
-│   │   ├── routes/           # Controller Blueprint (auth, patients, measurements, dll)
-│   │   ├── services/ml/      # Service Inferensi ML (LSTM & Random Forest)
-│   │   └── __init__.py       # Factory App & Socket.IO
-│   ├── backup/               # Dump SQL Database Awal
-│   ├── app.py                # Entrypoint Backend Server
-│   ├── db.py                 # Koneksi & Decorator Database MySQL
-│   └── requirement.txt       # Dependensi Python
-├── web/                      # Frontend Dashboard Tenaga Medis (React 19 + Vite)
-│   ├── src/
-│   │   ├── pages/            # Halaman Dashboard, Pasien, Realtime Monitoring, FAQ
-│   │   ├── components/       # Komponen UI (Navbar, Sidebar, Charts)
-│   │   └── api/              # Axios API Client
-│   └── package.json
-├── mobile/glucobandapp/      # Aplikasi Pasien (Flutter)
-│   ├── lib/
-│   │   ├── core/constants/   # apiConstant.dart (Base URL Server)
-│   │   ├── presentation/     # UI Pages (Beranda, Monitoring, Profile, FAQ)
-│   │   └── services/         # API Service, Socket, Secure Storage, Gemini AI
-│   └── pubspec.yaml
-├── docker-compose.yml        # Setup Kontainer MySQL
-└── README.md                 # Dokumentasi Proyek
+|-- backend/
+|   |-- app/
+|   |   |-- ml_models/            # File bobot model machine learning (pkl dan h5)
+|   |   |-- routes/               # Handler endpoint API (auth, measurements, patients, dll)
+|   |   |-- services/ml/          # Service inferensi model LSTM dan Random Forest
+|   |   |-- utils/                # Helper keamanan (decorators.py, validators.py)
+|   |   `-- __init__.py           # Inisialisasi aplikasi Flask dan Socket.IO
+|   |-- backup/                   # Skrip dump struktur awal basis data SQL
+|   |-- app.py                    # Entry point server backend Flask
+|   |-- config.py                 # Konfigurasi aplikasi dan variabel lingkungan
+|   |-- db.py                     # Manajemen koneksi basis data MySQL
+|   `-- requirement.txt           # Daftar dependensi library Python
+|-- web/
+|   |-- src/
+|   |   |-- api/                  # Axios HTTP client terkonfigurasi
+|   |   |-- components/           # Komponen antarmuka (Navbar, Sidebar, Charts, Gauges)
+|   |   |-- pages/                # Halaman Web (Monitoring, Pasien, Pengaturan, Login)
+|   |   `-- App.jsx               # Routing utama aplikasi web
+|   |-- index.html
+|   `-- package.json              # Dependensi JavaScript / React
+|-- mobile/glucobandapp/
+|   |-- android/                  # Konfigurasi native Android
+|   |-- lib/
+|   |   |-- core/constants/       # URL API dan konfigurasi konstanta
+|   |   |-- data/datasources/     # Sumber data lokal dan Keystore
+|   |   |-- presentation/         # Tampilan UI Flutter (Beranda, Monitoring, Dialog)
+|   |   `-- services/             # Service API, Secure Storage, WebSocket, dan Gemini
+|   `-- pubspec.yaml              # Dependensi Flutter
+|-- Glucoband-Firmware-master/    # Source code firmware mikroprosesor ESP32
+|-- docker-compose.yml            # Konfigurasi kontainer basis data MySQL
+`-- README.md                     # Dokumentasi teknis proyek
 ```
-
----

@@ -1,7 +1,7 @@
-import json
 from flask import Blueprint, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from db import get_connection
+from app.utils.decorators import get_current_user
 
 patient_notif_bp = Blueprint('patient_notifications', __name__)
 
@@ -14,11 +14,10 @@ def _get_cursor():
 @patient_notif_bp.get('/patient/notifications')
 @jwt_required()
 def get_patient_notifications():
-    identity_json = get_jwt_identity()
-    if not identity_json:
-        return jsonify({'msg': 'Token tidak valid'}), 422
-    identity = json.loads(identity_json)
-    patient_id = identity['id']
+    user = get_current_user()
+    if not user:
+        return jsonify({'msg': 'Token otentikasi tidak valid'}), 401
+    patient_id = user['id']
 
     conn, cursor = _get_cursor()
     if not conn:
@@ -75,15 +74,14 @@ def get_patient_notifications():
     finally:
         cursor.close()
         conn.close()
-        
+
 @patient_notif_bp.put('/patient/recommendations/<int:id>/read')
 @jwt_required()
 def mark_recommendation_read(id):
-    identity_json = get_jwt_identity()
-    if not identity_json:
-        return jsonify({'msg': 'Token tidak valid'}), 422
-    identity = json.loads(identity_json)
-    patient_id = identity['id']
+    user = get_current_user()
+    if not user:
+        return jsonify({'msg': 'Token otentikasi tidak valid'}), 401
+    patient_id = user['id']
 
     conn, cursor = _get_cursor()
     if not conn:

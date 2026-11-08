@@ -30,7 +30,8 @@ export default function LoginPage() {
       navigate("/admin/dashboard", { replace: true });
     } catch (err) {
       console.error("Login error:", err);
-      setError("Email atau password salah.");
+      const serverMsg = err.response?.data?.msg || err.response?.data?.message;
+      setError(serverMsg || "Email atau password salah.");
     } finally {
       setLoading(false);
     }

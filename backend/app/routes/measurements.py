@@ -1,7 +1,12 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from db import db_connection
-from datetime import datetime
+from app.utils.decorators import (
+    get_current_user,
+    can_access_patient,
+    patient_owner_or_medis,
+    patient_body_owner_or_medis
+)
 
 measurements_bp = Blueprint('measurements', __name__)
 
@@ -9,15 +14,37 @@ measurements_bp = Blueprint('measurements', __name__)
 @jwt_required()
 @db_connection
 def get_all_measurements(cursor):
-    cursor.execute("""
-        SELECT m.id, m.patient_id, u.name AS patient_name,
-               m.glucose_estimated, m.status, m.ppg_heart_rate, m.ppg_spo2,
-               m.skin_temp_celsius, m.created_at
-        FROM measurements m
-        JOIN users u ON m.patient_id = u.id
-        ORDER BY m.created_at DESC
-        LIMIT 100
-    """)
+    """
+    Mengambil data pengukuran:
+    - Pasien: HANYA mengambil riwayat pengukuran milik akunnya sendiri (Anti-IDOR).
+    - Tenaga Medis: Mengambil riwayat pengukuran seluruh pasien untuk dashboard monitoring.
+    """
+    user = get_current_user()
+    if not user:
+        return jsonify({'msg': 'Token otentikasi tidak valid.'}), 401
+
+    if user.get('role') == 'pasien':
+        cursor.execute("""
+            SELECT m.id, m.patient_id, u.name AS patient_name,
+                   m.glucose_estimated, m.status, m.ppg_heart_rate, m.ppg_spo2,
+                   m.skin_temp_celsius, m.created_at
+            FROM measurements m
+            JOIN users u ON m.patient_id = u.id
+            WHERE m.patient_id = %s
+            ORDER BY m.created_at DESC
+            LIMIT 100
+        """, (user.get('id'),))
+    else:
+        cursor.execute("""
+            SELECT m.id, m.patient_id, u.name AS patient_name,
+                   m.glucose_estimated, m.status, m.ppg_heart_rate, m.ppg_spo2,
+                   m.skin_temp_celsius, m.created_at
+            FROM measurements m
+            JOIN users u ON m.patient_id = u.id
+            ORDER BY m.created_at DESC
+            LIMIT 100
+        """)
+
     measurements = cursor.fetchall()
     for m in measurements:
         m['glucose_estimated'] = str(m['glucose_estimated']) if m['glucose_estimated'] else None
@@ -26,9 +53,13 @@ def get_all_measurements(cursor):
     return jsonify(measurements)
 
 @measurements_bp.get('/patients/<int:patient_id>/measurements')
-@jwt_required()
+@patient_owner_or_medis('patient_id')
 @db_connection
 def get_patient_measurements(cursor, patient_id):
+    """
+    Mengambil riwayat pengukuran pasien tertentu.
+    Anti-IDOR: Pasien dilarang melihat data pasien lain.
+    """
     limit = request.args.get('limit', 20, type=int)
     cursor.execute("""
         SELECT id, patient_id, glucose_estimated, status, ppg_heart_rate, ppg_spo2,
@@ -46,9 +77,13 @@ def get_patient_measurements(cursor, patient_id):
     return jsonify(measurements)
 
 @measurements_bp.get('/patients/<int:patient_id>/latest')
-@jwt_required()
+@patient_owner_or_medis('patient_id')
 @db_connection
 def get_latest_measurement(cursor, patient_id):
+    """
+    Mengambil pengukuran terbaru pasien tertentu.
+    Anti-IDOR: Pasien dilarang melihat data pasien lain.
+    """
     cursor.execute("""
         SELECT id, patient_id, glucose_estimated, status, ppg_heart_rate, ppg_spo2,
                skin_temp_celsius, created_at
@@ -66,13 +101,23 @@ def get_latest_measurement(cursor, patient_id):
     return jsonify(m)
 
 @measurements_bp.post('/measurements')
+@patient_body_owner_or_medis('patient_id')
 @db_connection
 def add_measurement(cursor):
-    """Endpoint untuk ESP32 mengirim data sensor."""
+    """
+    Endpoint untuk ESP32 atau aplikasi mobile mengirim data sensor.
+    Jika request membawa token otentikasi (dari aplikasi mobile),
+    sistem memastikan data hanya bisa disimpan atas nama akun pengguna sendiri.
+    """
     data = request.get_json()
     required = ['patient_id', 'created_at']
-    if not all(k in data for k in required):
+    if not data or not all(k in data for k in required):
         return jsonify({'msg': 'Data tidak lengkap'}), 400
+
+    user = get_current_user()
+    if user:
+        if not can_access_patient(user, data['patient_id']):
+            return jsonify({'msg': 'Akses ditolak: Anda tidak memiliki izin mengunggah data untuk pasien lain.'}), 403
 
     sql = """
         INSERT INTO measurements
@@ -93,4 +138,49 @@ def add_measurement(cursor):
         data['created_at'],
         data.get('source', 'wifi')
     ))
-    return jsonify({'msg': 'Data tersimpan', 'id': cursor.lastrowid}), 201
+    new_id = cursor.lastrowid
+
+    try:
+        from app import socketio
+        glucose_val = float(data.get('glucose_estimated') or 0)
+        status_calc = 'Normal'
+        if glucose_val > 200:
+            status_calc = 'Hiperglikemia'
+        elif glucose_val < 70 and glucose_val > 0:
+            status_calc = 'Hipoglikemia'
+
+        measurement_payload = {
+            'id': new_id,
+            'patient_id': int(data['patient_id']),
+            'glucose_estimated': glucose_val,
+            'ppg_heart_rate': int(data.get('ppg_heart_rate') or 0),
+            'skin_temp_celsius': float(data.get('skin_temp_celsius') or 0),
+            'ppg_spo2': int(data.get('ppg_spo2') or 98),
+            'status': status_calc,
+            'created_at': data['created_at']
+        }
+        socketio.emit('new_measurement', measurement_payload)
+    except Exception as e:
+        print(f"[SocketIO Error] Gagal emit new_measurement: {e}")
+
+    return jsonify({'msg': 'Data tersimpan', 'id': new_id}), 201
+
+@measurements_bp.post('/measurements/live-stream')
+@patient_body_owner_or_medis('patient_id')
+def stream_sensor_data():
+    """
+    Endpoint untuk menerima streaming denyut jantung (BPM) dan sensor GlucoBand
+    secara real-time dari aplikasi mobile pasien ke web tenaga medis via WebSocket.
+    """
+    data = request.get_json() or {}
+    user = get_current_user()
+    if user and 'patient_id' in data:
+        if not can_access_patient(user, data['patient_id']):
+            return jsonify({'msg': 'Akses ditolak: ID pasien tidak cocok dengan token aktif'}), 403
+
+    try:
+        from app import socketio
+        socketio.emit('live_sensor_stream', data)
+    except Exception as e:
+        print(f"[SocketIO Error] Gagal emit live_sensor_stream: {e}")
+    return jsonify({'status': 'streamed'}), 200

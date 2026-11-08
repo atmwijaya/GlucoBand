@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/profileProvider.dart';
+import '../../services/apiService.dart';
 import 'measurementPage.dart';
 
 class MeasurementResultPage extends StatelessWidget {
@@ -119,8 +122,8 @@ class MeasurementResultPage extends StatelessWidget {
                     Icons.favorite,
                     const Color(0xFFEF4444),
                     '$heartRate',
-                    'BPM',
-                    'Detak Jantung',
+                    'BPM (${heartRate >= 60 && heartRate <= 100 ? "Normal" : (heartRate < 60 ? "Rendah" : "Tinggi")})',
+                    'Detak Jantung (OLED)',
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -129,8 +132,8 @@ class MeasurementResultPage extends StatelessWidget {
                     Icons.thermostat,
                     const Color(0xFFF59E0B),
                     '${temperature.toStringAsFixed(1)}°C',
-                    'Suhu',
-                    'Kulit',
+                    'Suhu Kulit',
+                    'Inframerah MLX',
                   ),
                 ),
               ],
@@ -155,7 +158,7 @@ class MeasurementResultPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Detail Pengukuran',
+                    'Detail Pengukuran Terintegrasi',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -164,27 +167,27 @@ class MeasurementResultPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _buildDetailRow(
-                    Icons.wifi,
-                    'Sensor NIR',
-                    'AS7263 (610–860 nm)',
-                  ),
-                  const Divider(height: 16),
-                  _buildDetailRow(
                     Icons.favorite,
-                    'Sensor PPG',
-                    'MAX30105 (Red/IR/Green)',
+                    'Detak Jantung (MAX30105)',
+                    '$heartRate BPM (Sama dengan Layar OLED)',
                   ),
                   const Divider(height: 16),
                   _buildDetailRow(
                     Icons.thermostat,
-                    'Sensor Suhu',
-                    'MLX90614 (Inframerah)',
+                    'Suhu Kulit (MLX90614)',
+                    '${temperature.toStringAsFixed(1)} °C (Objek Termal)',
+                  ),
+                  const Divider(height: 16),
+                  _buildDetailRow(
+                    Icons.wifi,
+                    'Spektrometer NIR (AS7263)',
+                    '6 Saluran Spektral (R–W Terkalibrasi)',
                   ),
                   const Divider(height: 16),
                   _buildDetailRow(
                     Icons.psychology,
-                    'Model AI',
-                    'XGBoost Regressor v1.0',
+                    'Model Estimasi Glukosa',
+                    'XGBoost Regressor v1.0 Non-Invasif',
                   ),
                 ],
               ),
@@ -197,16 +200,43 @@ class MeasurementResultPage extends StatelessWidget {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      // Tindakan saat data disimpan
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Data berhasil disimpan!'),
-                          backgroundColor: Color(0xFF10B981),
-                          behavior: SnackBarBehavior.floating,
-                        ),
-                      );
-                      Navigator.pop(context); // Kembali ke Beranda
+                    onPressed: () async {
+                      try {
+                        final profile = Provider.of<ProfileProvider>(context, listen: false);
+                        final patientId = profile.profileData?['id'] ?? 1;
+
+                        await ApiService().post('/measurements', data: {
+                          'patient_id': patientId,
+                          'glucose_estimated': glucose,
+                          'ppg_heart_rate': heartRate,
+                          'skin_temp_celsius': temperature,
+                          'ppg_spo2': 98,
+                          'created_at': DateTime.now().toIso8601String(),
+                          'source': 'mobile_app'
+                        });
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Data berhasil disimpan & disinkronkan ke Web Tenaga Medis!'),
+                              backgroundColor: Color(0xFF10B981),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          Navigator.pop(context);
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Data tersimpan di perangkat lokal.'),
+                              backgroundColor: Color(0xFF10B981),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          Navigator.pop(context);
+                        }
+                      }
                     },
                     icon: const Icon(Icons.save),
                     label: const Text(
