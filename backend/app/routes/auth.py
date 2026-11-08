@@ -1,6 +1,11 @@
 import json
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import (
+    create_access_token,
+    create_refresh_token,
+    jwt_required,
+    get_jwt_identity
+)
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import timedelta
 from db import db_connection
@@ -19,12 +24,11 @@ def login(cursor):
     email = str(data['email']).strip().lower()
     input_password = str(data['password'])
 
-    # 1. Proteksi Brute-force: Cek apakah kombinasi IP/email sedang dibekukan
     is_locked, remaining_seconds = login_rate_limiter.is_locked(client_ip, email)
     if is_locked:
         minutes = max(1, (remaining_seconds + 59) // 60)
         return jsonify({
-            'msg': f'Terlalu banyak percobaan login gagal. Percobaan dibekukan sementara demi keamanan. Coba lagi dalam {minutes} menit.',
+            'msg': f'Terlalu banyak permintaan. Coba lagi dalam {minutes} menit.',
             'retry_after_seconds': remaining_seconds
         }), 429
 
@@ -32,11 +36,10 @@ def login(cursor):
     user = cursor.fetchone()
 
     if not user:
-        # Catat kegagalan jika user tidak ditemukan (mencegah enumerasi akun secara massal)
         is_now_locked, lockout_dur, remaining = login_rate_limiter.record_failure(client_ip, email)
         if is_now_locked:
             return jsonify({
-                'msg': 'Terlalu banyak percobaan login gagal. Percobaan dibekukan sementara selama 5 menit.',
+                'msg': 'Terlalu banyak permintaan. Coba lagi dalam 5 menit.',
                 'retry_after_seconds': lockout_dur
             }), 429
         return jsonify({
@@ -58,21 +61,18 @@ def login(cursor):
             needs_upgrade = True
 
     if not is_valid:
-        # Catat kegagalan jika kata sandi tidak cocok
         is_now_locked, lockout_dur, remaining = login_rate_limiter.record_failure(client_ip, email)
         if is_now_locked:
             return jsonify({
-                'msg': 'Terlalu banyak percobaan login gagal. Akun dibekukan sementara selama 5 menit demi keamanan.',
+                'msg': 'Terlalu banyak permintaan. Coba lagi dalam 5 menit.',
                 'retry_after_seconds': lockout_dur
             }), 429
         return jsonify({
             'msg': f'Email atau kata sandi salah. Sisa percobaan: {remaining} kali.'
         }), 401
 
-    # 2. Login Berhasil -> Reset counter kegagalan
     login_rate_limiter.record_success(client_ip, email)
 
-    # 3. Upgrade otomatis akun lama ke hash scrypt
     if needs_upgrade:
         try:
             new_hash = generate_password_hash(input_password)
@@ -81,16 +81,44 @@ def login(cursor):
             print("Peringatan: Gagal meng-upgrade password hash user:", e)
 
     identity_string = json.dumps({'id': user['id'], 'role': user['role']})
-    token = create_access_token(
+    access_token = create_access_token(
+        identity=identity_string,
+        expires_delta=timedelta(days=1)
+    )
+    refresh_token = create_refresh_token(
         identity=identity_string,
         expires_delta=timedelta(days=30)
     )
-    return jsonify(token=token, user={
-        'id': user['id'],
-        'name': user['name'],
-        'email': user['email'],
-        'role': user['role']
+
+    return jsonify({
+        'token': access_token,            
+        'access_token': access_token,       
+        'refresh_token': refresh_token,     
+        'user': {
+            'id': user['id'],
+            'name': user['name'],
+            'email': user['email'],
+            'role': user['role']
+        }
     })
+
+@auth_bp.post('/refresh')
+@jwt_required(refresh=True)
+def refresh_token_endpoint():
+    """
+    Endpoint pembaruan token (JWT Refresh).
+    Klien mengirimkan Refresh Token di header 'Authorization: Bearer <REFRESH_TOKEN>'
+    untuk mendapatkan Access Token baru tanpa meminta kata sandi pengguna kembali.
+    """
+    identity = get_jwt_identity()
+    new_access_token = create_access_token(
+        identity=identity,
+        expires_delta=timedelta(days=1)
+    )
+    return jsonify({
+        'token': new_access_token,
+        'access_token': new_access_token
+    }), 200
 
 @auth_bp.post('/register/pasien')
 @db_connection
@@ -100,7 +128,7 @@ def register_pasien(cursor):
         return jsonify({'msg': 'Data tidak lengkap'}), 400
 
     email = str(data['email']).strip().lower()
-    password = str(data['password']).strip()
+    password = str(data['password'])
 
     # Validasi kekuatan kata sandi: minimal 8 karakter, harus ada huruf dan angka
     is_valid_pw, pw_err_msg = validate_password(password)

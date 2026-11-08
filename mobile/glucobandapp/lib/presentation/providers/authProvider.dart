@@ -19,7 +19,6 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  /// Login
   Future<bool> login(String email, String password) async {
     _isLoading = true;
     _errorMessage = null;
@@ -28,11 +27,14 @@ class AuthProvider extends ChangeNotifier {
     try {
       final response = await _apiService.login(email, password);
       
-      _token = response.data['token'];
+      _token = response.data['access_token'] ?? response.data['token'];
+      final refreshToken = response.data['refresh_token'];
       _user = UserModel.fromJson(response.data['user']);
 
-      // Simpan kredensial terenkripsi ke Android Keystore / iOS Keychain
       await _secureStorage.saveToken(_token!);
+      if (refreshToken != null) {
+        await _secureStorage.saveRefreshToken(refreshToken);
+      }
       await _secureStorage.saveUserData(
         id: _user!.id,
         name: _user!.name,
@@ -60,7 +62,6 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  /// Register
   Future<bool> register({
     required String name,
     required String email,

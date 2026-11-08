@@ -19,6 +19,7 @@ class SecureStorageService {
   );
 
   static const String _keyToken = 'auth_token';
+  static const String _keyRefreshToken = 'refresh_token';
   static const String _keyUserId = 'user_id';
   static const String _keyUserName = 'user_name';
   static const String _keyUserEmail = 'user_email';
@@ -27,6 +28,20 @@ class SecureStorageService {
   /// Menyimpan token autentikasi JWT ke Android Keystore
   Future<void> saveToken(String token) async {
     await _storage.write(key: _keyToken, value: token);
+  }
+
+  /// Menyimpan Refresh Token JWT ke Android Keystore
+  Future<void> saveRefreshToken(String refreshToken) async {
+    await _storage.write(key: _keyRefreshToken, value: refreshToken);
+  }
+
+  /// Mengambil Refresh Token JWT
+  Future<String?> getRefreshToken() async {
+    try {
+      return await _storage.read(key: _keyRefreshToken);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Mengambil token JWT dengan fallback migrasi otomatis dari SharedPreferences lama

@@ -18,14 +18,18 @@ export default function LoginPage() {
 
     try {
       const response = await login(email, password);
-      const { token, user } = response.data;
+      const { token, access_token, refresh_token, user } = response.data;
 
       if (user.role !== "tenaga_medis") {
         setError("Hanya tenaga medis yang dapat mengakses dashboard ini.");
         return;
       }
 
-      sessionStorage.setItem("token", token);
+      const activeToken = access_token || token;
+      sessionStorage.setItem("token", activeToken);
+      if (refresh_token) {
+        sessionStorage.setItem("refresh_token", refresh_token);
+      }
       sessionStorage.setItem("user", JSON.stringify(user));
       navigate("/admin/dashboard", { replace: true });
     } catch (err) {
