@@ -19,7 +19,7 @@ extern float spectralR, spectralS, spectralT, spectralU, spectralV, spectralW;
 WiFiConfig::WiFiConfig() : server(80), wifiConnected(false), failedAttempts(0),
                            lastConnectionAttempt(0), resetButtonPressed(0), 
                            resetButtonState(false), apModeActive(false) {
-  apiEndpoint = "https://api.glucosense.id";
+  apiEndpoint = "https://api.glucoband.id";
   connectionStatus = "Inisialisasi";
 }
 
@@ -411,7 +411,7 @@ void WiFiConfig::handleApiReset() {
 void WiFiConfig::loadCredentials() {
   ssid = preferences.getString("ssid", "");
   password = preferences.getString("password", "");
-  apiEndpoint = "https://api.glucosense.id"; 
+  apiEndpoint = "https://api.glucoband.id"; 
   failedAttempts = preferences.getInt("failed", 0);
 }
 
@@ -614,7 +614,7 @@ bool WiFiConfig::predictGlucose(float r, float s, float t, float u, float v, flo
   client.setInsecure();
 
   HTTPClient http;
-  http.begin(client, "https://api.glucosense.id/api/xgb/predict");
+  http.begin(client, "https://api.glucoband.id/api/xgb/predict");
   http.addHeader("Content-Type", "application/json");
   http.setTimeout(5000);
 
