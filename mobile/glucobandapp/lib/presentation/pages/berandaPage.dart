@@ -113,13 +113,24 @@ class _BerandaPageState extends State<BerandaPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Icon(Icons.settings_outlined, color: Color(0xFF64748B)),
-                    const Text(
-                      'GlucoBand',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF613EEA),
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/icons/android-chrome-192x192.png',
+                          width: 26,
+                          height: 26,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'GlucoBand',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF613EEA),
+                          ),
+                        ),
+                      ],
                     ),
                     Stack(
                       children: [

@@ -26,8 +26,9 @@ class LoginPage extends StatelessWidget {
                 const SizedBox(height: 40),
                 // Logo & Judul
                 Container(
-                  width: 80,
-                  height: 80,
+                  width: 88,
+                  height: 88,
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
@@ -39,7 +40,10 @@ class LoginPage extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.watch, color: Color(0xFF613EEA), size: 40),
+                  child: Image.asset(
+                    'assets/icons/android-chrome-192x192.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 const Text(

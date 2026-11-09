@@ -46,6 +46,7 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
+      debugPrint('Login exception: $e');
       if (e is DioException && e.response?.data != null) {
         final data = e.response!.data;
         if (data is Map && (data['msg'] != null || data['message'] != null)) {
@@ -92,6 +93,7 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
+      debugPrint('Login exception: $e');
       if (e is DioException && e.response?.data != null) {
         final data = e.response!.data;
         if (data is Map && (data['msg'] != null || data['message'] != null)) {
