@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/profileProvider.dart';
+import '../providers/measurementProvider.dart';
 import '../../services/apiService.dart';
 import 'measurementPage.dart';
 
@@ -214,6 +215,10 @@ class MeasurementResultPage extends StatelessWidget {
                           'created_at': DateTime.now().toIso8601String(),
                           'source': 'mobile_app'
                         });
+
+                        if (context.mounted) {
+                          Provider.of<MeasurementProvider>(context, listen: false).fetchMeasurements();
+                        }
 
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(

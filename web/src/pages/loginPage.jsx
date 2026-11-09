@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import { login } from "../api/authApi";
+import logoImg from "../assets/android-chrome-512x512.png";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -45,14 +46,16 @@ export default function LoginPage() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         {/* Logo & Brand */}
-        <div className="flex flex-col items-center mb-10">
-          <img
-            src="/icons/icon-192x192.png"
-            alt="GlucoBand"
-            className="w-20 h-20 mb-4 rounded-2xl shadow-md"
-          />
-          <h1 className="text-3xl font-bold text-darkNavy">
-            Gluco<span className="text-primaryBlue">Band</span>
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-24 h-24 mb-3 rounded-2xl bg-white shadow-md p-3 flex items-center justify-center border border-slate-100">
+            <img
+              src={logoImg}
+              alt="GlucoBand Logo"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <h1 className="text-3xl font-bold text-darkNavy tracking-tight">
+            Gluco<span className="text-[#613EEA]">Band</span>
           </h1>
         </div>
 

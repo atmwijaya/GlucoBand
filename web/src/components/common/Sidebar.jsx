@@ -5,6 +5,7 @@ import {
   FaQuestionCircle, FaSignOutAlt, FaCog
 } from 'react-icons/fa'
 import ReusableModal from './modal'
+import logoImg from '../../assets/android-chrome-192x192.png'
 
 const menuItems = [
   { to: '/admin/dashboard', icon: FaHome, text: 'Dashboard' },
@@ -32,8 +33,13 @@ export default function Sidebar() {
           onClick={() => navigate('/admin/dashboard')}
           className="flex items-center gap-3 px-6 py-5 border-b border-[#334155] cursor-pointer hover:bg-[#1E293B] transition"
         >
-          <img src="/icons/icon-192x192.png" alt="Logo" className="w-8 h-8 rounded" />
-          <h1 className="text-lg font-bold tracking-tight text-white">GlucoBand</h1>
+          <div className="w-9 h-9 rounded-lg bg-white p-1 flex items-center justify-center shadow-sm">
+            <img src={logoImg} alt="GlucoBand Logo" className="w-full h-full object-contain" />
+          </div>
+          <div>
+            <h1 className="text-lg font-bold tracking-tight text-white leading-none">GlucoBand</h1>
+            <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Medic Portal</span>
+          </div>
         </div>
 
         {/* Navigation */}

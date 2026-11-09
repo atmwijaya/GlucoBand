@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import LoginPage from './pages/loginPage'
 import ProtectedRoute from './components/protectedRoute'
 import AdminLayout from './components/common/AdminLayout'
@@ -13,9 +14,37 @@ import FAQManagePage from './pages/FAQManagement'
 import SettingsPage from './pages/Settings'
 import NotFound from './pages/NotFound'
 
+function TitleUpdater() {
+  const location = useLocation()
+
+  useEffect(() => {
+    const titles = {
+      '/admin/dashboard': 'Dashboard - GlucoBand',
+      '/admin/monitoring': 'Monitoring - GlucoBand',
+      '/admin/data-pasien': 'Data Pasien - GlucoBand',
+      '/admin/notifications': 'Notifikasi - GlucoBand',
+      '/admin/faq': 'FAQ - GlucoBand',
+      '/admin/settings': 'Pengaturan - GlucoBand',
+      '/admin/tambah-pasien': 'Tambah Pasien - GlucoBand',
+      '/login': 'Login - GlucoBand',
+    }
+
+    if (location.pathname.startsWith('/admin/edit-pasien')) {
+      document.title = 'Edit Pasien - GlucoBand'
+    } else if (location.pathname.startsWith('/admin/detail-pasien')) {
+      document.title = 'Detail Pasien - GlucoBand'
+    } else {
+      document.title = titles[location.pathname] || 'GlucoBand'
+    }
+  }, [location])
+
+  return null
+}
+
 export default function App() {
   return (
     <BrowserRouter>
+      <TitleUpdater />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedRoute allowedRoles={['tenaga_medis']} />}>
