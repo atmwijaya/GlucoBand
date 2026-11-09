@@ -1,6 +1,6 @@
 # Glucoband - Sistem Pemantauan Gula Darah Non-Invasif
 
-Glucoband adalah platform ekosistem kesehatan berbasis Internet of Things (IoT) dan Artificial Intelligence (AI) untuk pemantauan kadar glukosa darah secara non-invasif. Sistem ini mengintegrasikan perangkat keras gelang pintar (ESP32 dengan sensor NIR multi-spektral dan PPG), aplikasi mobile pasien (Flutter), web dashboard tenaga medis (React), serta backend API (Flask) yang dilengkapi model Machine Learning (Random Forest dan LSTM) serta mekanisme keamanan tingkat lanjut.
+Glucoband adalah platform ekosistem kesehatan berbasis Internet of Things (IoT) dan Artificial Intelligence (AI) untuk pemantauan kadar glukosa darah secara non-invasif. Sistem ini mengintegrasikan perangkat keras gelang pintar (ESP32 dengan sensor NIR multi-spektral dan PPG), aplikasi mobile pasien (Flutter), web dashboard tenaga medis (React), serta backend service (Flask) yang dilengkapi model Machine Learning (Random Forest dan LSTM) serta mekanisme keamanan tingkat lanjut.
 
 ---
 
@@ -8,122 +8,130 @@ Glucoband adalah platform ekosistem kesehatan berbasis Internet of Things (IoT) 
 
 ```mermaid
 flowchart LR
-    ESP["Smartband ESP32<br>Sensor NIR, PPG, Suhu"] -->|HTTP POST / Telemetri| NGINX["Nginx Reverse Proxy"]
-    NGINX -->|/api/*| FLASK["Flask Backend API<br>JWT, SocketIO, Security Guard"]
-    NGINX -->|/| WEB_BUILD["Web Dashboard Medis<br>React / Vite"]
-    FLASK --> DB[("Database MySQL 8.0")]
+    ESP["Smartband ESP32<br>Sensor NIR, PPG, Suhu"] -->|Sinkronisasi Telemetri| GW["Gateway & Reverse Proxy"]
+    GW --> FLASK["Backend Service<br>Autentikasi, Analisis & Proteksi Data"]
+    GW --> WEB_BUILD["Web Dashboard Medis<br>React Interface"]
+    FLASK --> DB[("Database Server MySQL")]
     FLASK --> ML["AI Inference Engine<br>Random Forest & LSTM"]
     
-    WEB["Web Medis (Dokter/Perawat)<br>React 19"] <-->|REST API & WebSocket| NGINX
-    APP["Aplikasi Pasien (Mobile)<br>Flutter / Keystore"] <-->|REST API & WebSocket| NGINX
+    WEB["Tenaga Medis (Dokter/Perawat)<br>Web Application"] <-->|Layanan Data & WebSocket| GW
+    APP["Pasien (Aplikasi Mobile)<br>Flutter & Hardware Keystore"] <-->|Layanan Data & WebSocket| GW
 ```
 
 ### Komponen Utama
-- **IoT Smartband (ESP32):** Mengukur spektrometri serapan optik NIR (610 nm hingga 860 nm), fotopletismografi (PPG untuk denyut jantung dan estimasi SpO2), serta sensor suhu inframerah non-kontak.
-- **Backend Service (Python Flask):** Menyediakan REST API, otentikasi JWT, komunikasi WebSocket real-time (Flask-SocketIO), kontrol otorisasi rekam medis, dan inferensi model AI.
+- **IoT Smartband (ESP32 / ESP32-C3):** Membaca data spektrometri serapan optik NIR (610 nm hingga 860 nm), fotopletismografi (PPG untuk denyut nadi dan estimasi SpO2), serta sensor suhu inframerah non-kontak.
+- **Backend Service (Python Flask):** Mengelola logika bisnis, autentikasi sesi, komunikasi real-time terenkripsi, kontrol otorisasi rekam medis, dan orkestrasi model inferensi AI.
 - **AI & Machine Learning Engine:**
-  - *Random Forest Classifier* (`rf_diabetes.pkl`): Mengestimasi tingkat risiko diabetes berdasarkan parameter klinis dan profil glukosa.
-  - *LSTM Neural Network* (`glucoband_lstm_model.h5`): Memprediksi tren fluktuasi kadar glukosa darah dalam rentang waktu 3 hingga 6 jam ke depan.
-- **Web Dashboard (React 19 + Vite + Tailwind CSS):** Pusat monitoring real-time untuk tenaga medis, visualisasi grafik riwayat, deteksi status pasien aktif/online, dan pengiriman rekomendasi klinis.
-- **Aplikasi Mobile (Flutter):** Antarmuka pasien untuk memantau kadar glukosa harian, riwayat pengukuran, penerimaan notifikasi peringatan/rekomendasi dokter, konfigurasi Wi-Fi smartband, dan asisten edukasi kesehatan berbasis Gemini AI.
-- **Database (MySQL 8.0):** Penyimpanan relasional data kredensial terenkripsi, profil pasien, catatan pengukuran sensor, riwayat prediksi AI, dan pesan rekomendasi.
+  - *Random Forest Classifier*: Mengestimasi tingkat risiko diabetes berdasarkan parameter klinis dan profil glukosa.
+  - *LSTM Neural Network*: Memproyeksikan tren fluktuasi kadar glukosa darah dalam rentang waktu beberapa jam ke depan berdasarkan data historis.
+- **Web Dashboard (React + Tailwind CSS):** Pusat observasi untuk tenaga medis guna memantau data pasien aktif, menganalisis grafik tren kesehatan, dan mengirimkan rekomendasi klinis.
+- **Aplikasi Mobile (Flutter):** Antarmuka pasien untuk memantau status glukosa harian, riwayat pengukuran, penerimaan notifikasi medis, konfigurasi jaringan perangkat, dan asisten edukasi kesehatan berbasis Gemini AI.
+- **Database (MySQL):** Penyimpanan relasional untuk profil pengguna terenkripsi, catatan sensor telemetri, riwayat proyeksi AI, dan pesan rekomendasi klinis.
 
 ---
 
-## Keamanan Sistem
+## Firmware & Perangkat Keras IoT (Glucoband-Firmware-master)
 
-Sistem Glucoband menerapkan prinsip keamanan bertingkat defense-in-depth untuk melindungi data sensitif rekam medis pasien:
+Firmware gelang pintar GlucoBand dikembangkan menggunakan framework Arduino untuk mikrokontroler ESP32/ESP32-C3 dengan arsitektur pembacaan sensor non-invasif yang efisien dan modular.
 
-1. **Enkripsi Kata Sandi:**
+### 1. Spesifikasi Sensor & Perangkat Keras
+- **Mikrokontroler Utama:** ESP32 / ESP32-C3 berbasis arsitektur 32-bit dengan modul Wi-Fi dan Bluetooth bawaan.
+- **Sensor Spektrometri Multi-Spektral (AS726X):**
+  - Mengukur tingkat penyerapan cahaya inframerah dekat (*Near-Infrared / NIR*) pada 6 saluran panjang gelombang: R (610 nm), S (680 nm), T (730 nm), U (760 nm), V (810 nm), dan W (860 nm).
+  - Dilengkapi otomatisasi lampu pemancar (*built-in illumination bulb*) yang hanya aktif saat jari terdeteksi untuk efisiensi daya dan stabilitas optik.
+- **Sensor Fotopletismografi (MAX30105):**
+  - Mengukur sinyal pulsa denyut nadi (*Photoplethysmography / PPG*) melalui LED inframerah dan merah.
+  - Mendeteksi keberadaan jari (*finger presence detection*) berdasarkan ambang batas pantulan inframerah (*IR Value > 30.000*) serta menghitung rata-rata denyut jantung per menit (BPM).
+- **Sensor Suhu Inframerah Non-Kontak (MLX90614):**
+  - Mengukur suhu objek/kulit (*skin temperature*) dan suhu ambien lingkungan secara presisi tanpa sentuhan fisik langsung.
+- **Layar Tampilan Lokal (OLED SSD1306 128x32 piksel, I2C 0x3C):**
+  - Menampilkan umpan balik visual dua halaman (*dual-page display*):
+    - Mode Standby: Menampilkan petunjuk peletakan jari, status koneksi Wi-Fi, SSID, alamat IP perangkat, serta jumlah smartphone yang terhubung.
+    - Mode Pengukuran: Menampilkan pembacaan denyut jantung real-time, suhu tubuh, dan nilai spektrum 6 kanal NIR.
+
+### 2. Konfigurasi Antarmuka Bus I2C
+Seluruh sensor dan layar berkomunikasi melalui jalur komunikasi bersama I2C (*Inter-Integrated Circuit*) standar:
+- **Jalur Data (SDA):** GPIO 8
+- **Jalur Jam (SCL):** GPIO 9
+- **Kecepatan Bus:** 100 kHz (I2C Standard Mode)
+- **Batas Waktu (*Timeout*):** 50 ms untuk mencegah *bus lock-up* bila terdapat sensor yang belum terpasang.
+
+### 3. Sistem Jaringan & Portal Konfigurasi Mandiri (WiFiConfig)
+Modul `WiFiConfig` menangani konektivitas jaringan secara mandiri tanpa memerlukan pengaturan ulang kode sumber (*hardcoded*):
+- **Mode Access Point Darurat (SoftAP):**
+  - Memancarkan sinyal Wi-Fi mandiri dengan SSID `GlucoBand-Setup` (tanpa kata sandi) dan IP gateway default `192.168.4.1`.
+  - Mengaktifkan transmisi radio pada kekuatan maksimal (+19.5 dBm) dan menonaktifkan *sleep mode* agar sinyal Wi-Fi mudah ditangkap oleh ponsel pintar.
+- **Penyimpanan Kredensial Permanen (Non-Volatile Storage / NVS):**
+  - Menggunakan modul `Preferences` ESP32 untuk menyimpan SSID dan kata sandi router pengguna secara permanen pada memori *flash*. Kredensial tetap tersimpan meski perangkat dimatikan atau kehabisan daya.
+- **Pemulihan Koneksi Otomatis (*Fail-Safe Reconnect*):**
+  - Perangkat secara otomatis mencoba menyambung ke jaringan router yang tersimpan saat pertama kali dinyalakan.
+  - Jika router tidak terjangkau atau gagal tersambung setelah 2 kali percobaan, sistem secara otomatis beralih ke mode SoftAP murni agar pengguna dapat melakukan konfigurasi ulang melalui aplikasi mobile.
+- **Web Server & API Lokal Terintegrasi:**
+  - Menyediakan layanan HTTP internal pada porta 80 yang mendukung mekanisme *Captive Portal* peramban serta integrasi langsung dengan aplikasi Flutter melalui endpoint API lokal untuk membaca status sensor secara real-time.
+
+---
+
+## Standar Keamanan Sistem
+
+Sistem Glucoband menerapkan prinsip keamanan bertingkat (*defense-in-depth*) untuk menjamin kerahasiaan dan integritas data medis:
+
+1. **Enkripsi Kata Sandi (Password Hashing):**
    - Menggunakan algoritma fungsi hash kriptografi `scrypt` via Werkzeug.
-   - Dilengkapi mekanisme *transparent auto-upgrade* saat proses login berlangsung untuk memperbarui data kata sandi lama secara otomatis tanpa mengganggu kenyamanan pengguna.
+   - Dilengkapi mekanisme pembaruan otomatis (*transparent auto-upgrade*) saat otentikasi berlangsung untuk memperbarui kredensial secara aman.
 
 2. **Validasi Kredensial & Proteksi Brute Force:**
-   - Validasi ketat kata sandi minimal 8 karakter dengan kombinasi huruf dan angka pada saat registrasi maupun pembaruan data.
-   - Fitur proteksi *Login Rate Limiting*: Batas maksimal 5 kali kegagalan login berturut-turut. Jika batas terlampaui, akun ditangguhkan (*lockout*) selama 5 menit dengan respons HTTP 429 Too Many Requests untuk mencegah serangan brute force dan dictionary attack.
+   - Standar kompleksitas kata sandi minimal 8 karakter dengan kombinasi karakter alfanumerik.
+   - Mekanisme pembatasan percobaan login (*Rate Limiting*): Membatasi upaya otentikasi gagal berturut-turut untuk melindungi akun dari serangan brute force dan dictionary attack.
 
-3. **Penyimpanan Token Berbasis Hardware:**
-   - Pada aplikasi mobile, token akses JWT disimpan menggunakan `FlutterSecureStorage` dengan opsi `encryptedSharedPreferences: true`.
-   - Kunci enkripsi AES-256 GCM dikelola langsung oleh Android Keystore / iOS Keychain pada level sistem operasi perangkat keras, mencegah ekstraksi token melalui proses *reverse engineering* atau inspeksi data lokal.
+3. **Penyimpanan Kredensial Aman Berbasis Hardware:**
+   - Pada aplikasi mobile, token sesi disimpan menggunakan media penyimpanan terenkripsi yang terikat pada Android Keystore atau iOS Keychain.
+   - Kunci enkripsi AES-256 GCM dikelola langsung pada level sistem operasi perangkat keras sehingga terlindung dari akses aplikasi lain atau inspeksi memori lokal.
 
-4. **Otorisasi Rekam Medis:**
-   - Setiap endpoint rekam medis, riwayat pengukuran, dan prediksi AI dilindungi oleh decorator otorisasi terpusat (`@patient_owner_or_medis` dan `@patient_body_owner_or_medis`).
-   - Pasien hanya memiliki izin untuk melihat dan mengunggah data atas nama akunnya sendiri (`user_id == patient_id`). Upaya manipulasi ID pasien pada parameter URL maupun payload JSON akan langsung ditolak dengan status HTTP 403 Forbidden.
-   - Evaluasi otorisasi dijalankan sebelum pembukaan koneksi database (*early rejection*) guna mencegah pemborosan resource database dari serangan scraping atau manipulasi parameter.
-   - Akun dengan wewenang `tenaga_medis` memiliki izin menyeluruh untuk membaca data seluruh pasien dalam rangka observasi medis.
+4. **Kontrol Akses Rekam Medis (Anti-IDOR):**
+   - Akses data rekam medis diproteksi dengan otorisasi berbasis peran dan kepemilikan data.
+   - Akun pasien dibatasi secara ketat sehingga hanya dapat mengakses dan memperbarui informasi miliknya sendiri. Permintaan data milik pengguna lain dicegat dan ditolak secara otomatis oleh layer keamanan backend.
+   - Validasi otorisasi dieksekusi secara dini (*early rejection*) sebelum pemrosesan query database untuk mengoptimalkan kinerja dan menjaga ketahanan server.
+   - Tenaga medis memiliki wewenang observasi menyeluruh terhadap data pasien yang terdaftar dalam naungan fasilitas kesehatan.
 
 ---
 
 ## Alur Penggunaan Sistem
 
 ### 1. Tenaga Medis (Web Dashboard)
-- Melakukan login menggunakan akun berwewenang `tenaga_medis`.
-- Mengakses halaman **Data Pasien** untuk mengelola profil pasien baru atau melihat riwayat klinis.
-- Membuka menu **Real-time Monitoring** untuk mengamati data sensor langsung dari pasien yang sedang terhubung dan mengenakan perangkat.
-- Meninjau hasil analisis grafik prediksi tren AI (LSTM) dan tingkat risiko (Random Forest).
-- Mengirimkan instruksi atau **Rekomendasi Medis** langsung ke perangkat mobile pasien.
+- Masuk ke portal web menggunakan akun tenaga medis terverifikasi.
+- Mengelola data demografis dan parameter klinis pasien pada menu manajemen pasien.
+- Mengamati indikator kesehatan dan data telemetri langsung pada modul monitoring real-time saat pasien terhubung.
+- Meninjau evaluasi risiko dan kurva proyeksi glukosa hasil analisis model AI.
+- Mengirimkan arahan medis atau rekomendasi pola hidup secara terarah ke aplikasi pasien.
 
-### 2. Pasien (Aplikasi Mobile)
-- Mendaftar atau login ke akun pasien melalui aplikasi mobile.
-- Mengonfigurasi jaringan Wi-Fi perangkat gelang melalui dialog koneksi GlucoBand.
-- Memasang perangkat pada pergelangan tangan dan jari untuk memulai pengukuran.
-- Melihat hasil estimasi kadar gula darah, denyut jantung, suhu kulit, serta status kesehatan (Normal, Hipoglikemia, atau Hiperglikemia).
-- Menerima notifikasi darurat dan rekomendasi penanganan langsung dari tenaga medis.
-- Mengakses menu edukasi dan asisten konsultasi berbasis Gemini AI.
+### 2. Pasien (Aplikasi Mobile & Gelang Pintar)
+- Masuk ke akun pasien pada aplikasi mobile.
+- Menghubungkan perangkat gelang pintar ke jaringan Wi-Fi rumah atau kantor melalui dialog panduan koneksi GlucoBand.
+- Memasang gelang pada pergelangan tangan dan menempelkan jari pada sensor optik untuk memulai pengukuran biometrik.
+- Memantau estimasi kadar glukosa darah, denyut jantung, suhu kulit, serta status kesehatan secara mandiri.
+- Menerima pesan peringatan dini serta rekomendasi medis yang dikirimkan oleh dokter secara real-time.
+- Berkonsultasi terkait edukasi kesehatan melalui fitur asisten cerdas berbasis Gemini AI.
 
 ---
 
-## Daftar Endpoint REST API
+## Modul Layanan Sistem
 
-Semua request yang membutuhkan otentikasi wajib menyertakan header HTTP:
-`Authorization: Bearer <JWT_TOKEN>`
+Sistem backend mengintegrasikan beberapa modul layanan fungsional:
 
-### 1. Autentikasi (`/api/auth`)
-| Method | Endpoint | Akses | Deskripsi |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/auth/login` | Publik | Otentikasi pengguna (email dan password). Dilengkapi rate limiter brute force. |
-| `POST` | `/auth/register/pasien` | Publik | Registrasi akun baru pasien dengan validasi password ketat dan hashing otomatis. |
+1. **Layanan Manajemen Akses & Keamanan:**
+   Mengatur registrasi pasien, proses otentikasi multi-peran, verifikasi token sesi, dan penegakan pembatasan frekuensi percobaan masuk.
 
-### 2. Pengukuran & Telemetri Sensor (`/api/measurements`)
-| Method | Endpoint | Akses | Deskripsi |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/measurements` | IoT / Pasien | Ingest data telemetri sensor (NIR, PPG, Suhu) dan estimasi glukosa. Dilindungi verifikasi kepemilikan payload. |
-| `GET` | `/measurements` | Pasien / Medis | Mengambil riwayat pengukuran. Khusus pasien otomatis difilter hanya menampilkan data milik sendiri. |
-| `GET` | `/patients/<id>/measurements` | Pemilik / Medis | Mengambil riwayat pengukuran pasien berdasarkan ID (Anti-IDOR protected). |
-| `GET` | `/patients/<id>/latest` | Pemilik / Medis | Mengambil data pengukuran paling mutakhir dari pasien tertentu. |
-| `POST` | `/measurements/live-stream` | Pasien | Streaming data denyut jantung dan sensor secara real-time via WebSocket. |
+2. **Layanan Telemetri Sensor & Pengukuran:**
+   Menangani penerimaan data spektrum NIR multi-panjang gelombang, sinyal PPG, dan suhu tubuh dari perangkat pintar, serta menyaring riwayat pengukuran sesuai hak akses pengguna.
 
-### 3. Prediksi AI & Machine Learning
-| Method | Endpoint | Model | Deskripsi |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/predict/risk` | Random Forest | Input: parameter klinis dan glukosa. Output: level risiko dan skor probabilitas. |
-| `POST` | `/predict/trend` | LSTM | Input: riwayat glukosa historis. Output: perkiraan kurva glukosa 3 hingga 6 jam ke depan. |
-| `GET` | `/predictions/risk/<patient_id>` | - | Mengambil hasil evaluasi risiko diabetes pasien (Anti-IDOR protected). |
-| `GET` | `/predictions/trend/<patient_id>` | - | Mengambil data tren prediksi glukosa terkini pasien (Anti-IDOR protected). |
-| `GET` | `/predictions/trend/<patient_id>/history` | - | Mengambil riwayat seluruh prediksi tren glukosa pasien (Anti-IDOR protected). |
-| `DELETE`| `/predictions/trend/<prediction_id>` | Pemilik / Medis | Menghapus satu entri riwayat prediksi tren glukosa. |
+3. **Layanan Inferensi Kecerdasan Buatan:**
+   Menghubungkan data sensor dan profil klinis dengan model Machine Learning untuk klasifikasi risiko diabetes serta peramalan tren glukosa darah.
 
-### 4. Manajemen Pasien (`/api/patients`)
-| Method | Endpoint | Akses | Deskripsi |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/patients` | Medis | Mengambil seluruh daftar pasien terdaftar. |
-| `GET` | `/patients/<id>` | Medis | Mengambil rincian data klinis pasien berdasarkan ID. |
-| `POST` | `/patients` | Medis | Mendaftarkan pasien baru ke dalam database. |
-| `PUT` | `/patients/<id>` | Medis | Memperbarui informasi profil atau riwayat medis pasien. |
-| `DELETE`| `/patients/<id>` | Medis | Menghapus data akun pasien dari sistem. |
-| `GET` | `/patients/online` | Medis | Mengambil daftar ID pasien yang sedang aktif/terkoneksi WebSocket. |
+4. **Layanan Komunikasi Real-time & Notifikasi:**
+   Memfasilitasi streaming data biometrik secara langsung ke dashboard medis dan mendistribusikan notifikasi darurat serta rekomendasi klinis ke aplikasi mobile.
 
-### 5. Notifikasi, Rekomendasi, & Profil
-| Method | Endpoint | Akses | Deskripsi |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/notifications` | Medis | Mengambil seluruh daftar peringatan kondisi darurat pasien secara global. |
-| `POST` | `/patients/<id>/recommendations` | Medis | Mengirimkan catatan rekomendasi klinis dari dokter ke akun pasien terkait. |
-| `GET` | `/patient/notifications` | Pasien | Mengambil riwayat notifikasi peringatan dan rekomendasi milik akun pasien aktif. |
-| `PUT` | `/patient/recommendations/<id>/read` | Pasien | Menandai rekomendasi medis tertentu telah dibaca oleh pasien. |
-| `GET` | `/profile` | Pengguna | Mengambil profil pengguna yang sedang login. |
-| `PUT` | `/profile` | Pengguna | Memperbarui parameter kesehatan mandiri (tinggi, berat badan, tekanan darah). |
-| `GET` | `/dashboard/stats` | Medis | Mengambil ringkasan statistik total pasien, alert hari ini, dan jumlah pengukuran. |
-| `GET/POST`| `/faq` | Pengguna / Medis | Mengambil daftar artikel FAQ atau mengunggah konten tanya-jawab baru. |
+5. **Layanan Manajemen Pasien & Rekam Medis:**
+   Menyediakan fungsi pencatatan dan pembaruan profil klinis bagi tenaga medis, pengaturan parameter kesehatan, serta integrasi edukasi kesehatan.
 
 ---
 
@@ -133,33 +141,39 @@ Semua request yang membutuhkan otentikasi wajib menyertakan header HTTP:
 glucoband/
 |-- backend/
 |   |-- app/
-|   |   |-- ml_models/            # File bobot model machine learning (pkl dan h5)
-|   |   |-- routes/               # Handler endpoint API (auth, measurements, patients, dll)
-|   |   |-- services/ml/          # Service inferensi model LSTM dan Random Forest
-|   |   |-- utils/                # Helper keamanan (decorators.py, validators.py)
-|   |   `-- __init__.py           # Inisialisasi aplikasi Flask dan Socket.IO
-|   |-- backup/                   # Skrip dump struktur awal basis data SQL
-|   |-- app.py                    # Entry point server backend Flask
-|   |-- config.py                 # Konfigurasi aplikasi dan variabel lingkungan
-|   |-- db.py                     # Manajemen koneksi basis data MySQL
-|   `-- requirement.txt           # Daftar dependensi library Python
+|   |   |-- ml_models/            # Model machine learning terkompilasi
+|   |   |-- routes/               # Modul logika layanan backend
+|   |   |-- services/ml/          # Layanan inferensi model AI
+|   |   |-- utils/                # Utilitas keamanan, otorisasi, dan validasi
+|   |   `-- __init__.py           # Konfigurasi layanan backend dan socket
+|   |-- backup/                   # Skrip inisialisasi basis data
+|   |-- app.py                    # Berkas utama eksekusi backend
+|   |-- config.py                 # Konfigurasi aplikasi
+|   |-- db.py                     # Pengelola koneksi basis data
+|   `-- requirement.txt           # Dependensi pustaka Python
 |-- web/
 |   |-- src/
-|   |   |-- api/                  # Axios HTTP client terkonfigurasi
-|   |   |-- components/           # Komponen antarmuka (Navbar, Sidebar, Charts, Gauges)
-|   |   |-- pages/                # Halaman Web (Monitoring, Pasien, Pengaturan, Login)
-|   |   `-- App.jsx               # Routing utama aplikasi web
+|   |   |-- api/                  # Klien komunikasi layanan web
+|   |   |-- components/           # Komponen antarmuka pengguna
+|   |   |-- pages/                # Modul halaman web dashboard
+|   |   `-- App.jsx               # Pengatur navigasi web
 |   |-- index.html
-|   `-- package.json              # Dependensi JavaScript / React
+|   `-- package.json              # Dependensi pustaka antarmuka web
 |-- mobile/glucobandapp/
-|   |-- android/                  # Konfigurasi native Android
+|   |-- android/                  # Konfigurasi platform Android
 |   |-- lib/
-|   |   |-- core/constants/       # URL API dan konfigurasi konstanta
+|   |   |-- core/constants/       # Konfigurasi konstanta aplikasi
 |   |   |-- data/datasources/     # Sumber data lokal dan Keystore
-|   |   |-- presentation/         # Tampilan UI Flutter (Beranda, Monitoring, Dialog)
-|   |   `-- services/             # Service API, Secure Storage, WebSocket, dan Gemini
-|   `-- pubspec.yaml              # Dependensi Flutter
-|-- Glucoband-Firmware-master/    # Source code firmware mikroprosesor ESP32
-|-- docker-compose.yml            # Konfigurasi kontainer basis data MySQL
+|   |   |-- presentation/         # Modul antarmuka aplikasi Flutter
+|   |   `-- services/             # Layanan penyimpanan aman, jaringan, dan AI
+|   `-- pubspec.yaml              # Dependensi pustaka Flutter
+|-- Glucoband-Firmware-master/    # Firmware mikrokontroler ESP32
+|   `-- glucoband/
+|       |-- glucoband.ino         # Berkas utama program mikrokontroler (setup & loop)
+|       |-- WiFiConfig.cpp        # Logika konektivitas Wi-Fi, Web Server, dan SoftAP
+|       |-- WiFiConfig.h          # Header pustaka manajemen Wi-Fi
+|       |-- startup.cpp           # Animasi grafis awal dan ikon layar OLED
+|       `-- startup.h             # Header animasi grafis
+|-- docker-compose.yml            # Konfigurasi kontainer basis data
 `-- README.md                     # Dokumentasi teknis proyek
 ```
