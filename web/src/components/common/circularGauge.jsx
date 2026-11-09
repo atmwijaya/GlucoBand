@@ -1,10 +1,23 @@
 import { useState, useEffect, useRef } from 'react'
 
-export default function CircularGauge({ value, maxValue, label, unit }) {
+export default function CircularGauge({
+  value = 0,
+  maxValue = 100,
+  label,
+  unit,
+  customColor,
+  type = 'glucose',
+  isMeasuring = false,
+  disabled = false
+}) {
   const [animatedValue, setAnimatedValue] = useState(0)
   const frameRef = useRef()
 
   useEffect(() => {
+    if (disabled) {
+      setAnimatedValue(0)
+      return
+    }
     let startTime = null
     const startValue = animatedValue
     const diff = value - startValue
@@ -19,17 +32,41 @@ export default function CircularGauge({ value, maxValue, label, unit }) {
     }
     frameRef.current = requestAnimationFrame(animate)
     return () => cancelAnimationFrame(frameRef.current)
-  }, [value])
+  }, [value, disabled])
 
-  const percentage = (Math.min(animatedValue, maxValue) / maxValue) * 100
+  const percentage = disabled ? 0 : (Math.min(animatedValue, maxValue) / maxValue) * 100
   const radius = 42
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (percentage / 100) * circumference
 
   const getColor = () => {
+    if (disabled) return '#94A3B8'
+    if (customColor) return customColor
+    if (type === 'heartRate') {
+      if (value === 0 || isMeasuring) return '#64748B' // slate
+      if (value >= 60 && value <= 100) return '#10B981' // normal
+      if (value < 60) return '#F59E0B' // bradikardia
+      return '#EF4444' // takikardia
+    }
+    if (type === 'temp') {
+      if (value === 0) return '#64748B'
+      if (value >= 36.0 && value <= 37.5) return '#10B981'
+      if (value < 36.0) return '#3B82F6'
+      return '#EF4444'
+    }
+    // Default: glukosa
+    if (value === 0) return '#64748B'
     if (value > 200) return '#EF4444'
     if (value < 70) return '#F59E0B'
     return '#10B981'
+  }
+
+  const renderValueDisplay = () => {
+    if (disabled) return '--'
+    if (isMeasuring) return 'Mengukur...'
+    if (value === 0) return '--'
+    if (type === 'temp') return animatedValue.toFixed(1)
+    return Math.round(animatedValue)
   }
 
   return (
@@ -43,8 +80,10 @@ export default function CircularGauge({ value, maxValue, label, unit }) {
         />
       </svg>
       <div className="text-center -mt-20 mb-4">
-        <p className="text-2xl font-bold" style={{ color: getColor() }}>{Math.round(animatedValue)}</p>
-        <p className="text-xs text-textSecondary">{unit}</p>
+        <p className="text-2xl font-bold" style={{ color: getColor() }}>
+          {renderValueDisplay()}
+        </p>
+        <p className="text-xs text-textSecondary">{disabled ? 'Offline' : isMeasuring ? 'Analisis Nadi' : unit}</p>
       </div>
       <p className="text-sm font-medium text-textSecondary">{label}</p>
     </div>

@@ -2,7 +2,9 @@ import json
 from functools import wraps
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from db import get_connection       
+from werkzeug.security import generate_password_hash
+from db import get_connection
+from app.utils.validators import validate_password       
 
 patients_bp = Blueprint('patients', __name__)
 
@@ -60,6 +62,17 @@ def get_patients(identity):
         conn.close()
 
 
+@patients_bp.get('/patients/online')
+@jwt_required()
+def get_online_patients():
+    try:
+        from app.routes.socketEvents import get_online_patient_ids
+        return jsonify(get_online_patient_ids()), 200
+    except Exception as e:
+        print("Error in get_online_patients:", e)
+        return jsonify([]), 200
+
+
 @patients_bp.get('/patients/<int:id>')
 @medis_required
 def get_patient(identity, id):
@@ -97,13 +110,23 @@ def add_patient(identity):
     if not data or 'email' not in data or 'password' not in data:
         return jsonify({'msg': 'Data tidak lengkap'}), 400
 
+    email = str(data['email']).strip().lower()
+    password = str(data['password']).strip()
+
+    is_valid_pw, pw_err = validate_password(password)
+    if not is_valid_pw:
+        return jsonify({'msg': pw_err}), 400
+
     conn, cursor = _get_cursor()
     if not conn:
         return jsonify({'msg': 'Koneksi database gagal'}), 500
     try:
-        cursor.execute("SELECT id FROM users WHERE email = %s", (data['email'],))
+        cursor.execute("SELECT id FROM users WHERE LOWER(email) = %s", (email,))
         if cursor.fetchone():
             return jsonify({'msg': 'Email sudah terdaftar'}), 409
+
+        # Enkripsi / Hashing kata sandi pasien
+        hashed_password = generate_password_hash(password)
 
         sql = """
             INSERT INTO users (name, email, password, role, age, gender, weight_kg, height_cm,
@@ -112,8 +135,8 @@ def add_patient(identity):
         """
         cursor.execute(sql, (
             data.get('name'),
-            data['email'],
-            data['password'],
+            email,
+            hashed_password,
             data.get('age'),
             data.get('gender'),
             data.get('weight_kg'),
@@ -151,12 +174,19 @@ def update_patient(identity, id):
         for key in ['name', 'email', 'age', 'gender', 'weight_kg', 'height_cm',
                     'blood_pressure_sys', 'blood_pressure_dia', 'diabetes_history', 'smoking_history']:
             if key in data:
+                val = data[key]
+                if key == 'email' and val:
+                    val = str(val).strip().lower()
                 fields.append(f"{key} = %s")
-                values.append(data[key])
+                values.append(val)
 
         if 'password' in data and data['password']:
+            new_password = str(data['password']).strip()
+            is_valid_pw, pw_err = validate_password(new_password)
+            if not is_valid_pw:
+                return jsonify({'msg': f"Kata sandi baru: {pw_err}"}), 400
             fields.append("password = %s")
-            values.append(data['password'])
+            values.append(generate_password_hash(new_password))
 
         if not fields:
             return jsonify({'msg': 'Tidak ada data yang diubah'}), 400

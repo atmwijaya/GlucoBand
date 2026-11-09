@@ -1,7 +1,7 @@
-import json
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from db import get_connection
+from app.utils.decorators import get_current_user
 
 profile_bp = Blueprint('profile', __name__)
 
@@ -14,11 +14,10 @@ def _get_cursor():
 @profile_bp.get('/profile')
 @jwt_required()
 def get_profile():
-    identity_json = get_jwt_identity()
-    if not identity_json:
-        return jsonify({'msg': 'Token tidak valid'}), 422
-    identity = json.loads(identity_json)
-    user_id = identity['id']
+    user = get_current_user()
+    if not user:
+        return jsonify({'msg': 'Token otentikasi tidak valid'}), 401
+    user_id = user['id']
 
     conn, cursor = _get_cursor()
     if not conn:
@@ -30,15 +29,15 @@ def get_profile():
                    blood_pressure_sys, blood_pressure_dia, diabetes_history, smoking_history
             FROM users WHERE id = %s
         """, (user_id,))
-        user = cursor.fetchone()
-        if not user:
+        user_row = cursor.fetchone()
+        if not user_row:
             return jsonify({'msg': 'User tidak ditemukan'}), 404
 
         # Konversi Decimal ke float/string
         for key in ['weight_kg', 'height_cm', 'bmi']:
-            if user.get(key) is not None:
-                user[key] = float(user[key])
-        return jsonify(user)
+            if user_row.get(key) is not None:
+                user_row[key] = float(user_row[key])
+        return jsonify(user_row)
     except Exception as e:
         conn.rollback()
         print("Error in get_profile:", e)
@@ -50,11 +49,10 @@ def get_profile():
 @profile_bp.put('/profile')
 @jwt_required()
 def update_profile():
-    identity_json = get_jwt_identity()
-    if not identity_json:
-        return jsonify({'msg': 'Token tidak valid'}), 422
-    identity = json.loads(identity_json)
-    user_id = identity['id']
+    user = get_current_user()
+    if not user:
+        return jsonify({'msg': 'Token otentikasi tidak valid'}), 401
+    user_id = user['id']
 
     data = request.get_json()
     if not data:

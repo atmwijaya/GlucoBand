@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -10,6 +11,9 @@ import '../providers/articleProvider.dart';
 import 'notificationPage.dart';
 import 'profilePage.dart';
 import 'homePage.dart';
+import 'predictionHistoryPage.dart';
+import '../../services/espService.dart';
+import '../widgets/deviceConfigDialog.dart';
 
 class BerandaPage extends StatefulWidget {
   const BerandaPage({super.key});
@@ -19,12 +23,48 @@ class BerandaPage extends StatefulWidget {
 }
 
 class _BerandaPageState extends State<BerandaPage> {
+  bool _isDeviceConnected = false;
+  String _deviceSsid = 'GlucoBand (ESP32)';
+  String _deviceIp = '192.168.4.1';
+  Timer? _deviceTimer;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
     });
+
+    // Cek status perangkat realtime tiap 3 detik
+    _deviceTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted) _checkDeviceStatus();
+    });
+  }
+
+  @override
+  void dispose() {
+    _deviceTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _checkDeviceStatus() async {
+    try {
+      final status = await EspService.checkStatus();
+      if (!mounted) return;
+      setState(() {
+        _isDeviceConnected = true;
+        final ssid = status['ssid'] != null && status['ssid'].toString().isNotEmpty
+            ? status['ssid']
+            : status['ap_ssid'] ?? 'GlucoBand-Setup';
+        _deviceSsid = '$ssid';
+        _deviceIp = status['ip'] ?? _deviceIp;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isDeviceConnected = false;
+      });
+    }
   }
 
   Future<void> _loadData() async {
@@ -39,6 +79,7 @@ class _BerandaPageState extends State<BerandaPage> {
       profileProvider.fetchProfile();
       articleProvider.fetchArticles();
     }
+    _checkDeviceStatus();
   }
 
   Future<void> _onRefresh() async {
@@ -280,85 +321,158 @@ class _BerandaPageState extends State<BerandaPage> {
                       // My Device
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: const Text(
-                          'My Device',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1E293B),
-                          ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'My Device',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1E293B),
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: () => DeviceConfigDialog.show(
+                                context,
+                                onConnected: _checkDeviceStatus,
+                              ),
+                              icon: const Icon(Icons.settings, size: 16, color: Color(0xFF613EEA)),
+                              label: const Text(
+                                'Kelola',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF613EEA),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
-                            ],
+                        child: InkWell(
+                          onTap: () => DeviceConfigDialog.show(
+                            context,
+                            onConnected: _checkDeviceStatus,
                           ),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFF3F0FF),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.memory, color: Color(0xFF613EEA), size: 24),
+                          borderRadius: BorderRadius.circular(24),
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: _isDeviceConnected
+                                    ? const Color(0xFF10B981).withValues(alpha: 0.3)
+                                    : Colors.red.withValues(alpha: 0.2),
                               ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'GlucoBand (ESP32)',
-                                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF1E293B)),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        const Icon(Icons.battery_full, color: Color(0xFF64748B), size: 14),
-                                        const SizedBox(width: 4),
-                                        const Text(
-                                          'BATTERY: 100%',
-                                          style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w600),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                    color: _isDeviceConnected
+                                        ? const Color(0xFFF3F0FF)
+                                        : Colors.red.shade50,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    _isDeviceConnected ? Icons.wifi : Icons.wifi_off,
+                                    color: _isDeviceConnected
+                                        ? const Color(0xFF613EEA)
+                                        : Colors.red.shade400,
+                                    size: 24,
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _isDeviceConnected ? _deviceSsid : 'GlucoBand (ESP32)',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15,
+                                          color: Color(0xFF1E293B),
                                         ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981).withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFF10B981),
-                                        shape: BoxShape.circle,
                                       ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    const Text(
-                                      'Connected',
-                                      style: TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.w600),
-                                    ),
-                                  ],
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Icon(
+                                            _isDeviceConnected ? Icons.link : Icons.link_off,
+                                            color: const Color(0xFF64748B),
+                                            size: 14,
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Expanded(
+                                            child: Text(
+                                              _isDeviceConnected
+                                                  ? 'IP: $_deviceIp '
+                                                  : 'Perangkat Terputus (Ketuk untuk hubungkan)',
+                                              style: TextStyle(
+                                                color: _isDeviceConnected
+                                                    ? const Color(0xFF64748B)
+                                                    : Colors.red.shade400,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: _isDeviceConnected
+                                        ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                        : Colors.red.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          color: _isDeviceConnected
+                                              ? const Color(0xFF10B981)
+                                              : const Color(0xFFEF4444),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        _isDeviceConnected ? 'Connected' : 'Disconnected',
+                                        style: TextStyle(
+                                          color: _isDeviceConnected
+                                              ? const Color(0xFF10B981)
+                                              : const Color(0xFFEF4444),
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -378,80 +492,139 @@ class _BerandaPageState extends State<BerandaPage> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                                        textBaseline: TextBaseline.alphabetic,
-                                        children: [
-                                          Text(
-                                            measurement.latestGlucose.toStringAsFixed(1),
-                                            style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w800, color: Color(0xFF1E293B), letterSpacing: -1),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          const Text(
-                                            'mg/dL',
-                                            style: TextStyle(fontSize: 16, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      const Text(
-                                        'CURRENT GLUCOSE LEVEL',
-                                        style: TextStyle(fontSize: 10, color: Color(0xFF94A3B8), fontWeight: FontWeight.w700, letterSpacing: 0.5),
-                                      ),
-                                    ],
-                                  ),
-                                  const Spacer(),
-                                  Column(
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF10B981).withValues(alpha: 0.2),
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                        child: const Text(
-                                          'Normal',
-                                          style: TextStyle(color: Color(0xFF059669), fontWeight: FontWeight.w700, fontSize: 13),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        '70-120 range',
-                                        style: TextStyle(color: Colors.grey[500], fontSize: 10, fontWeight: FontWeight.w600),
-                                      ),
-                                    ],
+                      Builder(
+                        builder: (context) {
+                          final double currentGlucose = measurement.latestGlucose;
+                          String statusLabel = 'Normal';
+                          Color statusColor = const Color(0xFF059669);
+                          Color statusBgColor = const Color(0xFF10B981).withValues(alpha: 0.18);
+                          String rangeSubtitle = '70-120 range (Normal)';
+
+                          if (currentGlucose > 200) {
+                            statusLabel = 'Hiperglikemia';
+                            statusColor = const Color(0xFFDC2626);
+                            statusBgColor = const Color(0xFFEF4444).withValues(alpha: 0.18);
+                            rangeSubtitle = '> 200 mg/dL (Tinggi)';
+                          } else if (currentGlucose < 70 && currentGlucose > 0) {
+                            statusLabel = 'Hipoglikemia';
+                            statusColor = const Color(0xFFD97706);
+                            statusBgColor = const Color(0xFFF59E0B).withValues(alpha: 0.18);
+                            rangeSubtitle = '< 70 mg/dL (Rendah)';
+                          } else if (currentGlucose <= 0) {
+                            statusLabel = 'Belum Ada';
+                            statusColor = const Color(0xFF64748B);
+                            statusBgColor = const Color(0xFF94A3B8).withValues(alpha: 0.18);
+                            rangeSubtitle = 'Belum ada pengukuran';
+                          }
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.02),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 30),
-                              SizedBox(
-                                height: 100,
-                                child: _buildMainChart(),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            crossAxisAlignment: CrossAxisAlignment.baseline,
+                                            textBaseline: TextBaseline.alphabetic,
+                                            children: [
+                                              Text(
+                                                currentGlucose > 0
+                                                    ? currentGlucose.toStringAsFixed(1)
+                                                    : '--',
+                                                style: const TextStyle(
+                                                  fontSize: 48,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: Color(0xFF1E293B),
+                                                  letterSpacing: -1,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Text(
+                                                'mg/dL',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  color: Color(0xFF64748B),
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          const Text(
+                                            'CURRENT GLUCOSE LEVEL',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Color(0xFF94A3B8),
+                                              fontWeight: FontWeight.w700,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const Spacer(),
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.end,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: statusBgColor,
+                                              borderRadius: BorderRadius.circular(20),
+                                            ),
+                                            child: Text(
+                                              statusLabel,
+                                              style: TextStyle(
+                                                color: statusColor,
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            rangeSubtitle,
+                                            style: TextStyle(
+                                              color: Colors.grey[500],
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 30),
+                                  SizedBox(
+                                    height: 100,
+                                    child: _buildMainChart(),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
+                            ),
+                          );
+                        },
                       ),
                       
                       const SizedBox(height: 24),
@@ -463,7 +636,12 @@ class _BerandaPageState extends State<BerandaPage> {
                           children: [
                             Expanded(
                               child: ElevatedButton.icon(
-                                onPressed: () {},
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const PredictionHistoryPage()),
+                                  );
+                                },
                                 icon: const Icon(Icons.history, color: Color(0xFF613EEA), size: 20),
                                 label: const Text('Riwayat', style: TextStyle(color: Color(0xFF613EEA), fontWeight: FontWeight.w600)),
                                 style: ElevatedButton.styleFrom(
@@ -477,12 +655,18 @@ class _BerandaPageState extends State<BerandaPage> {
                             const SizedBox(width: 16),
                             Expanded(
                               child: ElevatedButton.icon(
-                                onPressed: () {},
-                                icon: const Icon(Icons.analytics_outlined, color: Color(0xFF613EEA), size: 20),
-                                label: const Text('Analisis', style: TextStyle(color: Color(0xFF613EEA), fontWeight: FontWeight.w600)),
+                                onPressed: () {
+                                  final homeState = context.findAncestorStateOfType<HomePageState>();
+                                  if (homeState != null) {
+                                    homeState.setIndex(2); // Pindah ke tab Pengukuran (index 2)
+                                  }
+                                },
+                                icon: const Icon(Icons.play_circle_outline, color: Colors.white, size: 20),
+                                label: const Text('Ukur Sekarang', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFFF3F0FF),
-                                  elevation: 0,
+                                  backgroundColor: const Color(0xFF613EEA),
+                                  elevation: 2,
+                                  shadowColor: const Color(0xFF613EEA).withValues(alpha: 0.4),
                                   padding: const EdgeInsets.symmetric(vertical: 16),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                                 ),

@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required
 from app.services.ml.rf_service import RFService
 from app.services.ml.lstm_service import LSTMService
 from db import db_connection
 from app import socketio
+from app.utils.decorators import get_current_user
 import json
 import traceback
 
@@ -31,11 +32,15 @@ def predict_risk(cursor):
     try:
         result = rf_service.predict_risk(features)
         
-        identity_raw = get_jwt_identity()
-        try:
-            patient_id = json.loads(identity_raw).get('id')
-        except:
-            patient_id = identity_raw
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Token otentikasi tidak valid'}), 401
+        
+        # Anti-IDOR: Pasien hanya bisa membuat data prediksi untuk dirinya sendiri
+        if user.get('role') == 'pasien':
+            patient_id = user['id']
+        else:
+            patient_id = data.get('patient_id', user['id'])
         risk_level = result.get("risk_level", "rendah").lower()
         risk_score = result.get("risk_score", 0)
         model_version = result.get("model version", "1.0")
@@ -90,11 +95,15 @@ def predict_trend(cursor):
             gender=gender,
             smoking_history=smoking
         )
-        identity_raw = get_jwt_identity()
-        try:
-            patient_id = json.loads(identity_raw).get('id')
-        except:
-            patient_id = identity_raw
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Token otentikasi tidak valid'}), 401
+        
+        # Anti-IDOR: Pasien hanya bisa membuat data prediksi untuk dirinya sendiri
+        if user.get('role') == 'pasien':
+            patient_id = user['id']
+        else:
+            patient_id = data.get('patient_id', user['id'])
         health_snapshot = {
             "age": age,
             "bmi": bmi,
