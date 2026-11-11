@@ -27,7 +27,9 @@ def predict_risk(cursor):
         "blood_pressure_dia": int(data.get("blood_pressure_dia", 0)),
         "smoking_history": data.get("smoking_history", 0),
         "hypertension": int(data.get("hypertension", 0)),
-        "blood_glucose_level": float(data.get("blood_glucose_level", 100.0))
+        "heart_disease": int(data.get("heart_disease", 0)),
+        "blood_glucose_level": float(data.get("blood_glucose_level", 100.0)),
+        "HbA1c_level": data.get("HbA1c_level")
     }
     try:
         result = rf_service.predict_risk(features)
@@ -83,6 +85,11 @@ def predict_trend(cursor):
     heart_disease = int(data.get('heart_disease', 0))
     gender = data.get('gender', 'Male')
     smoking = int(data.get('smoking_history', 0))
+    heart_rate = float(data.get('heart_rate') or data.get('hr') or 75.0)
+    insulin = float(data.get('insulin', 0.0))
+    carbs = float(data.get('carbs', 0.0))
+    steps = float(data.get('steps', 0.0))
+    calories = float(data.get('calories') or data.get('cals') or 0.0)
 
     try:
         result = lstm_service.predict_trend(
@@ -93,7 +100,12 @@ def predict_trend(cursor):
             hypertension=hypertension,
             heart_disease=heart_disease,
             gender=gender,
-            smoking_history=smoking
+            smoking_history=smoking,
+            heart_rate=heart_rate,
+            insulin=insulin,
+            carbs=carbs,
+            steps=steps,
+            calories=calories
         )
         user = get_current_user()
         if not user:
@@ -111,6 +123,7 @@ def predict_trend(cursor):
             "heart_disease": heart_disease,
             "gender": gender,
             "smoking_history": smoking,
+            "heart_rate": heart_rate,
             "glucose_history": history
         }
 

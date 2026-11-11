@@ -5,6 +5,7 @@ import '../providers/profileProvider.dart';
 import '../providers/notificationProvider.dart';
 import 'editHealthProfile.dart';
 import 'loginPage.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -203,6 +204,151 @@ class _ProfilePageState extends State<ProfilePage> {
                                     _buildHealthMetric('Berat', '$weight kg'),
                                   ],
                                 ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Card Tenaga Medis Penanggung Jawab
+                      Consumer<ProfileProvider>(
+                        builder: (context, profileProvider, child) {
+                          final profile = profileProvider.profileData;
+                          final doctorName = (profile?['tenaga_medis_name'] ?? profile?['medical_staff_name'])?.toString();
+                          final doctorPhone = (profile?['tenaga_medis_phone'] ?? profile?['medical_staff_phone'])?.toString();
+                          final doctorSpec = (profile?['tenaga_medis_specialization'] ?? profile?['medical_staff_specialization'])?.toString() ?? 'Tenaga Medis Penanggung Jawab';
+
+                          return Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.04),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF613EEA).withValues(alpha: 0.1),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.medical_services, color: Color(0xFF613EEA), size: 20),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    const Text(
+                                      'Tenaga Medis Anda',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF1E293B),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                if (doctorName != null && doctorName.isNotEmpty) ...[
+                                  Text(
+                                    doctorName,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    doctorSpec,
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF613EEA),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'Kontak Darurat: $doctorPhone',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.grey[600],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                      if (doctorPhone != null) ...[
+                                        InkWell(
+                                          onTap: () async {
+                                            String wa = doctorPhone.trim();
+                                            if (wa.startsWith('0')) wa = '62${wa.substring(1)}';
+                                            final url = Uri.parse('https://wa.me/$wa');
+                                            if (await canLaunchUrl(url)) {
+                                              await launchUrl(url, mode: LaunchMode.externalApplication);
+                                            }
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: const Row(
+                                              children: [
+                                                Icon(Icons.chat, color: Colors.green, size: 14),
+                                                SizedBox(width: 4),
+                                                Text('WA', style: TextStyle(color: Colors.green, fontSize: 12, fontWeight: FontWeight.bold)),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        InkWell(
+                                          onTap: () async {
+                                            final url = Uri.parse('tel:$doctorPhone');
+                                            if (await canLaunchUrl(url)) await launchUrl(url);
+                                          },
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue.withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: const Row(
+                                              children: [
+                                                Icon(Icons.phone, color: Colors.blue, size: 14),
+                                                SizedBox(width: 4),
+                                                Text('Panggil', style: TextStyle(color: Colors.blue, fontSize: 12, fontWeight: FontWeight.bold)),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ] else ...[
+                                  Text(
+                                    'Belum ditentukan oleh tenaga medis.',
+                                    style: TextStyle(fontSize: 13, color: Colors.grey[500], fontStyle: FontStyle.italic),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Pusat Bantuan Siaga Umum: 119',
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                  ),
+                                ],
                               ],
                             ),
                           );

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   FaHome, FaHeartbeat, FaUser, FaClipboardList,
-  FaQuestionCircle, FaSignOutAlt, FaCog
+  FaQuestionCircle, FaSignOutAlt, FaCog, FaUserMd
 } from 'react-icons/fa'
 import ReusableModal from './modal'
 import logoImg from '../../assets/android-chrome-192x192.png'
@@ -11,6 +11,7 @@ const menuItems = [
   { to: '/admin/dashboard', icon: FaHome, text: 'Dashboard' },
   { to: '/admin/monitoring', icon: FaHeartbeat, text: 'Monitoring' },
   { to: '/admin/data-pasien', icon: FaUser, text: 'Data Pasien' },
+  { to: '/admin/tenaga-medis', icon: FaUserMd, text: 'Tenaga Medis' },
   { to: '/admin/notifications', icon: FaClipboardList, text: 'Notifikasi' },
   { to: '/admin/faq', icon: FaQuestionCircle, text: 'FAQ' },
   { to: '/admin/settings', icon: FaCog, text: 'Pengaturan' },

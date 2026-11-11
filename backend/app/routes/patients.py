@@ -39,12 +39,21 @@ def get_patients(identity):
     if not conn:
         return jsonify({'msg': 'Koneksi database gagal'}), 500
     try:
+        from app.routes.tenagaMedis import ensure_tenaga_medis_schema
+        ensure_tenaga_medis_schema(cursor)
+
         cursor.execute("""
-            SELECT id, name, email, age, gender, weight_kg, height_cm,
-                   bmi, blood_pressure_sys, blood_pressure_dia,
-                   diabetes_history, smoking_history, created_at
-            FROM users WHERE role = 'pasien'
-            ORDER BY created_at DESC
+            SELECT u.id, u.name, u.email, u.age, u.gender, u.weight_kg, u.height_cm,
+                   u.bmi, u.blood_pressure_sys, u.blood_pressure_dia,
+                   u.diabetes_history, u.smoking_history, u.created_at,
+                   u.tenaga_medis_id, tm.name AS tenaga_medis_name, tm.phone_number AS tenaga_medis_phone,
+                   tm.specialization AS tenaga_medis_specialization,
+                   tm.name AS medical_staff_name, tm.phone_number AS medical_staff_phone,
+                   tm.specialization AS medical_staff_specialization
+            FROM users u
+            LEFT JOIN tenaga_medis tm ON u.tenaga_medis_id = tm.id
+            WHERE u.role = 'pasien'
+            ORDER BY u.created_at DESC
         """)
         patients = cursor.fetchall()
         for p in patients:
@@ -80,11 +89,20 @@ def get_patient(identity, id):
     if not conn:
         return jsonify({'msg': 'Koneksi database gagal'}), 500
     try:
+        from app.routes.tenagaMedis import ensure_tenaga_medis_schema
+        ensure_tenaga_medis_schema(cursor)
+
         cursor.execute("""
-            SELECT id, name, email, age, gender, weight_kg, height_cm,
-                   bmi, blood_pressure_sys, blood_pressure_dia,
-                   diabetes_history, smoking_history, created_at
-            FROM users WHERE id = %s AND role = 'pasien'
+            SELECT u.id, u.name, u.email, u.age, u.gender, u.weight_kg, u.height_cm,
+                   u.bmi, u.blood_pressure_sys, u.blood_pressure_dia,
+                   u.diabetes_history, u.smoking_history, u.created_at,
+                   u.tenaga_medis_id, tm.name AS tenaga_medis_name, tm.phone_number AS tenaga_medis_phone,
+                   tm.specialization AS tenaga_medis_specialization,
+                   tm.name AS medical_staff_name, tm.phone_number AS medical_staff_phone,
+                   tm.specialization AS medical_staff_specialization
+            FROM users u
+            LEFT JOIN tenaga_medis tm ON u.tenaga_medis_id = tm.id
+            WHERE u.id = %s AND u.role = 'pasien'
         """, (id,))
         patient = cursor.fetchone()
         if not patient:
@@ -121,6 +139,9 @@ def add_patient(identity):
     if not conn:
         return jsonify({'msg': 'Koneksi database gagal'}), 500
     try:
+        from app.routes.tenagaMedis import ensure_tenaga_medis_schema
+        ensure_tenaga_medis_schema(cursor)
+
         cursor.execute("SELECT id FROM users WHERE LOWER(email) = %s", (email,))
         if cursor.fetchone():
             return jsonify({'msg': 'Email sudah terdaftar'}), 409
@@ -130,8 +151,8 @@ def add_patient(identity):
 
         sql = """
             INSERT INTO users (name, email, password, role, age, gender, weight_kg, height_cm,
-                              blood_pressure_sys, blood_pressure_dia, diabetes_history, smoking_history)
-            VALUES (%s, %s, %s, 'pasien', %s, %s, %s, %s, %s, %s, %s, %s)
+                              blood_pressure_sys, blood_pressure_dia, diabetes_history, smoking_history, tenaga_medis_id)
+            VALUES (%s, %s, %s, 'pasien', %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(sql, (
             data.get('name'),
@@ -144,7 +165,8 @@ def add_patient(identity):
             data.get('blood_pressure_sys'),
             data.get('blood_pressure_dia'),
             data.get('diabetes_history', 0),
-            data.get('smoking_history', 0)
+            data.get('smoking_history', 0),
+            data.get('tenaga_medis_id') or data.get('medical_staff_id')
         ))
         conn.commit()
         return jsonify({'msg': 'Pasien berhasil ditambahkan', 'id': cursor.lastrowid or 0}), 201
@@ -165,6 +187,9 @@ def update_patient(identity, id):
     if not conn:
         return jsonify({'msg': 'Koneksi database gagal'}), 500
     try:
+        from app.routes.tenagaMedis import ensure_tenaga_medis_schema
+        ensure_tenaga_medis_schema(cursor)
+
         cursor.execute("SELECT id FROM users WHERE id = %s AND role = 'pasien'", (id,))
         if not cursor.fetchone():
             return jsonify({'msg': 'Pasien tidak ditemukan'}), 404
@@ -172,13 +197,16 @@ def update_patient(identity, id):
         fields = []
         values = []
         for key in ['name', 'email', 'age', 'gender', 'weight_kg', 'height_cm',
-                    'blood_pressure_sys', 'blood_pressure_dia', 'diabetes_history', 'smoking_history']:
+                    'blood_pressure_sys', 'blood_pressure_dia', 'diabetes_history', 'smoking_history', 'tenaga_medis_id']:
             if key in data:
                 val = data[key]
                 if key == 'email' and val:
                     val = str(val).strip().lower()
                 fields.append(f"{key} = %s")
                 values.append(val)
+        if 'medical_staff_id' in data and 'tenaga_medis_id' not in data:
+            fields.append("tenaga_medis_id = %s")
+            values.append(data['medical_staff_id'])
 
         if 'password' in data and data['password']:
             new_password = str(data['password']).strip()

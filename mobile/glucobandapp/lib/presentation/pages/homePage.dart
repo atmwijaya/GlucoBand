@@ -18,6 +18,14 @@ class HomePage extends StatefulWidget {
 class HomePageState extends State<HomePage> {
   int _currentIndex = 0;
   
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<SettingsProvider>(context, listen: false).fetchEmergencyContact();
+    });
+  }
+
   void setIndex(int index) {
     setState(() {
       _currentIndex = index;
@@ -55,14 +63,63 @@ class HomePageState extends State<HomePage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    'Hubungi Darurat',
+                    'Hubungi Darurat Medis',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1E293B),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+
+                  // Info Dokter / Tenaga Medis Penanggung Jawab
+                  if (settings.isDoctorAssigned && settings.doctorName != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF613EEA).withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: const Color(0xFF613EEA).withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF613EEA),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.medical_services, color: Colors.white, size: 20),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Tenaga Medis Penanggung Jawab:',
+                                  style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+                                ),
+                                Text(
+                                  settings.doctorName!,
+                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                                ),
+                                if (settings.doctorSpecialization != null)
+                                  Text(
+                                    settings.doctorSpecialization!,
+                                    style: const TextStyle(fontSize: 12, color: Color(0xFF613EEA), fontWeight: FontWeight.w500),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
                   ListTile(
                     leading: Container(
                       padding: const EdgeInsets.all(10),

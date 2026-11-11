@@ -267,7 +267,7 @@ class _BerandaPageState extends State<BerandaPage> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text(
-                              'Statistics',
+                              'Statistik',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,

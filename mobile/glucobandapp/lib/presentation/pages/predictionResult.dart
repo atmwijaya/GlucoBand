@@ -92,15 +92,20 @@ class PredictionResultPage extends StatelessWidget {
     Color mainColor = const Color(0xFF10B981); // Green
     IconData icon = Icons.check;
 
-    if (predictedGlucose > 140) {
+    if (predictedGlucose > 200) {
       statusTitle = 'Hiperglikemia';
       statusSubtitle = 'Sangat tinggi!!';
       mainColor = const Color(0xFFFF5252); // Red from mockup
       icon = Icons.warning_amber_rounded;
+    } else if (predictedGlucose > 140) {
+      statusTitle = 'Gula Darah Meningkat';
+      statusSubtitle = 'Di atas rentang optimal';
+      mainColor = const Color(0xFFFF9800); // Amber/Orange
+      icon = Icons.trending_up;
     } else if (predictedGlucose < 70) {
       statusTitle = 'Hipoglikemia';
       statusSubtitle = 'Terlalu rendah!!';
-      mainColor = const Color(0xFFFFB74D); // Orange
+      mainColor = const Color(0xFFEF4444); // Red
       icon = Icons.error_outline;
     }
 
