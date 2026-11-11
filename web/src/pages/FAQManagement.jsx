@@ -8,6 +8,7 @@ const FaqFormModal = ({ isOpen, onClose, onSave, faq }) => {
   const [question, setQuestion] = useState('')
   const [answer, setAnswer] = useState('')
   const [category, setCategory] = useState('umum')
+  const [fieldErrors, setFieldErrors] = useState({})
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -15,6 +16,7 @@ const FaqFormModal = ({ isOpen, onClose, onSave, faq }) => {
       setQuestion(faq?.question || '')
       setAnswer(faq?.answer || '')
       setCategory(faq?.category || 'umum')
+      setFieldErrors({})
     }
   }, [faq, isOpen])
 
@@ -22,7 +24,14 @@ const FaqFormModal = ({ isOpen, onClose, onSave, faq }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!question.trim() || !answer.trim()) return
+    const errs = {}
+    if (!question.trim()) errs.question = 'Pertanyaan wajib diisi.'
+    if (!answer.trim()) errs.answer = 'Jawaban wajib diisi.'
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs)
+      return
+    }
+    setFieldErrors({})
     setSaving(true)
     await onSave({ ...faq, question: question.trim(), answer: answer.trim(), category })
     setSaving(false)
@@ -30,7 +39,7 @@ const FaqFormModal = ({ isOpen, onClose, onSave, faq }) => {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <form onSubmit={handleSubmit} onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+      <form onSubmit={handleSubmit} noValidate onClick={e => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
         <h2 className="text-lg font-bold mb-4">{faq ? 'Edit FAQ' : 'Tambah FAQ Baru'}</h2>
         <div className="space-y-4">
           <div>
@@ -41,14 +50,49 @@ const FaqFormModal = ({ isOpen, onClose, onSave, faq }) => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Pertanyaan</label>
-            <input value={question} onChange={e => setQuestion(e.target.value)} required disabled={saving}
-              className="w-full px-4 py-2.5 border border-lineGray rounded-lg focus:outline-none" placeholder="Masukkan pertanyaan" />
+            <label className="block text-sm font-medium mb-1">
+              Pertanyaan <span className="text-red-500">*</span>
+            </label>
+            <input
+              value={question}
+              onChange={e => {
+                setQuestion(e.target.value)
+                if (fieldErrors.question) setFieldErrors(prev => ({ ...prev, question: '' }))
+              }}
+              disabled={saving}
+              className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none transition ${
+                fieldErrors.question
+                  ? 'border-red-500 bg-red-50/20 focus:ring-2 focus:ring-red-200'
+                  : 'border-lineGray focus:ring-2 focus:ring-primaryBlue/30'
+              }`}
+              placeholder="Masukkan pertanyaan"
+            />
+            {fieldErrors.question && (
+              <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.question}</p>
+            )}
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Jawaban</label>
-            <textarea value={answer} onChange={e => setAnswer(e.target.value)} required disabled={saving} rows={4}
-              className="w-full px-4 py-2.5 border border-lineGray rounded-lg resize-none" placeholder="Masukkan jawaban lengkap" />
+            <label className="block text-sm font-medium mb-1">
+              Jawaban <span className="text-red-500">*</span>
+            </label>
+            <textarea
+              value={answer}
+              onChange={e => {
+                setAnswer(e.target.value)
+                if (fieldErrors.answer) setFieldErrors(prev => ({ ...prev, answer: '' }))
+              }}
+              disabled={saving}
+              rows={4}
+              className={`w-full px-4 py-2.5 border rounded-lg resize-none focus:outline-none transition ${
+                fieldErrors.answer
+                  ? 'border-red-500 bg-red-50/20 focus:ring-2 focus:ring-red-200'
+                  : 'border-lineGray focus:ring-2 focus:ring-primaryBlue/30'
+              }`}
+              placeholder="Masukkan jawaban lengkap"
+            />
+            {fieldErrors.answer && (
+              <p className="text-xs text-red-500 mt-1 font-medium">{fieldErrors.answer}</p>
+            )}
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="px-5 py-2 border border-lineGray rounded-lg text-textSecondary">Batal</button>

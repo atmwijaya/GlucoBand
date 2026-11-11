@@ -24,10 +24,22 @@ def get_profile():
         return jsonify({'msg': 'Koneksi database gagal'}), 500
 
     try:
+        from app.routes.tenagaMedis import ensure_tenaga_medis_schema
+        ensure_tenaga_medis_schema(cursor)
+
         cursor.execute("""
-            SELECT id, name, email, role, age, gender, weight_kg, height_cm, bmi,
-                   blood_pressure_sys, blood_pressure_dia, diabetes_history, smoking_history
-            FROM users WHERE id = %s
+            SELECT u.id, u.name, u.email, u.role, u.age, u.gender, u.weight_kg, u.height_cm, u.bmi,
+                   u.blood_pressure_sys, u.blood_pressure_dia, u.diabetes_history, u.smoking_history,
+                   u.tenaga_medis_id,
+                   tm.name AS tenaga_medis_name,
+                   tm.phone_number AS tenaga_medis_phone,
+                   tm.specialization AS tenaga_medis_specialization,
+                   tm.name AS medical_staff_name,
+                   tm.phone_number AS medical_staff_phone,
+                   tm.specialization AS medical_staff_specialization
+            FROM users u
+            LEFT JOIN tenaga_medis tm ON u.tenaga_medis_id = tm.id
+            WHERE u.id = %s
         """, (user_id,))
         user_row = cursor.fetchone()
         if not user_row:

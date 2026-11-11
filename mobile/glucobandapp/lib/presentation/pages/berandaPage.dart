@@ -72,12 +72,14 @@ class _BerandaPageState extends State<BerandaPage> {
     final notifProvider = Provider.of<NotificationProvider>(context, listen: false);
     final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
     final articleProvider = Provider.of<ArticleProvider>(context, listen: false);
+    final measurementProvider = Provider.of<MeasurementProvider>(context, listen: false);
     
     if (auth.token != null) {
       notifProvider.fetchNotifications(auth.token!);
       notifProvider.connectSocket(auth.token!);
       profileProvider.fetchProfile();
       articleProvider.fetchArticles();
+      measurementProvider.fetchMeasurements();
     }
     _checkDeviceStatus();
   }
@@ -113,13 +115,24 @@ class _BerandaPageState extends State<BerandaPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Icon(Icons.settings_outlined, color: Color(0xFF64748B)),
-                    const Text(
-                      'GlucoBand',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF613EEA),
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/icons/android-chrome-192x192.png',
+                          width: 26,
+                          height: 26,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'GlucoBand',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF613EEA),
+                          ),
+                        ),
+                      ],
                     ),
                     Stack(
                       children: [
@@ -254,28 +267,71 @@ class _BerandaPageState extends State<BerandaPage> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text(
-                              'Statistics',
+                              'Statistik',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 color: Color(0xFF1E293B),
                               ),
                             ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFE2E8F0).withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(20),
+                            PopupMenuButton<String>(
+                              initialValue: measurement.timeFilter,
+                              tooltip: 'Pilih Rentang Waktu',
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                              child: const Row(
-                                children: [
-                                  Text(
-                                    'Weekly',
-                                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                              onSelected: (String value) {
+                                measurement.setTimeFilter(value);
+                              },
+                              itemBuilder: (BuildContext context) => [
+                                const PopupMenuItem<String>(
+                                  value: '6 Jam',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.history_toggle_off, size: 18, color: Color(0xFF613EEA)),
+                                      SizedBox(width: 8),
+                                      Text('6 Jam Terakhir', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    ],
                                   ),
-                                  SizedBox(width: 4),
-                                  Icon(Icons.keyboard_arrow_down, size: 16),
-                                ],
+                                ),
+                                const PopupMenuItem<String>(
+                                  value: 'Harian',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.today, size: 18, color: Color(0xFF613EEA)),
+                                      SizedBox(width: 8),
+                                      Text('Harian (24 Jam)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuItem<String>(
+                                  value: 'Mingguan',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.date_range, size: 18, color: Color(0xFF613EEA)),
+                                      SizedBox(width: 8),
+                                      Text('Mingguan (7 Hari)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE2E8F0).withValues(alpha: 0.5),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      measurement.timeFilter,
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.keyboard_arrow_down, size: 16, color: Color(0xFF64748B)),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
@@ -289,27 +345,33 @@ class _BerandaPageState extends State<BerandaPage> {
                             Expanded(
                               child: _buildStatCard(
                                 title: 'GLUCOSE AVG',
-                                value: measurement.glucoseAvg.toStringAsFixed(0),
+                                value: measurement.glucoseAvg > 0
+                                    ? measurement.glucoseAvg.toStringAsFixed(0)
+                                    : '--',
                                 unit: ' mg/dL',
-                                child: _buildMiniBarChart(),
+                                child: _buildMiniBarChart(measurement.miniBarHeights),
                               ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: _buildStatCard(
-                                title: 'RANGE',
-                                value: measurement.rangePercent.toString(),
-                                unit: '%',
-                                child: _buildMiniLineChart(),
+                                title: 'BPM AVG',
+                                value: measurement.heartRateAvg > 0
+                                    ? '${measurement.heartRateAvg}'
+                                    : '--',
+                                unit: ' BPM',
+                                child: _buildMiniLineChart(measurement.bpmSpots),
                               ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
                               child: _buildStatCard(
-                                title: 'INSULIN',
-                                value: measurement.insulin.toStringAsFixed(1),
-                                unit: ' U',
-                                child: _buildMiniFlatChart(),
+                                title: 'SUHU AVG',
+                                value: measurement.tempAvg > 0
+                                    ? measurement.tempAvg.toStringAsFixed(1)
+                                    : '--',
+                                unit: ' °C',
+                                child: _buildMiniTempChart(measurement.tempHeights),
                               ),
                             ),
                           ],
@@ -325,7 +387,7 @@ class _BerandaPageState extends State<BerandaPage> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text(
-                              'My Device',
+                              'Perangkat GlucoBand',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
@@ -421,7 +483,7 @@ class _BerandaPageState extends State<BerandaPage> {
                                             child: Text(
                                               _isDeviceConnected
                                                   ? 'IP: $_deviceIp '
-                                                  : 'Perangkat Terputus (Ketuk untuk hubungkan)',
+                                                  : 'Perangkat Terputus',
                                               style: TextStyle(
                                                 color: _isDeviceConnected
                                                     ? const Color(0xFF64748B)
@@ -618,7 +680,7 @@ class _BerandaPageState extends State<BerandaPage> {
                                   const SizedBox(height: 30),
                                   SizedBox(
                                     height: 100,
-                                    child: _buildMainChart(),
+                                    child: _buildMainChart(measurement.mainChartSpots),
                                   ),
                                 ],
                               ),
@@ -828,17 +890,19 @@ class _BerandaPageState extends State<BerandaPage> {
     );
   }
 
-  Widget _buildMiniBarChart() {
+  Widget _buildMiniBarChart(List<double> heights) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        _bar(20, const Color(0xFFC4B5FD)),
-        _bar(30, const Color(0xFF8B5CF6)),
-        _bar(40, const Color(0xFF613EEA)),
-        _bar(25, const Color(0xFFC4B5FD)),
-        _bar(35, const Color(0xFF8B5CF6)),
-      ],
+      children: heights.map((h) {
+        Color barColor = const Color(0xFF613EEA);
+        if (h >= 32) {
+          barColor = const Color(0xFFEF4444);
+        } else if (h <= 18) {
+          barColor = const Color(0xFFF59E0B);
+        }
+        return _bar(h, barColor);
+      }).toList(),
     );
   }
   
@@ -853,15 +917,15 @@ class _BerandaPageState extends State<BerandaPage> {
     );
   }
 
-  Widget _buildMiniLineChart() {
+  Widget _buildMiniLineChart(List<FlSpot> spots) {
     return LineChart(
       LineChartData(
-        gridData: FlGridData(show: false),
-        titlesData: FlTitlesData(show: false),
+        gridData: const FlGridData(show: false),
+        titlesData: const FlTitlesData(show: false),
         borderData: FlBorderData(show: false),
         lineBarsData: [
           LineChartBarData(
-            spots: const [FlSpot(0, 1), FlSpot(1, 2), FlSpot(2, 1.5), FlSpot(3, 3)],
+            spots: spots,
             isCurved: true,
             color: const Color(0xFF613EEA),
             barWidth: 2,
@@ -873,24 +937,57 @@ class _BerandaPageState extends State<BerandaPage> {
     );
   }
 
-  Widget _buildMiniFlatChart() {
+  Widget _buildMiniTempChart(List<double> heights) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: heights.map((h) {
+        Color barColor = const Color(0xFF10B981); // Hijau normal
+        if (h >= 32) {
+          barColor = const Color(0xFFEF4444); // Hangat / demam
+        } else if (h <= 18) {
+          barColor = const Color(0xFF38BDF8); // Sejuk
+        }
+        return _bar(h, barColor);
+      }).toList(),
+    );
+  }
+
+  Widget _buildMiniFlatChart(double insulinUnits) {
+    final double width = (insulinUnits * 5.0).clamp(12.0, 48.0);
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
-        width: 30,
-        height: 2,
-        color: const Color(0xFF613EEA),
+        width: width,
+        height: 3,
+        decoration: BoxDecoration(
+          color: const Color(0xFF613EEA),
+          borderRadius: BorderRadius.circular(2),
+        ),
       ),
     );
   }
 
-  Widget _buildMainChart() {
+  Widget _buildMainChart(List<FlSpot> spots) {
+    if (spots.isEmpty) {
+      return Center(
+        child: Text(
+          'Belum ada data glukosa di rentang waktu ini',
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey[400],
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      );
+    }
+
     return LineChart(
       LineChartData(
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: 20,
+          horizontalInterval: 25,
           getDrawingHorizontalLine: (value) {
             return FlLine(
               color: Colors.grey.withValues(alpha: 0.15),
@@ -903,20 +1000,12 @@ class _BerandaPageState extends State<BerandaPage> {
         borderData: FlBorderData(show: false),
         lineBarsData: [
           LineChartBarData(
-            spots: const [
-              FlSpot(0, 100),
-              FlSpot(1, 105),
-              FlSpot(2, 112),
-              FlSpot(3, 110),
-              FlSpot(4, 118),
-              FlSpot(5, 122),
-              FlSpot(6, 120.5),
-            ],
+            spots: spots,
             isCurved: true,
             color: const Color(0xFF613EEA),
             barWidth: 3,
             isStrokeCapRound: true,
-            dotData: const FlDotData(show: false), // Hidden dots for cleaner look like image
+            dotData: const FlDotData(show: false),
             belowBarData: BarAreaData(
               show: true,
               gradient: LinearGradient(

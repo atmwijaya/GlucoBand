@@ -113,7 +113,7 @@ class _MeasurementPageState extends State<MeasurementPage>
           _heartRateText = '-- BPM';
           _temperatureText = '-- °C';
           if (!_isMeasuring) {
-            _statusText = 'Status Perangkat:\nTerputus dari ESP32\n(Periksa koneksi WiFi)';
+            _statusText = 'Terputus dari ESP32\n(Periksa koneksi WiFi)';
           }
         });
       }
@@ -382,12 +382,32 @@ class _MeasurementPageState extends State<MeasurementPage>
         _isWaitingForFinger = false;
         _isDeviceConnected = false;
         _progress = 0;
-        _statusText = 'Gagal terhubung ke ESP32:\n${e.toString()}\n(Periksa koneksi WiFi)';
+        _statusText = _formatErrorMessage(e);
       });
 
       // Tawarkan dialog konfigurasi jika belum terhubung
       DeviceConfigDialog.show(context, onConnected: () => _checkEspConnection());
     }
+  }
+
+  String _formatErrorMessage(dynamic error) {
+    if (error == null) return 'Gagal terhubung ke ESP32\n(Periksa koneksi WiFi)';
+    String raw = error.toString();
+    // Hilangkan prefix teknis seperti Exception:, DioException, SocketException, dsb.
+    raw = raw.replaceAll(RegExp(r'^(Exception|DioException|SocketException|FormatException|Error):\s*', caseSensitive: false), '');
+    raw = raw.replaceAll(RegExp(r'\[.*?\]'), '');
+    raw = raw.trim();
+
+    // Sederhanakan jika pesan error bersifat teknis internal atau kosong
+    if (raw.toLowerCase().contains('respons status') ||
+        raw.toLowerCase().contains('connection refused') ||
+        raw.toLowerCase().contains('timed out') ||
+        raw.toLowerCase().contains('failed host lookup') ||
+        raw.isEmpty) {
+      return 'Gagal terhubung ke ESP32\n(Periksa koneksi WiFi)';
+    }
+
+    return '$raw\n(Periksa koneksi WiFi)';
   }
 
   Widget _buildRippleEffect() {
@@ -603,16 +623,6 @@ class _MeasurementPageState extends State<MeasurementPage>
                     ),
                   ),
 
-                  const Text(
-                    'GlucoBand',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-
-                  // Tombol Riwayat Pengukuran
                   IconButton(
                     tooltip: 'Riwayat Pengukuran',
                     icon: const Icon(Icons.history, color: Colors.white, size: 26),

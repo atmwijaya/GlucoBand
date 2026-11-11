@@ -22,7 +22,7 @@ def login(cursor):
 
     client_ip = login_rate_limiter.get_client_ip(request)
     email = str(data['email']).strip().lower()
-    input_password = str(data['password'])
+    input_password = str(data['password']).strip()
 
     is_locked, remaining_seconds = login_rate_limiter.is_locked(client_ip, email)
     if is_locked:
@@ -46,19 +46,19 @@ def login(cursor):
             'msg': f'Email atau kata sandi salah. Sisa percobaan: {remaining} kali.'
         }), 401
 
-    stored_password = str(user['password'])
+    stored_password = str(user['password']).strip()
     is_valid = False
     needs_upgrade = False
 
-    if stored_password.startswith(('scrypt:', 'pbkdf2:', 'sha256:', '$2b$', '$2a$')):
-        try:
-            is_valid = check_password_hash(stored_password, input_password)
-        except Exception:
-            is_valid = False
-    else:
-        if stored_password == input_password:
-            is_valid = True
-            needs_upgrade = True
+    try:
+        is_valid = check_password_hash(stored_password, input_password)
+    except Exception:
+        is_valid = False
+
+    # Fallback jika password di database masih berupa plain-text (belum di-hash)
+    if not is_valid and stored_password == input_password:
+        is_valid = True
+        needs_upgrade = True
 
     if not is_valid:
         is_now_locked, lockout_dur, remaining = login_rate_limiter.record_failure(client_ip, email)

@@ -745,7 +745,7 @@ export default function RealtimeMonitorPage() {
                           <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
                             isOnline ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
                           }`}>
-                            {isOnline ? '● Terhubung' : '○ Offline'}
+                            {isOnline ? '● Online' : '○ Offline'}
                           </span>
                         </div>
                         <p className="text-sm text-slate-500 mt-1">

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, verify_jwt_in_request
 import json
 from db import get_connection
 
@@ -18,12 +18,46 @@ def get_setting(setting_key):
         return jsonify({'msg': 'Koneksi database gagal'}), 500
 
     try:
+        # Jika request nomor kontak darurat dan ada identitas pasien, prioritaskan nomor tenaga medis pasien
+        if setting_key == 'emergency_contact':
+            try:
+                verify_jwt_in_request(optional=True)
+                identity_json = get_jwt_identity()
+                if identity_json:
+                    user_identity = json.loads(identity_json) if isinstance(identity_json, str) else identity_json
+                    user_id = user_identity.get('id')
+                    cursor.execute("""
+                        SELECT tm.name, tm.phone_number, tm.specialization
+                        FROM users u
+                        JOIN tenaga_medis tm ON u.tenaga_medis_id = tm.id
+                        WHERE u.id = %s AND tm.is_active = 1
+                    """, (user_id,))
+                    doc = cursor.fetchone()
+                    if doc and doc.get('phone_number'):
+                        return jsonify({
+                            'setting_key': 'emergency_contact',
+                            'setting_value': doc['phone_number'],
+                            'tenaga_medis_name': doc['name'],
+                            'doctor_name': doc['name'],
+                            'specialization': doc['specialization'],
+                            'assigned': True
+                        }), 200
+            except Exception:
+                pass  # Fallback ke nomor umum jika token tidak disertakan atau belum ada penugasan
+
         cursor.execute("SELECT setting_value FROM settings WHERE setting_key = %s", (setting_key,))
         setting = cursor.fetchone()
         if not setting:
             return jsonify({'msg': 'Pengaturan tidak ditemukan'}), 404
 
-        return jsonify({'setting_key': setting_key, 'setting_value': setting['setting_value']})
+        return jsonify({
+            'setting_key': setting_key,
+            'setting_value': setting['setting_value'],
+            'tenaga_medis_name': 'Layanan Darurat Medis',
+            'doctor_name': 'Layanan Darurat Medis',
+            'specialization': 'Pusat Bantuan 119',
+            'assigned': False
+        })
     except Exception as e:
         print("Error in get_setting:", e)
         return jsonify({'msg': 'Terjadi kesalahan database'}), 500

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { FaSignOutAlt } from 'react-icons/fa'
 import ReusableModal from './modal'
+import logoImg from '../../assets/android-chrome-192x192.png'
 
 export default function Navbar() {
   const user = JSON.parse(sessionStorage.getItem('user')) || { name: 'Tenaga Medis' }
@@ -16,7 +17,10 @@ export default function Navbar() {
   return (
     <>
       <header className="bg-white shadow-sm px-6 py-3 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-primaryDark">GlucoBand Medic</h1>
+        <div className="flex items-center gap-2.5">
+          <img src={logoImg} alt="GlucoBand Logo" className="w-6 h-6 object-contain" />
+          <h1 className="text-xl font-bold text-primaryDark">GlucoBand Medic</h1>
+        </div>
         <div className="flex items-center gap-4">
           <span className="text-sm text-textSecondary">{user.name || user.email}</span>
           <button

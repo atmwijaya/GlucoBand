@@ -5,10 +5,12 @@ import {
   FaDesktop, FaInfoCircle, FaExternalLinkAlt, FaTools
 } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
+import { onlyDigitsKeyDown, filterDigits } from '../utils/inputValidators';
 
 export default function Settings() {
   // 1. Pengaturan Kontak Darurat (Server Database)
   const [emergencyContact, setEmergencyContact] = useState('');
+  const [contactError, setContactError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -44,6 +46,11 @@ export default function Settings() {
 
   const handleSaveContact = async (e) => {
     e.preventDefault();
+    if (!emergencyContact.trim()) {
+      setContactError('Nomor kontak darurat wajib diisi.');
+      return;
+    }
+    setContactError('');
     setIsSaving(true);
     setMessage('');
     setError('');
@@ -188,20 +195,32 @@ export default function Settings() {
           </div>
         )}
 
-        <form onSubmit={handleSaveContact}>
+        <form onSubmit={handleSaveContact} noValidate>
           <div className="mb-4">
             <label className="block text-xs font-bold text-slate-700 mb-1">
-              Nomor Telepon / Hotline Darurat:
+              Nomor Telepon / Hotline Darurat: <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
+              inputMode="numeric"
               value={emergencyContact}
-              onChange={(e) => setEmergencyContact(e.target.value)}
+              onKeyDown={onlyDigitsKeyDown}
+              onChange={(e) => {
+                const val = filterDigits(e.target.value);
+                setEmergencyContact(val);
+                if (val.trim()) setContactError('');
+              }}
               placeholder="Contoh: 119 atau 08123456789"
               disabled={isLoading}
-              className="w-full max-w-md px-3.5 py-2 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primaryBlue/20 focus:border-primaryBlue transition"
-              required
+              className={`w-full max-w-md px-3.5 py-2 text-sm border rounded-xl focus:outline-none transition ${
+                contactError
+                  ? 'border-red-500 bg-red-50/20 focus:ring-2 focus:ring-red-200'
+                  : 'border-slate-300 focus:ring-2 focus:ring-primaryBlue/20 focus:border-primaryBlue'
+              }`}
             />
+            {contactError && (
+              <p className="text-xs text-red-500 mt-1 font-medium">{contactError}</p>
+            )}
           </div>
 
           <button

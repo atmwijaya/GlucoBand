@@ -75,6 +75,7 @@ export default function PatientListPage() {
                 <thead>
                   <tr className="border-b border-lineGray text-sm text-textSecondary">
                     <th className="py-3 font-medium">Nama</th><th className="py-3 font-medium">Usia</th><th className="py-3 font-medium">BMI</th>
+                    <th className="py-3 font-medium">Tenaga Medis</th>
                     <th className="py-3 font-medium">Risiko Diabetes</th><th className="py-3 font-medium">Aksi</th>
                   </tr>
                 </thead>
@@ -84,6 +85,20 @@ export default function PatientListPage() {
                       <td className="py-3 font-medium">{user.name}</td>
                       <td className="py-3 text-sm">{user.age} th</td>
                       <td className="py-3 text-sm">{user.bmi}</td>
+                      <td className="py-3 text-sm">
+                        {(user.tenaga_medis_name || user.medical_staff_name) ? (
+                          <div className="flex flex-col">
+                            <span className="font-semibold text-darkNavy text-xs">
+                              {user.tenaga_medis_name || user.medical_staff_name}
+                            </span>
+                            <span className="text-[11px] text-slate-400">
+                              {user.tenaga_medis_phone || user.medical_staff_phone}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400 italic">Belum ditentukan</span>
+                        )}
+                      </td>
                       <td className="py-3">
                         <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${user.risk_level === 'high' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
                           }`}>
@@ -93,6 +108,7 @@ export default function PatientListPage() {
                       <td className="py-3">
                         <div className="flex gap-2">
                           <button onClick={() => navigate(`/admin/edit-pasien/${user.id}`)}
+                            title="Edit Data Pasien"
                             className="p-2 text-primaryBlue hover:bg-blue-50 rounded-lg transition"><FaEdit /></button>
                           <button onClick={() => {
                             setSelectedUser(user)
@@ -101,13 +117,15 @@ export default function PatientListPage() {
                               message: `Apakah Anda yakin ingin menghapus pasien "${user.name}"?`,
                               type: 'confirm'
                             })
-                          }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"><FaTrash /></button>
+                          }}
+                          title="Hapus Pasien"
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition"><FaTrash /></button>
                         </div>
                       </td>
                     </tr>
                   ))}
                   {paginated.length === 0 && (
-                    <tr><td colSpan={5} className="py-12 text-center text-gray-400">Tidak ada data pasien.</td></tr>
+                    <tr><td colSpan={6} className="py-12 text-center text-gray-400">Tidak ada data pasien.</td></tr>
                   )}
                 </tbody>
               </table>
