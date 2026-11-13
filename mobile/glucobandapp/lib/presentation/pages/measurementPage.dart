@@ -24,8 +24,6 @@ class _MeasurementPageState extends State<MeasurementPage>
   bool _isWaitingForFinger = false;
   String _statusText = 'Status Perangkat:\nMemeriksa Koneksi...';
   double _progress = 0;
-
-  // Status Perangkat Riil
   bool _isDeviceConnected = false;
   String _deviceIp = '192.168.4.1';
   String _heartRateText = '-- BPM';
@@ -48,7 +46,6 @@ class _MeasurementPageState extends State<MeasurementPage>
       });
     }
 
-    // Polling status koneksi ESP32 secara realtime tiap 2 detik
     _statusPollingTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       if (!_isMeasuring && mounted) {
         _checkEspConnection();
@@ -82,7 +79,6 @@ class _MeasurementPageState extends State<MeasurementPage>
           _statusText = 'Status Perangkat:\nGlucoBand Siap Digunakan';
         });
       } else if (mounted && !_isMeasuring) {
-        // Tetap pastikan status siap jika sebelumnya tertulis terputus
         if (_statusText.contains('Terputus') || _statusText.contains('Memeriksa')) {
           setState(() {
             _statusText = 'Status Perangkat:\nGlucoBand Siap Digunakan';
@@ -90,7 +86,6 @@ class _MeasurementPageState extends State<MeasurementPage>
         }
       }
 
-      // Ambil sensor update awal jika ada
       try {
         final live = await EspService.getLiveSensors();
         if (mounted) {
@@ -106,14 +101,13 @@ class _MeasurementPageState extends State<MeasurementPage>
       } catch (_) {}
     } catch (_) {
       if (!mounted) return;
-      // Realtime: Jika koneksi putus/hilang tiba-tiba, langsung update status ke Disconnected
       if (_isDeviceConnected || _statusText.contains('Siap Digunakan') || _statusText.contains('Memeriksa')) {
         setState(() {
           _isDeviceConnected = false;
           _heartRateText = '-- BPM';
           _temperatureText = '-- °C';
           if (!_isMeasuring) {
-            _statusText = 'Terputus dari ESP32\n(Periksa koneksi WiFi)';
+            _statusText = 'Terputus dari GlucoBand\n(Periksa koneksi WiFi)';
           }
         });
       }
@@ -140,7 +134,6 @@ class _MeasurementPageState extends State<MeasurementPage>
     });
 
     try {
-      // 1. Cek Koneksi WiFi ESP
       final wifiStatus = await EspService.checkStatus();
       if (!mounted) return;
       setState(() {
@@ -152,7 +145,6 @@ class _MeasurementPageState extends State<MeasurementPage>
         _statusText = 'Terhubung ke $ssid\nInisiasi hardware sensor...';
       });
 
-      // 2. Inisiasi Sensor Hardware
       final initData = await EspService.initDevice();
       final sensors = initData['sensors'] as Map<String, dynamic>? ?? {};
 
@@ -167,7 +159,6 @@ class _MeasurementPageState extends State<MeasurementPage>
 
       await Future.delayed(const Duration(milliseconds: 600));
 
-      // 3. TAHAP PENDING: Cek dan Tunggu Jari Ditempelkan
       if (!mounted) return;
       setState(() {
         _isWaitingForFinger = true;
@@ -177,27 +168,24 @@ class _MeasurementPageState extends State<MeasurementPage>
 
       Map<String, dynamic>? liveData;
 
-      // Loop polling: Menunggu sampai sensor mendeteksi jari (finger_present == true)
       while (_isMeasuring && mounted) {
         try {
           final data = await EspService.getLiveSensors();
           if (data['finger_present'] == true) {
             liveData = data;
-            break; // Jari sudah terdeteksi! Keluar dari loop pending dan mulai analisis
+            break; 
           }
         } catch (_) {}
         await Future.delayed(const Duration(milliseconds: 400));
       }
 
-      // Jika pengguna membatalkan pengukuran saat pending
       if (!_isMeasuring || !mounted) return;
 
-      // 4. JARI TERDETEKSI: Masuk ke Tahap Analisis BPM Riil & Denyut Nadi (Sesuai .ino)
       setState(() {
         _isWaitingForFinger = false;
         _progress = 0.55;
         _statusText = 'Menganalisis Detak Jantung...\nTetap tempelkan jari secara stabil di sensor';
-        _heartRateText = 'Mengukur...'; // Sama persis dengan tampilan OLED ESP32
+        _heartRateText = 'Mengukur...'; 
       });
 
       int finalBpm = 0;
@@ -205,7 +193,7 @@ class _MeasurementPageState extends State<MeasurementPage>
       int stableCount = 0;
       int lastSeenBpm = 0;
       int loopCycles = 0;
-      const int maxCycles = 30; // Maksimal ~12-15 detik analisis untuk mendapatkan denyut stabil
+      const int maxCycles = 30; 
 
       while (_isMeasuring && mounted && loopCycles < maxCycles) {
         loopCycles++;
@@ -214,8 +202,6 @@ class _MeasurementPageState extends State<MeasurementPage>
         try {
           final sample = await EspService.getLiveSensors();
           if (!mounted) return;
-
-          // Jika jari diangkat/terlepas di tengah analisis
           if (sample['finger_present'] == false) {
             setState(() {
               _isWaitingForFinger = true;
@@ -224,7 +210,6 @@ class _MeasurementPageState extends State<MeasurementPage>
               _statusText = 'Jari Terangkat!\nTempelkan kembali jari Anda untuk melanjutkan analisis';
             });
 
-            // Tunggu sampai jari ditempelkan kembali
             while (_isMeasuring && mounted) {
               await Future.delayed(const Duration(milliseconds: 400));
               try {
@@ -247,7 +232,6 @@ class _MeasurementPageState extends State<MeasurementPage>
             continue;
           }
 
-          // Jari menempel: baca data realtime dari ESP32
           liveData = sample;
           final rawBpm = sample['bpm'];
           final int currentBpm = (rawBpm is num && rawBpm > 0) ? rawBpm.toInt() : 0;
@@ -271,13 +255,12 @@ class _MeasurementPageState extends State<MeasurementPage>
                 _progress = 0.70;
               }
             } else {
-              _heartRateText = 'Mengukur...'; // Tampilan OLED ESP32: "Mengukur..."
+              _heartRateText = 'Mengukur...'; 
               _statusText = 'Menganalisis Detak Jantung...\nMencari denyut nadi. Jangan gerakkan jari Anda.';
               _progress = (0.50 + (loopCycles * 0.008)).clamp(0.50, 0.65);
             }
           });
 
-          // Evaluasi kestabilan BPM (sesuai algoritma buffer rates[8] di glucoband.ino)
           if (currentBpm >= 40 && currentBpm <= 180) {
             if (currentBpm == lastSeenBpm) {
               stableCount++;
@@ -286,12 +269,9 @@ class _MeasurementPageState extends State<MeasurementPage>
               stableCount = 1;
             }
 
-            // BPM dianggap stabil & valid jika:
-            // 1. Buffer rates telah mencapai minimal 4 denyut valid (rateCount >= 4), ATAU
-            // 2. Denyut telah stabil berulang 4 siklus pembacaan (~2 detik stabil)
             if (rateCount >= 4 || stableCount >= 4) {
               finalBpm = currentBpm;
-              break; // BPM berhasil dianalisis dan stabil!
+              break; 
             }
           }
         } catch (_) {}
@@ -299,19 +279,16 @@ class _MeasurementPageState extends State<MeasurementPage>
 
       if (!_isMeasuring || !mounted) return;
 
-      // Jika loop selesai tapi finalBpm belum terkunci, gunakan pembacaan BPM terakhir yang valid
       if (finalBpm == 0) {
         if (lastSeenBpm > 0) {
           finalBpm = lastSeenBpm;
         } else if (liveData != null && liveData['bpm'] is num && liveData['bpm'] > 0) {
           finalBpm = (liveData['bpm'] as num).toInt();
         } else {
-          // Fallback fisiologis default jika sensor denyut tidak dapat membaca denyut sama sekali
           finalBpm = 75;
         }
       }
 
-      // 5. BPM TERKUNCI: Membaca spektrum NIR & estimasi kadar glukosa
       setState(() {
         _progress = 0.92;
         _heartRateText = '$finalBpm BPM';
@@ -326,7 +303,6 @@ class _MeasurementPageState extends State<MeasurementPage>
         final rawTemp = liveData['temperature'];
         if (rawTemp is num && rawTemp > 0) finalTemp = rawTemp.toDouble();
 
-        // Estimasi glukosa dari spektrometer NIR 6-channel (AS726X)
         final nir = liveData['nir'] as Map<String, dynamic>?;
         if (nir != null) {
           final r = (nir['r'] as num?)?.toDouble() ?? 10.0;
@@ -335,8 +311,7 @@ class _MeasurementPageState extends State<MeasurementPage>
           final u = (nir['u'] as num?)?.toDouble() ?? 8.0;
           final v = (nir['v'] as num?)?.toDouble() ?? 6.0;
           final w = (nir['w'] as num?)?.toDouble() ?? 4.0;
-          
-          // Regresi spektral NIR non-invasif terkalibrasi
+
           finalGlucose = (72.0 + (r * 1.6 + s * 2.1 + t * 1.4 + u * 0.9 + v * 0.6 + w * 0.4)).clamp(70.0, 240.0);
         } else {
           finalGlucose = 95.0 + (finalBpm % 15);
@@ -346,7 +321,6 @@ class _MeasurementPageState extends State<MeasurementPage>
       }
 
       if (!mounted) return;
-      // Perbarui nilai glukosa di Provider agar dashboard BerandaPage langsung tersinkronisasi
       Provider.of<MeasurementProvider>(context, listen: false).updateGlucose(finalGlucose);
 
       setState(() {
@@ -358,7 +332,6 @@ class _MeasurementPageState extends State<MeasurementPage>
         _statusText = 'Status Perangkat:\nPengukuran Selesai!';
       });
 
-      // Navigasi ke Halaman Hasil
       final bool? shouldRestart = await Navigator.push<bool>(
         context,
         MaterialPageRoute(
@@ -385,15 +358,13 @@ class _MeasurementPageState extends State<MeasurementPage>
         _statusText = _formatErrorMessage(e);
       });
 
-      // Tawarkan dialog konfigurasi jika belum terhubung
       DeviceConfigDialog.show(context, onConnected: () => _checkEspConnection());
     }
   }
 
   String _formatErrorMessage(dynamic error) {
-    if (error == null) return 'Gagal terhubung ke ESP32\n(Periksa koneksi WiFi)';
+    if (error == null) return 'Gagal terhubung ke GlucoBand\n(Periksa koneksi WiFi)';
     String raw = error.toString();
-    // Hilangkan prefix teknis seperti Exception:, DioException, SocketException, dsb.
     raw = raw.replaceAll(RegExp(r'^(Exception|DioException|SocketException|FormatException|Error):\s*', caseSensitive: false), '');
     raw = raw.replaceAll(RegExp(r'\[.*?\]'), '');
     raw = raw.trim();
@@ -404,7 +375,7 @@ class _MeasurementPageState extends State<MeasurementPage>
         raw.toLowerCase().contains('timed out') ||
         raw.toLowerCase().contains('failed host lookup') ||
         raw.isEmpty) {
-      return 'Gagal terhubung ke ESP32\n(Periksa koneksi WiFi)';
+      return 'Gagal terhubung ke GlucoBand\n(Periksa koneksi WiFi)';
     }
 
     return '$raw\n(Periksa koneksi WiFi)';
