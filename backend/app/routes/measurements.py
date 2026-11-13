@@ -59,22 +59,52 @@ def get_patient_measurements(cursor, patient_id):
     """
     Mengambil riwayat pengukuran pasien tertentu.
     Anti-IDOR: Pasien dilarang melihat data pasien lain.
+    Mendukung filter tanggal spesifik: ?date=YYYY-MM-DD
     """
-    limit = request.args.get('limit', 20, type=int)
-    cursor.execute("""
-        SELECT id, patient_id, glucose_estimated, status, ppg_heart_rate, ppg_spo2,
-               skin_temp_celsius, created_at
-        FROM measurements
-        WHERE patient_id = %s
-        ORDER BY created_at DESC
-        LIMIT %s
-    """, (patient_id, limit))
+    date_str = request.args.get('date')
+    if date_str:
+        cursor.execute("""
+            SELECT id, patient_id, glucose_estimated, status, ppg_heart_rate, ppg_spo2,
+                   skin_temp_celsius, created_at
+            FROM measurements
+            WHERE patient_id = %s AND DATE(created_at) = %s
+            ORDER BY created_at ASC
+        """, (patient_id, date_str))
+    else:
+        limit = request.args.get('limit', 20, type=int)
+        cursor.execute("""
+            SELECT id, patient_id, glucose_estimated, status, ppg_heart_rate, ppg_spo2,
+                   skin_temp_celsius, created_at
+            FROM measurements
+            WHERE patient_id = %s
+            ORDER BY created_at DESC
+            LIMIT %s
+        """, (patient_id, limit))
     measurements = cursor.fetchall()
     for m in measurements:
         m['glucose_estimated'] = str(m['glucose_estimated']) if m['glucose_estimated'] else None
         m['skin_temp_celsius'] = str(m['skin_temp_celsius']) if m['skin_temp_celsius'] else None
         m['created_at'] = m['created_at'].isoformat() if m['created_at'] else None
     return jsonify(measurements)
+
+@measurements_bp.get('/patients/<int:patient_id>/measurement-dates')
+@patient_owner_or_medis('patient_id')
+@db_connection
+def get_patient_measurement_dates(cursor, patient_id):
+    """
+    Mengambil daftar tanggal unik (YYYY-MM-DD) yang memiliki data pengukuran untuk pasien tertentu.
+    Digunakan untuk memberi indikator (dot) pada kalender dashboard.
+    """
+    cursor.execute("""
+        SELECT DISTINCT DATE(created_at) AS date
+        FROM measurements
+        WHERE patient_id = %s
+        ORDER BY date DESC
+        LIMIT 60
+    """, (patient_id,))
+    rows = cursor.fetchall()
+    dates = [r['date'].isoformat() if hasattr(r['date'], 'isoformat') else str(r['date']) for r in rows if r['date']]
+    return jsonify(dates)
 
 @measurements_bp.get('/patients/<int:patient_id>/latest')
 @patient_owner_or_medis('patient_id')
