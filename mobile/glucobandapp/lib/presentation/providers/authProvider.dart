@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../services/apiService.dart';
 import '../../services/secureStorageService.dart';
 import '../../data/models/userModel.dart';
+import '../../core/utils/jwtHelper.dart';
 
 class AuthProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -11,11 +12,13 @@ class AuthProvider extends ChangeNotifier {
   UserModel? _user;
   String? _token;
   bool _isLoading = false;
+  bool _isInitialized = false;
   String? _errorMessage;
 
   UserModel? get user => _user;
   String? get token => _token;
   bool get isLoggedIn => _token != null;
+  bool get isInitialized => _isInitialized;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
@@ -42,6 +45,7 @@ class AuthProvider extends ChangeNotifier {
         role: _user!.role,
       );
 
+      _isInitialized = true;
       _isLoading = false;
       notifyListeners();
       return true;
@@ -89,6 +93,7 @@ class AuthProvider extends ChangeNotifier {
 
       await _apiService.register(data);
 
+      _isInitialized = true;
       _isLoading = false;
       notifyListeners();
       return true;
@@ -119,26 +124,54 @@ class AuthProvider extends ChangeNotifier {
     _token = null;
     _user = null;
     await _secureStorage.clearAll();
+    _isInitialized = true;
     notifyListeners();
   }
 
   /// Cek status login saat aplikasi dibuka (membaca dari Keystore)
   Future<bool> checkLoginStatus() async {
-    _token = await _secureStorage.getToken();
-
-    if (_token != null && _token!.isNotEmpty) {
+    try {
+      _token = await _secureStorage.getToken();
+      final refreshToken = await _secureStorage.getRefreshToken();
       final userData = await _secureStorage.getUserData();
-      final idVal = int.tryParse(userData['id'] ?? '0') ?? 0;
 
-      _user = UserModel(
-        id: idVal,
-        name: userData['name'] ?? '',
-        email: userData['email'] ?? '',
-        role: userData['role'] ?? 'pasien',
-      );
-      notifyListeners();
-      return true;
+      // Jika ada token atau refresh token tersimpan
+      if ((_token != null && _token!.isNotEmpty) || (refreshToken != null && refreshToken.isNotEmpty)) {
+        // Cek apakah access token sudah kedaluwarsa tapi refresh token masih ada
+        if (_token != null && JwtHelper.isExpired(_token!) && refreshToken != null && refreshToken.isNotEmpty) {
+          // Jika refresh token juga sudah kedaluwarsa (30 hari habis), logout bersih
+          if (JwtHelper.isExpired(refreshToken)) {
+            await logout();
+            _isInitialized = true;
+            notifyListeners();
+            return false;
+          }
+
+          // Access token kedaluwarsa, otomatis perbarui via refresh token
+          final newToken = await _apiService.refreshAccessToken();
+          if (newToken != null && newToken.isNotEmpty) {
+            _token = newToken;
+          }
+        }
+
+        final idVal = int.tryParse(userData['id'] ?? '0') ?? 0;
+        _user = UserModel(
+          id: idVal,
+          name: userData['name'] ?? '',
+          email: userData['email'] ?? '',
+          role: userData['role'] ?? 'pasien',
+        );
+
+        _isInitialized = true;
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('[AuthProvider] checkLoginStatus error: $e');
     }
+
+    _isInitialized = true;
+    notifyListeners();
     return false;
   }
 }

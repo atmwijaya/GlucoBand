@@ -18,12 +18,15 @@ class HomePage extends StatefulWidget {
 
 class HomePageState extends State<HomePage> {
   int _currentIndex = 0;
-  
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<SettingsProvider>(context, listen: false).fetchEmergencyContact();
+      Provider.of<SettingsProvider>(
+        context,
+        listen: false,
+      ).fetchEmergencyContact();
       UpdateService.checkForUpdate(context);
     });
   }
@@ -45,146 +48,192 @@ class HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
-      floatingActionButton: _currentIndex != 2 ? FloatingActionButton(
-        onPressed: () {
-          final settings = Provider.of<SettingsProvider>(context, listen: false);
-          final number = settings.emergencyContact ?? '119';
-          
-          showModalBottomSheet(
-            context: context,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            builder: (context) => Padding(
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Hubungi Darurat Medis',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
+      body: IndexedStack(index: _currentIndex, children: _pages),
+      floatingActionButton: _currentIndex != 2
+          ? FloatingActionButton(
+              onPressed: () {
+                final settings = Provider.of<SettingsProvider>(
+                  context,
+                  listen: false,
+                );
+                final number = settings.emergencyContact ?? '119';
+
+                showModalBottomSheet(
+                  context: context,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
                     ),
                   ),
-                  const SizedBox(height: 16),
-
-                  // Info Dokter / Tenaga Medis Penanggung Jawab
-                  if (settings.isDoctorAssigned && settings.doctorName != null) ...[
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF613EEA).withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: const Color(0xFF613EEA).withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF613EEA),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.medical_services, color: Colors.white, size: 20),
+                  builder: (context) => Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 24,
+                      horizontal: 16,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          'Hubungi Darurat Medis',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF1E293B),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Info Dokter / Tenaga Medis Penanggung Jawab
+                        if (settings.isDoctorAssigned &&
+                            settings.doctorName != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(
+                                0xFF613EEA,
+                              ).withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(
+                                  0xFF613EEA,
+                                ).withValues(alpha: 0.2),
+                              ),
+                            ),
+                            child: Row(
                               children: [
-                                const Text(
-                                  'Tenaga Medis Penanggung Jawab:',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
-                                ),
-                                Text(
-                                  settings.doctorName!,
-                                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                                ),
-                                if (settings.doctorSpecialization != null)
-                                  Text(
-                                    settings.doctorSpecialization!,
-                                    style: const TextStyle(fontSize: 12, color: Color(0xFF613EEA), fontWeight: FontWeight.w500),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF613EEA),
+                                    shape: BoxShape.circle,
                                   ),
+                                  child: const Icon(
+                                    Icons.medical_services,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Tenaga Medis Penanggung Jawab:',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      Text(
+                                        settings.doctorName!,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF1E293B),
+                                        ),
+                                      ),
+                                      if (settings.doctorSpecialization != null)
+                                        Text(
+                                          settings.doctorSpecialization!,
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Color(0xFF613EEA),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
                               ],
                             ),
                           ),
+                          const SizedBox(height: 16),
                         ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
 
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.green.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.chat, color: Colors.green),
+                        ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.chat, color: Colors.green),
+                          ),
+                          title: const Text(
+                            'WhatsApp',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(number),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            String waNumber = number;
+                            if (waNumber.startsWith('0')) {
+                              waNumber = '62${waNumber.substring(1)}';
+                            }
+                            final url = Uri.parse('https://wa.me/$waNumber');
+                            if (await canLaunchUrl(url)) {
+                              await launchUrl(
+                                url,
+                                mode: LaunchMode.externalApplication,
+                              );
+                            } else {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Tidak dapat membuka WhatsApp',
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                        const Divider(),
+                        ListTile(
+                          leading: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(Icons.phone, color: Colors.blue),
+                          ),
+                          title: const Text(
+                            'Telepon Pulsa',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          subtitle: Text(number),
+                          onTap: () async {
+                            Navigator.pop(context);
+                            final url = Uri.parse('tel:$number');
+                            if (await canLaunchUrl(url)) {
+                              await launchUrl(url);
+                            } else {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Tidak dapat melakukan panggilan telepon',
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ],
                     ),
-                    title: const Text('WhatsApp', style: TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(number),
-                    onTap: () async {
-                      Navigator.pop(context);
-                      String waNumber = number;
-                      if (waNumber.startsWith('0')) {
-                        waNumber = '62${waNumber.substring(1)}';
-                      }
-                      final url = Uri.parse('https://wa.me/$waNumber');
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(url, mode: LaunchMode.externalApplication);
-                      } else {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Tidak dapat membuka WhatsApp')),
-                          );
-                        }
-                      }
-                    },
                   ),
-                  const Divider(),
-                  ListTile(
-                    leading: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Colors.blue.withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.phone, color: Colors.blue),
-                    ),
-                    title: const Text('Telepon Pulsa', style: TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(number),
-                    onTap: () async {
-                      Navigator.pop(context);
-                      final url = Uri.parse('tel:$number');
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(url);
-                      } else {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Tidak dapat melakukan panggilan telepon')),
-                          );
-                        }
-                      }
-                    },
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-        backgroundColor: Colors.redAccent,
-        child: const Icon(Icons.phone, color: Colors.white),
-      ) : null,
+                );
+              },
+              backgroundColor: Colors.redAccent,
+              child: const Icon(Icons.phone, color: Colors.white),
+            )
+          : null,
       bottomNavigationBar: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.bottomCenter,
@@ -194,20 +243,41 @@ class HomePageState extends State<HomePage> {
             decoration: BoxDecoration(
               color: Colors.white,
               border: Border(
-                top: BorderSide(color: Colors.grey.withValues(alpha: 0.1), width: 1),
+                top: BorderSide(
+                  color: Colors.grey.withValues(alpha: 0.1),
+                  width: 1,
+                ),
               ),
             ),
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
-                    _buildNavItem(1, Icons.show_chart, Icons.show_chart, 'Predict'),
-                    const SizedBox(width: 56), // ruang untuk tombol tengah
+                    _buildNavItem(
+                      0,
+                      Icons.home_outlined,
+                      Icons.home,
+                      'Beranda',
+                    ),
+                    _buildNavItem(
+                      1,
+                      Icons.show_chart,
+                      Icons.show_chart,
+                      'Prediksi',
+                    ),
+                    const SizedBox(width: 56),
                     _buildNavItem(3, Icons.help_outline, Icons.help, 'FAQ'),
-                    _buildNavItem(4, Icons.person_outline, Icons.person, 'Profile'),
+                    _buildNavItem(
+                      4,
+                      Icons.person_outline,
+                      Icons.person,
+                      'Profil',
+                    ),
                   ],
                 ),
               ),
@@ -222,7 +292,9 @@ class HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF613EEA).withValues(alpha: 0.2), // Halo effect
+                  color: const Color(
+                    0xFF613EEA,
+                  ).withValues(alpha: 0.2), // Halo effect
                 ),
                 child: Container(
                   width: 56,
@@ -252,7 +324,12 @@ class HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildNavItem(int index, IconData outlinedIcon, IconData filledIcon, String label) {
+  Widget _buildNavItem(
+    int index,
+    IconData outlinedIcon,
+    IconData filledIcon,
+    String label,
+  ) {
     final isSelected = _currentIndex == index;
     return GestureDetector(
       onTap: () => setIndex(index),
@@ -264,7 +341,9 @@ class HomePageState extends State<HomePage> {
           children: [
             Icon(
               isSelected ? filledIcon : outlinedIcon,
-              color: isSelected ? const Color(0xFF613EEA) : const Color(0xFF94A3B8),
+              color: isSelected
+                  ? const Color(0xFF613EEA)
+                  : const Color(0xFF94A3B8),
               size: 24,
             ),
             const SizedBox(height: 4),
@@ -273,7 +352,9 @@ class HomePageState extends State<HomePage> {
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                color: isSelected ? const Color(0xFF613EEA) : const Color(0xFF94A3B8),
+                color: isSelected
+                    ? const Color(0xFF613EEA)
+                    : const Color(0xFF94A3B8),
               ),
             ),
           ],
