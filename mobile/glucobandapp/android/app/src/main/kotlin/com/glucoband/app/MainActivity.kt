@@ -1,4 +1,4 @@
-package com.example.glucobandapp
+package com.glucoband.app
 
 import android.content.Intent
 import android.provider.Settings
