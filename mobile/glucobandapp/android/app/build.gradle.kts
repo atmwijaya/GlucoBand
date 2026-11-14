@@ -9,9 +9,10 @@ plugins {
 }
 
 val keystoreProperties = Properties()
-val keystorePropertiesFile = rootProject.file("key.properties")
-if (keystorePropertiesFile.exists()) {
-    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+val keystorePropertiesFile = rootProject.file("key.properties").takeIf { it.exists() }
+    ?: file("key.properties").takeIf { it.exists() }
+keystorePropertiesFile?.let {
+    keystoreProperties.load(FileInputStream(it))
 }
 
 android {
@@ -40,8 +41,13 @@ android {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String?
             keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+            storeFile = keystoreProperties["storeFile"]?.let {
+                val f1 = file(it)
+                if (f1.exists()) f1 else rootProject.file(it)
+            }
             storePassword = keystoreProperties["storePassword"] as String?
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 

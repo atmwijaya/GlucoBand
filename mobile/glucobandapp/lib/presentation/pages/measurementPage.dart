@@ -28,6 +28,7 @@ class _MeasurementPageState extends State<MeasurementPage>
   String _deviceIp = '192.168.4.1';
   String _heartRateText = '-- BPM';
   String _temperatureText = '-- °C';
+  String _batteryText = '--';
   Timer? _statusPollingTimer;
 
   @override
@@ -73,6 +74,8 @@ class _MeasurementPageState extends State<MeasurementPage>
       final bool wasDisconnected = !_isDeviceConnected;
       _isDeviceConnected = true;
       _deviceIp = status['ip'] ?? _deviceIp;
+      final rawBatt = status['battery'] ?? status['battery_level'];
+      _batteryText = rawBatt != null ? '$rawBatt%' : 'Optimal';
 
       if (wasDisconnected && !_isMeasuring) {
         setState(() {
@@ -104,6 +107,7 @@ class _MeasurementPageState extends State<MeasurementPage>
       if (_isDeviceConnected || _statusText.contains('Siap Digunakan') || _statusText.contains('Memeriksa')) {
         setState(() {
           _isDeviceConnected = false;
+          _batteryText = '--';
           _heartRateText = '-- BPM';
           _temperatureText = '-- °C';
           if (!_isMeasuring) {
@@ -660,15 +664,18 @@ class _MeasurementPageState extends State<MeasurementPage>
                     children: [
                       Expanded(
                         child: _buildInfoCard(
-                          'MACHINE LEARNING MODEL',
-                          'XGBoost 1.0',
+                          'BATERAI',
+                          _isDeviceConnected ? _batteryText : '--',
+                          valueColor: _isDeviceConnected
+                              ? const Color(0xFF10B981)
+                              : Colors.white.withValues(alpha: 0.5),
                         ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: _buildInfoCard(
-                          'STATUS PERANGKAT',
-                          _isDeviceConnected ? 'Connected' : 'Disconnected',
+                          'STATUS ALAT',
+                          _isDeviceConnected ? 'Siap Digunakan' : 'Belum Terhubung',
                           valueColor: _isDeviceConnected
                               ? const Color(0xFF10B981)
                               : Colors.red.shade300,
@@ -679,7 +686,7 @@ class _MeasurementPageState extends State<MeasurementPage>
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: _buildInfoCard('BPM JANTUNG', _heartRateText)),
+                      Expanded(child: _buildInfoCard('DENYUT NADI', _heartRateText)),
                       const SizedBox(width: 12),
                       Expanded(child: _buildInfoCard('SUHU TUBUH', _temperatureText)),
                     ],
