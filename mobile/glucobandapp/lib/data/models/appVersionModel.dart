@@ -19,8 +19,12 @@ class AppVersionModel {
       latestBuildNumber: json['latest_build_number'] is int
           ? json['latest_build_number']
           : int.tryParse(json['latest_build_number']?.toString() ?? '1') ?? 1,
-      downloadUrl: json['download_url']?.toString() ?? 'https://glucobandpro.id/download/glucoband.apk',
-      changelog: json['changelog']?.toString() ?? 'Pembaruan aplikasi GlucoBand telah tersedia.',
+      downloadUrl:
+          json['download_url']?.toString() ??
+          'https://glucobandpro.id/download/glucoband.apk',
+      changelog:
+          json['changelog']?.toString() ??
+          'Pembaruan aplikasi GlucoBand telah tersedia.',
       forceUpdate: json['force_update'] == true,
     );
   }
@@ -40,10 +44,18 @@ class AppVersionModel {
       final latestClean = latest.split('+').first.trim();
       final currentClean = current.split('+').first.trim();
 
-      final latestParts = latestClean.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-      final currentParts = currentClean.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+      final latestParts = latestClean
+          .split('.')
+          .map((e) => int.tryParse(e) ?? 0)
+          .toList();
+      final currentParts = currentClean
+          .split('.')
+          .map((e) => int.tryParse(e) ?? 0)
+          .toList();
 
-      final maxLength = latestParts.length > currentParts.length ? latestParts.length : currentParts.length;
+      final maxLength = latestParts.length > currentParts.length
+          ? latestParts.length
+          : currentParts.length;
       for (int i = 0; i < maxLength; i++) {
         final l = i < latestParts.length ? latestParts[i] : 0;
         final c = i < currentParts.length ? currentParts[i] : 0;
