@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'dart:math' as math;
 import '../providers/predictionProvider.dart';
 import '../providers/authProvider.dart';
 import '../../data/models/predictionModel.dart';
@@ -315,110 +314,73 @@ class PredictionResultPage extends StatelessWidget {
 
   Widget _buildWarningCard(RiskPrediction risk, TrendPrediction? trend) {
     final isHigh = risk.riskLevel.toLowerCase() == 'tinggi' || risk.probDiabetes >= 60.0;
-    final isMedium = risk.riskLevel.toLowerCase() == 'sedang' || (risk.probDiabetes >= 30.0 && risk.probDiabetes < 60.0);
+    final isMedium = risk.riskLevel.toLowerCase() == 'sedang' ||
+        (risk.probDiabetes >= 30.0 && risk.probDiabetes < 60.0);
 
     final Color c = isHigh
         ? const Color(0xFFEF4444) // Merah
         : (isMedium ? const Color(0xFFF59E0B) : const Color(0xFF10B981)); // Oranye : Hijau
 
-    final String riskTitle = isHigh
-        ? 'Risiko Tinggi Diabetes'
-        : (isMedium ? 'Risiko Sedang (Waspada)' : 'Non-diabetes (Risiko Rendah)');
+    final String statusBadge = isHigh
+        ? 'Risiko Tinggi'
+        : (isMedium ? 'Risiko Sedang' : 'Risiko Rendah');
 
-    final String binaryDiagnosis = risk.prediction == 1
-        ? 'Klasifikasi Model: Diabetes'
-        : 'Klasifikasi Model: Non-diabetes (Normal)';
+    final String statusTitle = isHigh
+        ? 'Perlu Perhatian Medis'
+        : (isMedium ? 'Waspada Risiko Glukosa' : 'Kondisi Metabolisme Baik');
 
-    final String badgeText = risk.badge ??
-        (isHigh
-            ? '🔴 HIGH RISK'
-            : (isMedium ? '🟡 MODERATE RISK' : '🟢 LOW RISK'));
+    final String statusSubtitle = isHigh
+        ? 'Terdeteksi indikasi kuat potensi diabetes'
+        : (isMedium
+            ? 'Terdapat indikasi kenaikan risiko gula darah'
+            : 'Profil kesehatan & kadar gula dalam rentang aman');
 
     final String actionRecommendation = risk.recommendation ??
         (isHigh
-            ? 'Terdeteksi risiko tinggi diabetes. Disarankan untuk segera melakukan konsultasi dengan dokter spesialis penyakit dalam untuk evaluasi klinis.'
+            ? 'Disarankan untuk berkonsultasi dengan dokter untuk evaluasi lebih lanjut serta membatasi konsumsi gula berlebih.'
             : (isMedium
-                ? 'Terdeteksi indikasi risiko sedang diabetes. Disarankan menjaga asupan gizi seimbang, kurangi konsumsi gula berlebih, dan konsultasi berkala.'
-                : 'Kondisi metabolisme tubuh baik. Pertahankan pola hidup sehat, olahraga teratur, dan pemantauan rutin.'));
+                ? 'Disarankan menjaga pola makan seimbang, rutin berolahraga, dan mengurangi konsumsi minuman/makanan manis.'
+                : 'Pertahankan gaya hidup sehat, aktif berolahraga, dan lakukan pemantauan gula darah secara berkala.'));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. Kartu Utama Klasifikasi Risiko Random Forest
+        // 1. Kartu Utama Analisis Risiko (Bersih & Fokus pada Pasien)
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(22),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 6),
+                blurRadius: 18,
+                offset: const Offset(0, 4),
               ),
             ],
-            border: Border.all(color: c.withValues(alpha: 0.25), width: 1.5),
+            border: Border.all(color: c.withValues(alpha: 0.2), width: 1.2),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Badge & Model Tag
+              // Badge Status & Icon
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
                       color: c.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      badgeText,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: c,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1F5F9),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'RF 2-Class (C300)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Title Status
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: c.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       isHigh
-                          ? Icons.warning_rounded
-                          : (isMedium ? Icons.info_rounded : Icons.verified_rounded),
+                          ? Icons.warning_amber_rounded
+                          : (isMedium ? Icons.info_outline_rounded : Icons.check_circle_outline_rounded),
                       color: c,
-                      size: 30,
+                      size: 28,
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -426,21 +388,37 @@ class PredictionResultPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: c.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            statusBadge,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: c,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
                         Text(
-                          riskTitle,
+                          statusTitle,
                           style: TextStyle(
                             fontSize: 17,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.bold,
                             color: c,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          binaryDiagnosis,
+                          statusSubtitle,
                           style: const TextStyle(
                             fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF475569),
+                            color: Color(0xFF64748B),
+                            height: 1.3,
                           ),
                         ),
                       ],
@@ -448,14 +426,14 @@ class PredictionResultPage extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
 
-              // Visualisasi Distribusi Probabilitas Biner
+              // Indikator Persentase Risiko
               Container(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: Column(
@@ -463,135 +441,66 @@ class PredictionResultPage extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFF10B981),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            const Text(
-                              'Non-diabetes',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF334155),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          '${risk.probNonDiabetes.toStringAsFixed(1)}%',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF10B981),
+                        const Text(
+                          'Tingkat Risiko Diabetes',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF334155),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Dual Color Progress Bar
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: SizedBox(
-                        height: 10,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: (risk.probNonDiabetes * 10).toInt().clamp(1, 1000),
-                              child: Container(color: const Color(0xFF10B981)),
-                            ),
-                            Expanded(
-                              flex: (risk.probDiabetes * 10).toInt().clamp(1, 1000),
-                              child: Container(
-                                color: isHigh ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: isHigh ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            const Text(
-                              'Risiko Diabetes',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF334155),
-                              ),
-                            ),
-                          ],
                         ),
                         Text(
                           '${risk.probDiabetes.toStringAsFixed(1)}%',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: isHigh ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                            color: c,
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6),
+                      child: LinearProgressIndicator(
+                        value: (risk.probDiabetes / 100.0).clamp(0.05, 1.0),
+                        minHeight: 8,
+                        backgroundColor: const Color(0xFFE2E8F0),
+                        valueColor: AlwaysStoppedAnimation<Color>(c),
+                      ),
                     ),
                   ],
                 ),
               ),
 
-              // Faktor Risiko Dominan (Jika Terdeteksi)
+              // Faktor yang Perlu Diperhatikan (Bahasa Awam)
               if (risk.riskFactors.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 const Text(
-                  'Faktor Risiko Terdeteksi:',
+                  'Faktor yang Terdeteksi:',
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E293B),
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF334155),
                   ),
                 ),
                 const SizedBox(height: 8),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
+                Column(
                   children: risk.riskFactors.map((factor) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
-                      ),
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.circle, size: 6, color: Color(0xFFEF4444)),
-                          const SizedBox(width: 6),
-                          Flexible(
+                          Icon(Icons.fiber_manual_record, size: 10, color: c),
+                          const SizedBox(width: 8),
+                          Expanded(
                             child: Text(
                               factor,
                               style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF991B1B),
+                                fontSize: 12,
+                                color: Color(0xFF475569),
+                                height: 1.3,
                               ),
                             ),
                           ),
@@ -602,29 +511,29 @@ class PredictionResultPage extends StatelessWidget {
                 ),
               ],
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // Kotak Rekomendasi Klinis Model
+              // Saran / Rekomendasi Praktis
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: c.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.medical_services_outlined, size: 18, color: c),
+                    Icon(Icons.tips_and_updates_outlined, size: 18, color: c),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         actionRecommendation,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
-                          height: 1.45,
+                          height: 1.4,
                           fontWeight: FontWeight.w500,
-                          color: Colors.grey[800],
+                          color: Color(0xFF334155),
                         ),
                       ),
                     ),
@@ -637,91 +546,8 @@ class PredictionResultPage extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // 2. Saran Personal AI Gemini Section
+        // 2. Saran Kesehatan Tambahan
         RecommendationCard(risk: risk, trend: trend, themeColor: c),
-        const SizedBox(height: 12),
-
-        // 3. Model Metadata & Parameter C300
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Model: Random Forest Biner (C300)',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF334155),
-                      ),
-                    ),
-                    Text(
-                      'AUC: 0.8872',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: c,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Akurasi: ~89.5% | SMOTE (0.25) | 7 Fitur Masukan',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey[600],
-                  ),
-                ),
-                if (trend != null) ...[
-                  const Divider(height: 16, thickness: 0.5),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Model: LSTM Glucose Trend',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF334155),
-                        ),
-                      ),
-                      Text(
-                        'MAE: 4.82 mg/dL',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF613EEA),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Prediksi Tren Dinamis 6 Jam Ke Depan',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
       ],
     );
   }
