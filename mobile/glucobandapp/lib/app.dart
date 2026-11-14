@@ -11,24 +11,32 @@ import 'presentation/providers/settingsProvider.dart';
 import 'presentation/pages/loginPage.dart';
 import 'presentation/pages/homePage.dart';
 
-
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class GlucoBandApp extends StatelessWidget {
-  const GlucoBandApp({super.key});
+  final AuthProvider? authProvider;
+
+  const GlucoBandApp({super.key, this.authProvider});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()..checkLoginStatus()),
+        if (authProvider != null)
+          ChangeNotifierProvider.value(value: authProvider!)
+        else
+          ChangeNotifierProvider(
+            create: (_) => AuthProvider()..checkLoginStatus(),
+          ),
         ChangeNotifierProvider(create: (_) => MeasurementProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()),
         ChangeNotifierProvider(create: (_) => FaqProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => PredictionProvider()),
         ChangeNotifierProvider(create: (_) => ArticleProvider()),
-        ChangeNotifierProvider(create: (_) => SettingsProvider()..fetchEmergencyContact()),
+        ChangeNotifierProvider(
+          create: (_) => SettingsProvider()..fetchEmergencyContact(),
+        ),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
@@ -46,13 +54,21 @@ class GlucoBandApp extends StatelessWidget {
         ),
         home: Consumer<AuthProvider>(
           builder: (context, auth, _) {
+            // Karena status login sudah di-check di main() sebelum runApp,
+            // Frame pertama Flutter langsung me-render HomePage tanpa perantara layar login/splash!
             if (auth.isLoggedIn) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                final notifProvider = Provider.of<NotificationProvider>(context, listen: false);
-                notifProvider.connectSocket(auth.token!);
+                final notifProvider = Provider.of<NotificationProvider>(
+                  context,
+                  listen: false,
+                );
+                if (auth.token != null) {
+                  notifProvider.connectSocket(auth.token!);
+                }
               });
               return const HomePage();
             }
+
             return const LoginPage();
           },
         ),

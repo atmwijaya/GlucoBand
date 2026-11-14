@@ -314,87 +314,318 @@ class PredictionResultPage extends StatelessWidget {
   }
 
   Widget _buildWarningCard(RiskPrediction risk, TrendPrediction? trend) {
-    final isHigh = risk.riskLevel == 'Tinggi';
-    final isMedium = risk.riskLevel == 'Sedang';
-    final c = isHigh
-        ? const Color(0xFFFF5252)
-        : (isMedium ? const Color(0xFFFFB74D) : const Color(0xFF10B981));
-    final msg = isHigh
-        ? 'Anda Berisiko Tinggi Diabetes'
-        : (isMedium ? 'Anda Berisiko Sedang' : 'Risiko Diabetes Rendah');
+    final isHigh = risk.riskLevel.toLowerCase() == 'tinggi' || risk.probDiabetes >= 60.0;
+    final isMedium = risk.riskLevel.toLowerCase() == 'sedang' || (risk.probDiabetes >= 30.0 && risk.probDiabetes < 60.0);
 
-    double rfConfidence = risk.riskScore >= 0.5
-        ? (risk.riskScore * 100)
-        : ((1.0 - risk.riskScore) * 100);
-    rfConfidence = rfConfidence > 99.0 ? 98.9 : rfConfidence;
+    final Color c = isHigh
+        ? const Color(0xFFEF4444) // Merah
+        : (isMedium ? const Color(0xFFF59E0B) : const Color(0xFF10B981)); // Oranye : Hijau
 
-    String suggestion = '';
-    if (isHigh) {
-      suggestion =
-          'Segera konsultasikan dengan dokter. Sangat disarankan untuk membatasi konsumsi gula berlebih, mengelola pola makan dengan ketat, dan memantau glukosa setiap hari.';
-    } else if (isMedium) {
-      suggestion =
-          'Mulai kurangi asupan karbohidrat dan tingkatkan aktivitas fisik Anda. Dianjurkan untuk berkonsultasi dengan dokter untuk pencegahan lebih awal.';
-    } else {
-      suggestion =
-          'Gaya hidup Anda sudah cukup sehat! Lanjutkan olahraga rutin 30 menit sehari, jaga pola makan gizi seimbang, dan pastikan istirahat cukup.';
-    }
+    final String riskTitle = isHigh
+        ? 'Risiko Tinggi Diabetes'
+        : (isMedium ? 'Risiko Sedang (Waspada)' : 'Non-diabetes (Risiko Rendah)');
+
+    final String binaryDiagnosis = risk.prediction == 1
+        ? 'Klasifikasi Model: Diabetes'
+        : 'Klasifikasi Model: Non-diabetes (Normal)';
+
+    final String badgeText = risk.badge ??
+        (isHigh
+            ? '🔴 HIGH RISK'
+            : (isMedium ? '🟡 MODERATE RISK' : '🟢 LOW RISK'));
+
+    final String actionRecommendation = risk.recommendation ??
+        (isHigh
+            ? 'Terdeteksi risiko tinggi diabetes. Disarankan untuk segera melakukan konsultasi dengan dokter spesialis penyakit dalam untuk evaluasi klinis.'
+            : (isMedium
+                ? 'Terdeteksi indikasi risiko sedang diabetes. Disarankan menjaga asupan gizi seimbang, kurangi konsumsi gula berlebih, dan konsultasi berkala.'
+                : 'Kondisi metabolisme tubuh baik. Pertahankan pola hidup sehat, olahraga teratur, dan pemantauan rutin.'));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // 1. Kartu Utama Klasifikasi Risiko Random Forest
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(22),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 20,
-                offset: const Offset(0, 4),
+                offset: const Offset(0, 6),
               ),
             ],
+            border: Border.all(color: c.withValues(alpha: 0.25), width: 1.5),
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: c.withValues(alpha: 0.55),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isHigh
-                      ? Icons.warning_amber_rounded
-                      : (isMedium ? Icons.info_outline : Icons.check),
-                  color: Colors.white,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      msg,
+              // Header Badge & Model Tag
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: c.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      badgeText,
                       style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
                         color: c,
+                        letterSpacing: 0.3,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Berdasarkan profil dan data pengukuran Anda. Silakan konsultasi lebih lanjut dengan dokter.',
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Colors.black54,
-                        height: 1.3,
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'RF 2-Class (C300)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Title Status
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: c.withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isHigh
+                          ? Icons.warning_rounded
+                          : (isMedium ? Icons.info_rounded : Icons.verified_rounded),
+                      color: c,
+                      size: 30,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          riskTitle,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: c,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          binaryDiagnosis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF475569),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Visualisasi Distribusi Probabilitas Biner
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF10B981),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'Non-diabetes',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF334155),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '${risk.probNonDiabetes.toStringAsFixed(1)}%',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF10B981),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Dual Color Progress Bar
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        height: 10,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: (risk.probNonDiabetes * 10).toInt().clamp(1, 1000),
+                              child: Container(color: const Color(0xFF10B981)),
+                            ),
+                            Expanded(
+                              flex: (risk.probDiabetes * 10).toInt().clamp(1, 1000),
+                              child: Container(
+                                color: isHigh ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: isHigh ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'Risiko Diabetes',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF334155),
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          '${risk.probDiabetes.toStringAsFixed(1)}%',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: isHigh ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // Faktor Risiko Dominan (Jika Terdeteksi)
+              if (risk.riskFactors.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                const Text(
+                  'Faktor Risiko Terdeteksi:',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: risk.riskFactors.map((factor) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.red.withValues(alpha: 0.2)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.circle, size: 6, color: Color(0xFFEF4444)),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              factor,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF991B1B),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+
+              const SizedBox(height: 16),
+
+              // Kotak Rekomendasi Klinis Model
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: c.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.medical_services_outlined, size: 18, color: c),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        actionRecommendation,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.45,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey[800],
+                        ),
                       ),
                     ),
                   ],
@@ -406,75 +637,89 @@ class PredictionResultPage extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // Saran AI Health Section
+        // 2. Saran Personal AI Gemini Section
         RecommendationCard(risk: risk, trend: trend, themeColor: c),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
+
+        // 3. Model Metadata & Parameter C300
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Model: Random Forest',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.black54,
-                  fontWeight: FontWeight.w600,
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Model: Random Forest Biner (C300)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                    Text(
+                      'AUC: 0.8872',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: c,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Akurasi: ~${rfConfidence.toStringAsFixed(1)}%',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF613EEA),
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              if (trend != null) ...[
-                const SizedBox(height: 8),
-                const Text(
-                  'Model: LSTM',
+                const SizedBox(height: 4),
+                Text(
+                  'Akurasi: ~89.5% | SMOTE (0.25) | 7 Fitur Masukan',
                   style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.black54,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey[600],
                   ),
                 ),
-                const SizedBox(height: 2),
-                Builder(
-                  builder: (context) {
-                    double lstmConfidence = 92.5;
-                    if (trend.points.length >= 3) {
-                      final last3 = trend.points
-                          .take(3)
-                          .map((e) => e.glucose)
-                          .toList();
-                      double mean = last3.reduce((a, b) => a + b) / 3;
-                      double variance =
-                          last3
-                              .map((v) => (v - mean) * (v - mean))
-                              .reduce((a, b) => a + b) /
-                          3;
-                      double stdDev = math.sqrt(variance);
-                      lstmConfidence = 96.0 - (stdDev * 0.15);
-                      if (lstmConfidence < 75)
-                        lstmConfidence =
-                            75.0 + (math.Random().nextDouble() * 5);
-                      if (lstmConfidence > 98.5) lstmConfidence = 98.5;
-                    }
-                    return Text(
-                      'Akurasi: ~${lstmConfidence.toStringAsFixed(1)}%',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF613EEA),
-                        fontWeight: FontWeight.w700,
+                if (trend != null) ...[
+                  const Divider(height: 16, thickness: 0.5),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Model: LSTM Glucose Trend',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF334155),
+                        ),
                       ),
-                    );
-                  },
-                ),
+                      Text(
+                        'MAE: 4.82 mg/dL',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF613EEA),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Prediksi Tren Dinamis 6 Jam Ke Depan',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ],

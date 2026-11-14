@@ -1,6 +1,7 @@
 class ApiConstants {
   static const String baseUrl = 'https://glucobandpro.id/api';
   static const String login = '/auth/login';
+  static const String refresh = '/auth/refresh';
   static const String patients = '/patients';
   static const String profile = '/profile';
   static const String measurements = '/measurements';

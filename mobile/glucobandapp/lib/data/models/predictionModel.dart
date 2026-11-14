@@ -3,20 +3,46 @@ class RiskPrediction {
   final double riskScore;
   final int prediction;
   final String modelVersion;
+  final double probDiabetes;
+  final double probNonDiabetes;
+  final String className;
+  final String? badge;
+  final String? recommendation;
+  final List<String> riskFactors;
 
   RiskPrediction({
     required this.riskLevel,
     required this.riskScore,
     required this.prediction,
     required this.modelVersion,
+    this.probDiabetes = 0.0,
+    this.probNonDiabetes = 0.0,
+    this.className = '',
+    this.badge,
+    this.recommendation,
+    this.riskFactors = const [],
   });
 
   factory RiskPrediction.fromJson(Map<String, dynamic> json) {
+    final score = (json['risk_score'] ?? 0).toDouble();
+    final pDia = json['prob_diabetes'] != null
+        ? (json['prob_diabetes'] as num).toDouble()
+        : (score * 100);
+    final pNon = json['prob_non_diabetes'] != null
+        ? (json['prob_non_diabetes'] as num).toDouble()
+        : (100.0 - pDia).clamp(0.0, 100.0);
+
     return RiskPrediction(
       riskLevel: json['risk_level'] ?? 'Tidak diketahui',
-      riskScore: (json['risk_score'] ?? 0).toDouble(),
-      prediction: json['prediction'] ?? 0,
-      modelVersion: json['model_version'] ?? 'rf_v1',
+      riskScore: score,
+      prediction: json['prediction'] ?? (pDia >= 50.0 ? 1 : 0),
+      modelVersion: json['model_version'] ?? json['model version'] ?? 'Random Forest Biner v2.0',
+      probDiabetes: pDia,
+      probNonDiabetes: pNon,
+      className: json['class_name'] ?? (json['prediction'] == 1 ? 'Diabetes' : 'Non-diabetes (Normal)'),
+      badge: json['badge'],
+      recommendation: json['recommendation'],
+      riskFactors: (json['risk_factors'] as List?)?.map((e) => e.toString()).toList() ?? [],
     );
   }
 }
