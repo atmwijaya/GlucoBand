@@ -7,6 +7,7 @@ import 'profilePage.dart';
 import 'package:provider/provider.dart';
 import '../providers/settingsProvider.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../services/updateService.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -23,6 +24,7 @@ class HomePageState extends State<HomePage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<SettingsProvider>(context, listen: false).fetchEmergencyContact();
+      UpdateService.checkForUpdate(context);
     });
   }
 

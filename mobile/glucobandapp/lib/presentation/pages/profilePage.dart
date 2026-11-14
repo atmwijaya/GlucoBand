@@ -6,6 +6,8 @@ import '../providers/notificationProvider.dart';
 import 'editHealthProfile.dart';
 import 'loginPage.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../services/updateService.dart';
+import '../../core/constants/appConstant.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -429,6 +431,31 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const SizedBox(height: 16),
 
+                      // Periksa Pembaruan Aplikasi Card
+                      _buildSingleCardMenu(
+                        icon: Icons.system_update_outlined,
+                        title: 'Periksa Pembaruan',
+                        onTap: () => UpdateService.checkForUpdate(context, isManual: true),
+                        iconColor: const Color(0xFF613EEA),
+                        iconBgColor: const Color(0xFF613EEA).withValues(alpha: 0.1),
+                        trailing: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'v${AppConstants.currentVersion}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF613EEA),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
                       // Logout Single Card
                       _buildSingleCardMenu(
                         icon: Icons.logout,
@@ -478,6 +505,7 @@ class _ProfilePageState extends State<ProfilePage> {
     required Color iconColor,
     required Color iconBgColor,
     Color? titleColor,
+    Widget? trailing,
     bool hideChevron = false,
   }) {
     return Container(
@@ -500,7 +528,7 @@ class _ProfilePageState extends State<ProfilePage> {
         iconColor: iconColor,
         iconBgColor: iconBgColor,
         titleColor: titleColor,
-        trailing: hideChevron ? const SizedBox() : null,
+        trailing: trailing ?? (hideChevron ? const SizedBox() : null),
       ),
     );
   }
