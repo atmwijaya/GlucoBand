@@ -11,6 +11,58 @@ def _get_cursor():
         return None, None
     return conn, conn.cursor(dictionary=True)
 
+@settings_bp.get('/app-version')
+def get_app_version():
+    """
+    Endpoint publik untuk pemeriksaan versi aplikasi mobile (In-App Update).
+    Mengembalikan informasi versi terbaru, URL unduh APK, changelog, dan status force_update.
+    """
+    version_info = {
+        'latest_version': '1.0.1',
+        'latest_build_number': 2,
+        'download_url': 'https://glucobandpro.id/download/glucoband.apk',
+        'changelog': '• Pembaruan performa dan stabilitas koneksi sensor\n• Fitur update otomatis terintegrasi\n• Peningkatan kenyamanan antarmuka pengguna',
+        'force_update': False
+    }
+
+    conn, cursor = _get_cursor()
+    if not conn:
+        return jsonify(version_info), 200
+
+    try:
+        cursor.execute("""
+            SELECT setting_key, setting_value 
+            FROM settings 
+            WHERE setting_key IN ('app_version', 'app_build_number', 'app_download_url', 'app_changelog', 'app_force_update')
+        """)
+        rows = cursor.fetchall()
+        for r in rows:
+            k = r.get('setting_key')
+            v = r.get('setting_value')
+            if not v:
+                continue
+            if k == 'app_version':
+                version_info['latest_version'] = str(v).strip()
+            elif k == 'app_build_number':
+                try:
+                    version_info['latest_build_number'] = int(v)
+                except ValueError:
+                    pass
+            elif k == 'app_download_url':
+                version_info['download_url'] = str(v).strip()
+            elif k == 'app_changelog':
+                version_info['changelog'] = str(v).strip()
+            elif k == 'app_force_update':
+                version_info['force_update'] = str(v).strip().lower() in ('true', '1', 'yes')
+
+        return jsonify(version_info), 200
+    except Exception as e:
+        print("Error fetching app version:", e)
+        return jsonify(version_info), 200
+    finally:
+        cursor.close()
+        conn.close()
+
 @settings_bp.get('/settings/<setting_key>')
 def get_setting(setting_key):
     conn, cursor = _get_cursor()
