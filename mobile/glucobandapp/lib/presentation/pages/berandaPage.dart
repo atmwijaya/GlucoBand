@@ -26,6 +26,7 @@ class _BerandaPageState extends State<BerandaPage> {
   bool _isDeviceConnected = false;
   String _deviceSsid = 'GlucoBand (ESP32)';
   String _deviceIp = '192.168.4.1';
+  String _batteryText = 'Optimal';
   Timer? _deviceTimer;
 
   @override
@@ -58,11 +59,14 @@ class _BerandaPageState extends State<BerandaPage> {
             : status['ap_ssid'] ?? 'GlucoBand-Setup';
         _deviceSsid = '$ssid';
         _deviceIp = status['ip'] ?? _deviceIp;
+        final rawBatt = status['battery'] ?? status['battery_level'];
+        _batteryText = rawBatt != null ? '$rawBatt%' : 'Optimal';
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _isDeviceConnected = false;
+        _batteryText = '--';
       });
     }
   }
@@ -499,39 +503,68 @@ class _BerandaPageState extends State<BerandaPage> {
                                     ],
                                   ),
                                 ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: _isDeviceConnected
-                                        ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                                        : Colors.red.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 6,
-                                        height: 6,
-                                        decoration: BoxDecoration(
-                                          color: _isDeviceConnected
-                                              ? const Color(0xFF10B981)
-                                              : const Color(0xFFEF4444),
-                                          shape: BoxShape.circle,
-                                        ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                      decoration: BoxDecoration(
+                                        color: _isDeviceConnected
+                                            ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                            : Colors.red.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(20),
                                       ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        _isDeviceConnected ? 'Connected' : 'Disconnected',
-                                        style: TextStyle(
-                                          color: _isDeviceConnected
-                                              ? const Color(0xFF10B981)
-                                              : const Color(0xFFEF4444),
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            width: 6,
+                                            height: 6,
+                                            decoration: BoxDecoration(
+                                              color: _isDeviceConnected
+                                                  ? const Color(0xFF10B981)
+                                                  : const Color(0xFFEF4444),
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            _isDeviceConnected ? 'Terhubung' : 'Terputus',
+                                            style: TextStyle(
+                                              color: _isDeviceConnected
+                                                  ? const Color(0xFF10B981)
+                                                  : const Color(0xFFEF4444),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (_isDeviceConnected) ...[
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(
+                                            Icons.battery_std_rounded,
+                                            size: 13,
+                                            color: Color(0xFF10B981),
+                                          ),
+                                          const SizedBox(width: 2),
+                                          Text(
+                                            _batteryText,
+                                            style: const TextStyle(
+                                              color: Color(0xFF059669),
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ],
-                                  ),
+                                  ],
                                 ),
                               ],
                             ),

@@ -29,6 +29,7 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
   String? _statusMessage;
   bool _isSuccess = false;
   Map<String, dynamic>? _sensorStatus;
+  String _batteryText = 'Optimal';
 
   // Status Jaringan WiFi Router Saat Ini
   bool _isEspWifiConnected = false;
@@ -101,11 +102,14 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
       final int rssi = (status['rssi'] is num)
           ? (status['rssi'] as num).toInt()
           : 0;
+      final rawBatt = status['battery'] ?? status['battery_level'];
+      final battStr = rawBatt != null ? '$rawBatt%' : 'Optimal';
 
       setState(() {
         _isLoading = false;
         _isSuccess = true;
         _sensorStatus = init['sensors'];
+        _batteryText = battStr;
 
         _isEspWifiConnected =
             isConnectedToRouter &&
@@ -776,8 +780,37 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
                         ),
                       ),
                       const Spacer(),
-                      if (_connectedRouterRssi != null)
+                      // Indikator Baterai Gelang
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.battery_std_rounded,
+                              size: 13,
+                              color: Color(0xFF047857),
+                            ),
+                            const SizedBox(width: 3),
+                            Text(
+                              _batteryText,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF047857),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (_connectedRouterRssi != null) ...[
+                        const SizedBox(width: 6),
                         _buildSignalIcon(_connectedRouterRssi!),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 2),
@@ -826,20 +859,51 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
             ),
           ),
           const SizedBox(width: 12),
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Gelang Siap Dihubungkan',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E40AF),
-                  ),
+                Row(
+                  children: [
+                    const Text(
+                      'Gelang Siap Dihubungkan',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E40AF),
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.battery_std_rounded,
+                            size: 13,
+                            color: Color(0xFF1D4ED8),
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            _batteryText,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF1D4ED8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 2),
-                Text(
+                const SizedBox(height: 2),
+                const Text(
                   'Pilih WiFi rumah Anda di bawah agar gelang dapat terhubung.',
                   style: TextStyle(fontSize: 12, color: Color(0xFF3B82F6)),
                 ),
@@ -1781,6 +1845,11 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
                           _sensorRow(
                             'Layar OLED (SSD1306)',
                             _sensorStatus!['oled'] == true,
+                          ),
+                          const Divider(height: 12),
+                          _sensorRow(
+                            'Baterai Gelang ($_batteryText)',
+                            true,
                           ),
                         ],
                       ),
