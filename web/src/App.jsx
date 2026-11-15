@@ -13,6 +13,7 @@ import NotificationPage from './pages/notificationPage'
 import FAQManagePage from './pages/FAQManagement'
 import SettingsPage from './pages/Settings'
 import NakesPage from './pages/nakesPage'
+import DownloadPage from './pages/DownloadPage'
 import NotFound from './pages/NotFound'
 
 function TitleUpdater() {
@@ -29,6 +30,8 @@ function TitleUpdater() {
       '/admin/settings': 'Pengaturan - GlucoBand',
       '/admin/tambah-pasien': 'Tambah Pasien - GlucoBand',
       '/login': 'Login - GlucoBand',
+      '/download': 'Unduh Aplikasi Mobile - GlucoBand',
+      '/unduh': 'Unduh Aplikasi Mobile - GlucoBand',
     }
 
     if (location.pathname.startsWith('/admin/edit-pasien')) {
@@ -49,6 +52,8 @@ export default function App() {
       <TitleUpdater />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/download" element={<DownloadPage />} />
+        <Route path="/unduh" element={<DownloadPage />} />
         <Route element={<ProtectedRoute allowedRoles={['tenaga_medis']} />}>
           <Route element={<AdminLayout />}>
             <Route path="/admin/dashboard" element={<DashboardPage />} />
