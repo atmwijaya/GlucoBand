@@ -205,9 +205,7 @@ class _PredictionPageState extends State<PredictionPage> {
         'heart_disease': heartCode,
         'smoking_history': smokingCode,
         'blood_glucose_level': latestGlucose,
-        'glucose_history': _glucoseControllers
-            .map((c) => double.tryParse(c.text) ?? 0)
-            .toList(),
+        'glucose_history': glucoseHistory,
       };
 
       await predictionProvider.fetchRisk(inputData, auth.token!);

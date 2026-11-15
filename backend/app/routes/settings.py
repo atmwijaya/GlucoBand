@@ -18,10 +18,10 @@ def get_app_version():
     Mengembalikan informasi versi terbaru, URL unduh APK, changelog, dan status force_update.
     """
     version_info = {
-        'latest_version': '1.0.1',
-        'latest_build_number': 2,
+        'latest_version': '1.0.2',
+        'latest_build_number': 3,
         'download_url': 'https://glucobandpro.id/download/glucoband.apk',
-        'changelog': '• Pembaruan performa dan stabilitas koneksi sensor\n• Fitur update otomatis terintegrasi\n• Peningkatan kenyamanan antarmuka pengguna',
+        'changelog': '• Perbaikan stabilitas dan akurasi prediksi tren glukosa (LSTM)\n• Penyempurnaan tampilan analisis risiko kesehatan\n• Peningkatan performa dan optimasi memori',
         'force_update': False
     }
 
