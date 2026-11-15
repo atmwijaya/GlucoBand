@@ -8,12 +8,19 @@ class PredictionApi {
   ));
 
   Future<Map<String, dynamic>> predictRisk(Map<String, dynamic> data, String token) async {
-    final response = await _dio.post(
-      '/predict/risk',
-      data: data,
-      options: Options(headers: {'Authorization': 'Bearer $token'}),
-    );
-    return response.data;
+    try {
+      final response = await _dio.post(
+        '/predict/risk',
+        data: data,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      return response.data;
+    } on DioException catch (e) {
+      final serverMsg = e.response?.data is Map
+          ? (e.response?.data['error'] ?? e.response?.data['message'] ?? e.response?.data['msg'])
+          : null;
+      throw Exception(serverMsg ?? 'Server backend mengalami kendala (Error ${e.response?.statusCode ?? 500})');
+    }
   }
 
   Future<List<Map<String, dynamic>>> predictTrend(Map<String, dynamic> data, int horizon, String token) async {

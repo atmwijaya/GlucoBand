@@ -45,7 +45,7 @@ def predict_risk(cursor):
             patient_id = data.get('patient_id', user['id'])
         risk_level = result.get("risk_level", "rendah").lower()
         risk_score = result.get("risk_score", 0)
-        model_version = result.get("model version", "1.0")
+        model_version = str(result.get("model_version") or result.get("model version") or "1.0")[:20]
 
         cursor.execute("""
             INSERT INTO predictions_risk (patient_id, feature_vector, risk_level, risk_score, model_version)
