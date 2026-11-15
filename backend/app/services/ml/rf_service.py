@@ -172,7 +172,7 @@ class RFService:
             "prediction": prediction_class,
             "badge": badge,
             "recommendation": recommendation,
-            "model_version": "Random Forest Biner v2.0 (C300)",
-            "model version": "Random Forest Biner v2.0 (C300)",
+            "model_version": "RF_v2.0",
+            "model version": "RF_v2.0",
             "risk_factors": risk_factors
         }
