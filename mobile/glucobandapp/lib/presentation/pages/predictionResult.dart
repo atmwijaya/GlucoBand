@@ -6,76 +6,169 @@ import '../providers/authProvider.dart';
 import '../../data/models/predictionModel.dart';
 import '../widgets/recommendationCard.dart';
 
-class PredictionResultPage extends StatelessWidget {
+class PredictionResultPage extends StatefulWidget {
   final Map<String, dynamic> inputData;
   const PredictionResultPage({super.key, required this.inputData});
 
   @override
-  Widget build(BuildContext context) {
-    final provider = Provider.of<PredictionProvider>(context);
-    final auth = Provider.of<AuthProvider>(context);
+  State<PredictionResultPage> createState() => _PredictionResultPageState();
+}
 
-    // Auto fetch jika belum ada data
+class _PredictionResultPageState extends State<PredictionResultPage> {
+  bool _hasTriggered = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasTriggered) {
+      _hasTriggered = true;
+      _initLoad();
+    }
+  }
+
+  void _initLoad() {
+    final provider = Provider.of<PredictionProvider>(context, listen: false);
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final token = auth.token;
+    if (token == null) return;
+
     if (provider.riskResult == null && !provider.loading) {
-      Future.microtask(() => provider.fetchRisk(inputData, auth.token!));
+      provider.fetchRisk(widget.inputData, token);
     }
 
-    final history = inputData['glucose_history'] as List?;
+    final history = widget.inputData['glucose_history'] as List?;
     final validHistory =
         history?.where((v) => (v is num ? v.toDouble() : 0) > 0).toList() ?? [];
     final hasTrendData = validHistory.length >= 3;
 
     if (hasTrendData && provider.trendResult == null && !provider.loading) {
-      Future.microtask(() => provider.fetchTrend(inputData, 6, auth.token!));
+      provider.fetchTrend(widget.inputData, 6, token);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = Provider.of<PredictionProvider>(context);
+
+    final history = widget.inputData['glucose_history'] as List?;
+    final validHistory =
+        history?.where((v) => (v is num ? v.toDouble() : 0) > 0).toList() ?? [];
+    final hasTrendData = validHistory.length >= 3;
+
+    if (provider.loading && provider.riskResult == null) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text(
+                'Memproses analisis kecerdasan buatan...',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (provider.error != null && provider.riskResult == null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+            onPressed: () => Navigator.pop(context),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 52),
+                const SizedBox(height: 16),
+                const Text(
+                  'Gagal Memuat Hasil Prediksi',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  provider.error!,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    _initLoad();
+                  },
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Coba Lagi'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF613EEA),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: provider.loading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // Back button
-                    Align(
-                      alignment: Alignment.topLeft,
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new,
-                          color: Colors.black87,
-                        ),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-                    if (provider.riskResult != null) ...[
-                      const SizedBox(height: 16),
-                      _buildHeader(provider.trendResult, provider.riskResult!),
-                      const SizedBox(height: 32),
-                      if (hasTrendData && provider.trendResult != null)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Column(
-                            children: [
-                              _buildTrendCard(provider.trendResult!),
-                              const SizedBox(height: 16),
-                              _buildPredictionGrid(provider.trendResult!),
-                            ],
-                          ),
-                        ),
-                      const SizedBox(height: 16),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: _buildWarningCard(
-                          provider.riskResult!,
-                          provider.trendResult,
-                        ),
-                      ),
-                      const SizedBox(height: 40),
-                    ],
-                  ],
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              // Back button
+              Align(
+                alignment: Alignment.topLeft,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new,
+                    color: Colors.black87,
+                  ),
+                  onPressed: () => Navigator.pop(context),
                 ),
               ),
+              if (provider.riskResult != null) ...[
+                const SizedBox(height: 16),
+                _buildHeader(provider.trendResult, provider.riskResult!),
+                const SizedBox(height: 32),
+                if (hasTrendData && provider.trendResult != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: [
+                        _buildTrendCard(provider.trendResult!),
+                        const SizedBox(height: 16),
+                        _buildPredictionGrid(provider.trendResult!),
+                      ],
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: _buildWarningCard(
+                    provider.riskResult!,
+                    provider.trendResult,
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -84,7 +177,7 @@ class PredictionResultPage extends StatelessWidget {
     // We use the predicted glucose if available, else from input
     final predictedGlucose = (trend != null && trend.points.isNotEmpty)
         ? trend.points.last.glucose
-        : (inputData['blood_glucose_level'] as num).toDouble();
+        : (widget.inputData['blood_glucose_level'] as num).toDouble();
 
     String statusTitle = 'Normal';
     String statusSubtitle = 'Kadar gula aman';

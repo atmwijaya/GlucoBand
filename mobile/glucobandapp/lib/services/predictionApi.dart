@@ -19,12 +19,22 @@ class PredictionApi {
   Future<List<Map<String, dynamic>>> predictTrend(Map<String, dynamic> data, int horizon, String token) async {
     final Map<String, dynamic> requestData = Map.from(data);
     requestData['horizon_hours'] = horizon;
-    final response = await _dio.post(
-      '/predict/trend',
-      data: requestData,
-      options: Options(headers: {'Authorization': 'Bearer $token'}),
-    );
-    return List<Map<String, dynamic>>.from(response.data);
+    try {
+      final response = await _dio.post(
+        '/predict/trend',
+        data: requestData,
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      if (response.data is List) {
+        return List<Map<String, dynamic>>.from(response.data);
+      } else if (response.data is Map && response.data.containsKey('error')) {
+        throw Exception(response.data['error']);
+      }
+      return [];
+    } on DioException catch (e) {
+      final serverMsg = e.response?.data is Map ? e.response?.data['error'] ?? e.response?.data['message'] : null;
+      throw Exception(serverMsg ?? e.message ?? 'Gagal memproses prediksi tren di server');
+    }
   }
 
   Future<List<Map<String, dynamic>>> getTrendHistory(int patientId, String token) async {

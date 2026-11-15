@@ -9,7 +9,7 @@ class PredictionProvider extends ChangeNotifier {
   TrendPrediction? _trendResult;
   String? _error;
   bool _loading = false;
-  
+
   List<Map<String, dynamic>> _history = [];
   bool _loadingHistory = false;
 
@@ -31,25 +31,27 @@ class PredictionProvider extends ChangeNotifier {
       } else {
         _riskResult = RiskPrediction.fromJson(raw);
       }
-        } catch (e) {
-      _error = 'Gagal menghubungi server';
+    } catch (e) {
+      _error = e.toString().replaceFirst('Exception: ', '');
     }
     _loading = false;
     notifyListeners();
   }
 
-  Future<void> fetchTrend(Map<String, dynamic> data, int horizon, String token) async {
+  Future<void> fetchTrend(
+    Map<String, dynamic> data,
+    int horizon,
+    String token,
+  ) async {
     _loading = true;
-    _error = null;
     notifyListeners();
     try {
       final raw = await _api.predictTrend(data, horizon, token);
       if (raw.isEmpty) {
         _trendResult = null;
-      } else if ((raw.first as Map).containsKey('error')) {
+      } else if (raw.isNotEmpty && (raw.first as Map).containsKey('error')) {
         _error = raw.first['error'];
       } else {
-        // List of trend points
         final points = raw.map((e) => TrendPoint.fromJson(e)).toList();
         _trendResult = TrendPrediction(
           points: points,
@@ -57,8 +59,9 @@ class PredictionProvider extends ChangeNotifier {
           modelVersion: 'lstm_v1',
         );
       }
-        } catch (e) {
-      _error = 'Gagal memuat tren';
+    } catch (e) {
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      _error = msg;
     }
     _loading = false;
     notifyListeners();
