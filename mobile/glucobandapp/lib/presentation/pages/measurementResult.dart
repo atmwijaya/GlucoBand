@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/profileProvider.dart';
 import '../providers/authProvider.dart';
 import '../providers/measurementProvider.dart';
+import '../providers/notificationProvider.dart';
+import '../../services/localNotificationService.dart';
 import 'measurementHistoryPage.dart';
 
 class MeasurementResultPage extends StatefulWidget {
@@ -51,6 +53,28 @@ class _MeasurementResultPageState extends State<MeasurementResultPage> {
       if (!mounted) return;
 
       if (isSuccess) {
+        // Jika kadar gula di luar rentang normal, munculkan notifikasi peringatan di HP & perbarui lonceng beranda
+        String statusCalc = 'Normal';
+        if (widget.glucose < 70) {
+          statusCalc = 'Hipoglikemia';
+        } else if (widget.glucose > 200) {
+          statusCalc = 'Hiperglikemia';
+        } else if (widget.glucose >= 140) {
+          statusCalc = 'Waspada';
+        }
+
+        if (statusCalc != 'Normal') {
+          LocalNotificationService.showGlucoseNotification(
+            glucose: widget.glucose,
+            status: statusCalc,
+          );
+        }
+
+        if (auth.token != null) {
+          Provider.of<NotificationProvider>(context, listen: false)
+              .fetchNotifications(auth.token!);
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Data berhasil disimpan ke riwayat pengukuran & disinkronkan!'),

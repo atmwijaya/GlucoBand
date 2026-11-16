@@ -3,10 +3,13 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/measurementProvider.dart';
+import '../providers/authProvider.dart';
 import '../../services/espService.dart';
 import '../widgets/deviceConfigDialog.dart';
 import 'measurementResult.dart';
 import 'measurementHistoryPage.dart';
+import '../../services/apiService.dart';
+import '../../core/constants/apiConstant.dart';
 
 class MeasurementPage extends StatefulWidget {
   final bool autoStart;
@@ -18,6 +21,7 @@ class MeasurementPage extends StatefulWidget {
 
 class _MeasurementPageState extends State<MeasurementPage>
     with TickerProviderStateMixin {
+  final ApiService _apiService = ApiService();
   late AnimationController _pulseController;
   double _gaugeValue = 0;
   bool _isMeasuring = false;
@@ -296,29 +300,60 @@ class _MeasurementPageState extends State<MeasurementPage>
       setState(() {
         _progress = 0.92;
         _heartRateText = '$finalBpm BPM';
-        _statusText = 'Detak Jantung Terkunci: $finalBpm BPM!\nMembaca suhu kulit & spektrum NIR...';
+        _statusText = 'Detak Jantung Terkunci: $finalBpm BPM!\nMenganalisis spektrum NIR dengan AI XGBoost...';
       });
 
       await Future.delayed(const Duration(milliseconds: 600));
 
-      double finalGlucose = 98.0;
+      double finalGlucose = 115.0;
 
       if (liveData != null) {
         final rawTemp = liveData['temperature'];
         if (rawTemp is num && rawTemp > 0) finalTemp = rawTemp.toDouble();
 
-        final nir = liveData['nir'] as Map<String, dynamic>?;
-        if (nir != null) {
-          final r = (nir['r'] as num?)?.toDouble() ?? 10.0;
-          final s = (nir['s'] as num?)?.toDouble() ?? 12.0;
-          final t = (nir['t'] as num?)?.toDouble() ?? 10.0;
-          final u = (nir['u'] as num?)?.toDouble() ?? 8.0;
-          final v = (nir['v'] as num?)?.toDouble() ?? 6.0;
-          final w = (nir['w'] as num?)?.toDouble() ?? 4.0;
-
-          finalGlucose = (72.0 + (r * 1.6 + s * 2.1 + t * 1.4 + u * 0.9 + v * 0.6 + w * 0.4)).clamp(70.0, 240.0);
+        // 1. Cek apakah ESP32 sudah menghitung estimasi glukosa via endpoint XGBoost
+        final rawEspGlucose = liveData['glucose_estimated'];
+        if (rawEspGlucose is num && rawEspGlucose > 0) {
+          finalGlucose = rawEspGlucose.toDouble();
         } else {
-          finalGlucose = 95.0 + (finalBpm % 15);
+          // 2. Ambil nilai spektrum NIR AS726X dan inferensikan via model XGBoost di backend
+          final nir = liveData['nir'] as Map<String, dynamic>?;
+          if (nir != null) {
+            final r = (nir['r'] as num?)?.toDouble() ?? 165.79;
+            final s = (nir['s'] as num?)?.toDouble() ?? 169.34;
+            final t = (nir['t'] as num?)?.toDouble() ?? 86.86;
+            final u = (nir['u'] as num?)?.toDouble() ?? 43.53;
+            final v = (nir['v'] as num?)?.toDouble() ?? 21.73;
+            final w = (nir['w'] as num?)?.toDouble() ?? 12.95;
+
+            int? currentPatientId;
+            try {
+              currentPatientId = Provider.of<AuthProvider>(context, listen: false).user?.id;
+            } catch (_) {}
+
+            try {
+              final payload = {
+                'R': r, 'S': s, 'T': t, 'U': u, 'V': v, 'W': w,
+                if (currentPatientId != null && currentPatientId > 0) 'patient_id': currentPatientId,
+              };
+              final response = await _apiService.post(
+                ApiConstants.xgbPredict,
+                data: payload,
+              );
+              if (response.statusCode == 200 && response.data is Map) {
+                final gVal = response.data['Glucose'] ?? response.data['glucose'];
+                if (gVal is num && gVal > 0) {
+                  finalGlucose = gVal.toDouble();
+                }
+              }
+            } catch (e) {
+              debugPrint('Prediksi error, fallback local: $e');
+              // Fallback jika tidak ada internet
+              finalGlucose = (70.0 + (r * 0.25 + s * 0.28 + t * 0.2 + u * 0.15 + v * 0.1 + w * 0.05)).clamp(70.0, 240.0);
+            }
+          } else {
+            finalGlucose = 95.0 + (finalBpm % 15);
+          }
         }
       } else {
         finalGlucose = 88.0 + Random().nextDouble() * 30;

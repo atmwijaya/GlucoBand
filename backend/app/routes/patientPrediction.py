@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from app.services.ml.rf_service import RFService
 from app.services.ml.lstm_service import LSTMService
+from app.services.ml.xgboost_service import XGBoostService
 from db import db_connection
 from app import socketio
 from app.utils.decorators import get_current_user
@@ -11,6 +12,7 @@ import traceback
 patient_pred_bp = Blueprint('patient_predictions', __name__)
 rf_service = RFService()
 lstm_service = LSTMService()
+xgboost_service = XGBoostService()
 
 @patient_pred_bp.post('/predict/risk')
 @jwt_required()
@@ -155,5 +157,70 @@ def predict_trend(cursor):
         return jsonify(result)
     except Exception as e:
         print("=== ERROR in predict_trend ===")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@patient_pred_bp.post('/xgb/predict')
+@patient_pred_bp.post('/predict/xgb')
+def predict_xgb():
+    """
+    Endpoint publik untuk estimasi kadar glukosa non-invasif menggunakan model XGBoost.
+    Digunakan langsung oleh alat ESP32 (tanpa JWT) dan aplikasi mobile.
+    Menerima parameter 6 panjang gelombang NIR: R, S, T, U, V, W.
+    Mengembalikan estimasi kadar glukosa dalam satuan mg/dL dan status glukosa.
+    """
+    data = request.get_json(silent=True) or {}
+    if not data:
+        data = request.values.to_dict()
+
+    try:
+        result = xgboost_service.predict_glucose(data)
+
+        # Opsi integrasi live streaming ke web tenaga medis jika patient_id disertakan
+        patient_id = data.get('patient_id')
+        if patient_id:
+            try:
+                from db import get_connection
+                patient_name = f"Pasien #{patient_id}"
+                c_conn = get_connection()
+                if c_conn:
+                    with c_conn.cursor(dictionary=True) as c_cur:
+                        c_cur.execute("SELECT name FROM users WHERE id = %s", (patient_id,))
+                        u_row = c_cur.fetchone()
+                        if u_row:
+                            patient_name = u_row['name']
+                    c_conn.close()
+
+                live_payload = {
+                    'patient_id': int(patient_id),
+                    'patient_name': patient_name,
+                    'glucose': result['glucose'],
+                    'glucose_estimated': result['glucose'],
+                    'status': result['status'],
+                    'unit': 'mg/dL',
+                    'features': result.get('features', {})
+                }
+                socketio.emit('live_glucose_estimate', live_payload)
+
+                # Jika kritis, kirim alert langsung ke portal medis
+                if result['status'] in ('Hipoglikemia', 'Hiperglikemia'):
+                    alert_payload = {
+                        'patient_id': int(patient_id),
+                        'patient_name': patient_name,
+                        'type': result['status'].lower(),
+                        'glucose_value': result['glucose'],
+                        'message': f"Peringatan Realtime: Pasien {patient_name} terdeteksi {result['status']} ({result['glucose']} mg/dL).",
+                        'status': result['status']
+                    }
+                    socketio.emit('new_notification', alert_payload)
+                    socketio.emit('glucose_alert', alert_payload)
+            except Exception as se:
+                print(f"[SocketIO Error] Gagal emit live_glucose_estimate: {se}")
+
+        return jsonify(result), 200
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 503
+    except Exception as e:
+        print("=== ERROR in predict_xgb ===")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500

@@ -63,7 +63,7 @@ class GlucoBandApp extends StatelessWidget {
                   listen: false,
                 );
                 if (auth.token != null) {
-                  notifProvider.connectSocket(auth.token!);
+                  notifProvider.connectSocket(auth.token!, currentUserId: auth.user?.id);
                 }
               });
               return const HomePage();

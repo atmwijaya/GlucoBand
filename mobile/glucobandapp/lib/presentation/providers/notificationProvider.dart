@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import '../../core/constants/apiConstant.dart';
 import '../../data/models/notificationModel.dart';
 import '../../services/socketService.dart';
+import '../../services/localNotificationService.dart';
 
 class NotificationProvider extends ChangeNotifier {
   List<NotificationItem> _notifications = [];
@@ -14,10 +15,30 @@ class NotificationProvider extends ChangeNotifier {
   int get unreadCount => _unreadCount;
   bool get isLoading => _isLoading;
 
-  void connectSocket(String token) {
+  void connectSocket(String token, {int? currentUserId}) {
     _socketService.onNewNotification = () {
       fetchNotifications(token);
     };
+
+    _socketService.onGlucoseAlert = (data) {
+      final targetPatientId = data['patient_id'];
+      if (currentUserId == null || targetPatientId == null || targetPatientId == currentUserId) {
+        final rawGlucose = data['glucose_value'] ?? data['glucose'];
+        final double? glucose = rawGlucose is num ? rawGlucose.toDouble() : double.tryParse(rawGlucose?.toString() ?? '');
+        final String status = data['status']?.toString() ?? data['type']?.toString() ?? 'Peringatan';
+        final String? msg = data['message']?.toString();
+
+        if (glucose != null) {
+          LocalNotificationService.showGlucoseNotification(
+            glucose: glucose,
+            status: status,
+            message: msg,
+          );
+        }
+      }
+      fetchNotifications(token);
+    };
+
     _socketService.connect(token);
   }
 

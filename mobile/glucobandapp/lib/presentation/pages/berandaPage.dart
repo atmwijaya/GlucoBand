@@ -11,7 +11,6 @@ import '../providers/articleProvider.dart';
 import 'notificationPage.dart';
 import 'profilePage.dart';
 import 'homePage.dart';
-import 'predictionHistoryPage.dart';
 import 'measurementHistoryPage.dart';
 import '../../services/espService.dart';
 import '../widgets/deviceConfigDialog.dart';
@@ -81,7 +80,7 @@ class _BerandaPageState extends State<BerandaPage> {
     
     if (auth.token != null) {
       notifProvider.fetchNotifications(auth.token!);
-      notifProvider.connectSocket(auth.token!);
+      notifProvider.connectSocket(auth.token!, currentUserId: auth.user?.id);
       profileProvider.fetchProfile();
       articleProvider.fetchArticles();
       measurementProvider.fetchMeasurements();
