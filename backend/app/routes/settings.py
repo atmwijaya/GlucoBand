@@ -13,15 +13,11 @@ def _get_cursor():
 
 @settings_bp.get('/app-version')
 def get_app_version():
-    """
-    Endpoint publik untuk pemeriksaan versi aplikasi mobile (In-App Update).
-    Mengembalikan informasi versi terbaru, URL unduh APK, changelog, dan status force_update.
-    """
     version_info = {
-        'latest_version': '1.0.2',
-        'latest_build_number': 3,
+        'latest_version': '1.0.3',
+        'latest_build_number': 4,
         'download_url': 'https://glucobandpro.id/download/glucoband.apk',
-        'changelog': '• Perbaikan stabilitas dan akurasi prediksi tren glukosa (LSTM)\n• Penyempurnaan tampilan analisis risiko kesehatan\n• Peningkatan performa dan optimasi memori',
+        'changelog': '• Perbaikan halaman pengukuran estimasi gula darah\n• Perbaikan bug\n• Peningkatan keamanan',
         'force_update': False
     }
 

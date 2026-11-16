@@ -34,7 +34,9 @@ class MeasurementProvider extends ChangeNotifier {
       cutoff = now.subtract(const Duration(days: 7));
     }
 
-    final filtered = _measurements.where((m) => m.createdAt.isAfter(cutoff)).toList();
+    final filtered = _measurements
+        .where((m) => m.createdAt.isAfter(cutoff))
+        .toList();
     // Jika tidak ada data di rentang ketat (misal baru pertama kali testing),
     // kita sediakan seluruh data jika rentang diperlebar agar grafik tidak kosong total
     return filtered;
@@ -50,7 +52,9 @@ class MeasurementProvider extends ChangeNotifier {
 
   /// Rata-rata kadar glukosa riil dalam periode yang dipilih
   double get glucoseAvg {
-    final list = filteredMeasurements.isNotEmpty ? filteredMeasurements : _measurements;
+    final list = filteredMeasurements.isNotEmpty
+        ? filteredMeasurements
+        : _measurements;
     if (list.isEmpty) {
       return _liveGlucose > 0 ? _liveGlucose : 0.0;
     }
@@ -60,9 +64,13 @@ class MeasurementProvider extends ChangeNotifier {
 
   /// Persentase waktu dalam rentang normal (Time in Range: 70 - 140 mg/dL)
   int get rangePercent {
-    final list = filteredMeasurements.isNotEmpty ? filteredMeasurements : _measurements;
+    final list = filteredMeasurements.isNotEmpty
+        ? filteredMeasurements
+        : _measurements;
     if (list.isEmpty) return 0;
-    final inRangeCount = list.where((m) => m.glucoseEstimated >= 70.0 && m.glucoseEstimated <= 140.0).length;
+    final inRangeCount = list
+        .where((m) => m.glucoseEstimated >= 70.0 && m.glucoseEstimated <= 140.0)
+        .length;
     return ((inRangeCount / list.length) * 100).round();
   }
 
@@ -79,33 +87,42 @@ class MeasurementProvider extends ChangeNotifier {
 
   /// Rata-rata detak jantung (BPM) dalam periode yang dipilih
   int get heartRateAvg {
-    final list = filteredMeasurements.isNotEmpty ? filteredMeasurements : _measurements;
+    final list = filteredMeasurements.isNotEmpty
+        ? filteredMeasurements
+        : _measurements;
     if (list.isEmpty) return 0;
     final validHeartRates = list.where((m) => m.ppgHeartRate > 0).toList();
     if (validHeartRates.isEmpty) return 0;
-    final sum = validHeartRates.fold<int>(0, (prev, m) => prev + m.ppgHeartRate);
+    final sum = validHeartRates.fold<int>(
+      0,
+      (prev, m) => prev + m.ppgHeartRate,
+    );
     return (sum / validHeartRates.length).round();
   }
 
   /// Rata-rata suhu permukaan kulit (°C) dalam periode yang dipilih
   double get tempAvg {
-    final list = filteredMeasurements.isNotEmpty ? filteredMeasurements : _measurements;
+    final list = filteredMeasurements.isNotEmpty
+        ? filteredMeasurements
+        : _measurements;
     if (list.isEmpty) return 0.0;
     final validTemps = list.where((m) => m.skinTempCelsius > 0).toList();
     if (validTemps.isEmpty) return 0.0;
-    final sum = validTemps.fold<double>(0.0, (prev, m) => prev + m.skinTempCelsius);
+    final sum = validTemps.fold<double>(
+      0.0,
+      (prev, m) => prev + m.skinTempCelsius,
+    );
     return double.parse((sum / validTemps.length).toStringAsFixed(1));
   }
 
   /// Titik-titik grafik utama (Status Terkini) berdasarkan riwayat kronologis
   List<FlSpot> get mainChartSpots {
-    final sourceList = filteredMeasurements.isNotEmpty ? filteredMeasurements : _measurements;
+    final sourceList = filteredMeasurements.isNotEmpty
+        ? filteredMeasurements
+        : _measurements;
     if (sourceList.isEmpty) {
       if (latestGlucose > 0) {
-        return [
-          FlSpot(0, latestGlucose),
-          FlSpot(1, latestGlucose),
-        ];
+        return [FlSpot(0, latestGlucose), FlSpot(1, latestGlucose)];
       }
       return [];
     }
@@ -121,10 +138,7 @@ class MeasurementProvider extends ChangeNotifier {
 
     if (displayedList.length == 1) {
       final val = displayedList.first.glucoseEstimated;
-      return [
-        FlSpot(0, val),
-        FlSpot(1, val),
-      ];
+      return [FlSpot(0, val), FlSpot(1, val)];
     }
 
     return List.generate(displayedList.length, (index) {
@@ -134,7 +148,9 @@ class MeasurementProvider extends ChangeNotifier {
 
   /// Nilai ketinggian batang (15 - 40 px) untuk mini bar chart berdasarkan 5 data riil terbaru
   List<double> get miniBarHeights {
-    final sourceList = filteredMeasurements.isNotEmpty ? filteredMeasurements : _measurements;
+    final sourceList = filteredMeasurements.isNotEmpty
+        ? filteredMeasurements
+        : _measurements;
     if (sourceList.isEmpty) {
       return [20.0, 25.0, 20.0, 25.0, 20.0];
     }
@@ -142,14 +158,20 @@ class MeasurementProvider extends ChangeNotifier {
     final latestFive = sourceList.take(5).toList().reversed.toList();
     return latestFive.map((m) {
       // Normalisasi nilai glukosa (rentang 50 - 250 mg/dL ke tinggi 15 - 40 px)
-      final normalized = ((m.glucoseEstimated - 50.0) / (250.0 - 50.0) * 25.0 + 15.0).clamp(12.0, 40.0);
+      final normalized =
+          ((m.glucoseEstimated - 50.0) / (250.0 - 50.0) * 25.0 + 15.0).clamp(
+            12.0,
+            40.0,
+          );
       return normalized;
     }).toList();
   }
 
   /// Titik mini line chart untuk kartu rentang (Range)
   List<FlSpot> get miniLineSpots {
-    final sourceList = filteredMeasurements.isNotEmpty ? filteredMeasurements : _measurements;
+    final sourceList = filteredMeasurements.isNotEmpty
+        ? filteredMeasurements
+        : _measurements;
     if (sourceList.isEmpty) {
       return const [FlSpot(0, 1), FlSpot(1, 2), FlSpot(2, 1.5), FlSpot(3, 3)];
     }
@@ -167,7 +189,9 @@ class MeasurementProvider extends ChangeNotifier {
 
   /// Titik mini line chart untuk kartu Detak Jantung (BPM)
   List<FlSpot> get bpmSpots {
-    final sourceList = filteredMeasurements.isNotEmpty ? filteredMeasurements : _measurements;
+    final sourceList = filteredMeasurements.isNotEmpty
+        ? filteredMeasurements
+        : _measurements;
     final validList = sourceList.where((m) => m.ppgHeartRate > 0).toList();
     if (validList.isEmpty) {
       return const [FlSpot(0, 72), FlSpot(1, 76), FlSpot(2, 74), FlSpot(3, 78)];
@@ -184,7 +208,9 @@ class MeasurementProvider extends ChangeNotifier {
 
   /// Nilai ketinggian suhu tubuh (15 - 40 px) untuk mini chart Suhu
   List<double> get tempHeights {
-    final sourceList = filteredMeasurements.isNotEmpty ? filteredMeasurements : _measurements;
+    final sourceList = filteredMeasurements.isNotEmpty
+        ? filteredMeasurements
+        : _measurements;
     final validList = sourceList.where((m) => m.skinTempCelsius > 0).toList();
     if (validList.isEmpty) {
       return [25.0, 27.0, 26.0, 28.0, 26.5];
@@ -192,7 +218,11 @@ class MeasurementProvider extends ChangeNotifier {
     final latestFive = validList.take(5).toList().reversed.toList();
     return latestFive.map((m) {
       // Normalisasi suhu 34.0°C - 39.0°C ke tinggi 15 - 40 px
-      final normalized = ((m.skinTempCelsius - 34.0) / (39.0 - 34.0) * 25.0 + 15.0).clamp(12.0, 40.0);
+      final normalized =
+          ((m.skinTempCelsius - 34.0) / (39.0 - 34.0) * 25.0 + 15.0).clamp(
+            12.0,
+            40.0,
+          );
       return normalized;
     }).toList();
   }
@@ -215,11 +245,13 @@ class MeasurementProvider extends ChangeNotifier {
       final response = await _apiService.get(ApiConstants.measurements);
       if (response.statusCode == 200 && response.data is List) {
         final List listData = response.data;
-        _measurements = listData.map((item) => MeasurementModel.fromJson(item)).toList();
-        
+        _measurements = listData
+            .map((item) => MeasurementModel.fromJson(item))
+            .toList();
+
         // Urutkan dari data paling baru ke terlama
         _measurements.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        
+
         if (_measurements.isNotEmpty) {
           _liveGlucose = _measurements.first.glucoseEstimated;
         }
@@ -249,7 +281,10 @@ class MeasurementProvider extends ChangeNotifier {
         'source': 'wifi',
       };
 
-      final response = await _apiService.post(ApiConstants.measurements, data: payload);
+      final response = await _apiService.post(
+        ApiConstants.measurements,
+        data: payload,
+      );
       if (response.statusCode == 201 || response.statusCode == 200) {
         await fetchMeasurements();
         return true;
@@ -264,7 +299,9 @@ class MeasurementProvider extends ChangeNotifier {
   /// Menghapus satu item pengukuran dari backend dan state lokal
   Future<bool> deleteMeasurement(int id) async {
     try {
-      final response = await _apiService.delete('${ApiConstants.measurements}/$id');
+      final response = await _apiService.delete(
+        '${ApiConstants.measurements}/$id',
+      );
       if (response.statusCode == 200) {
         _measurements.removeWhere((m) => m.id == id);
         notifyListeners();
@@ -283,7 +320,9 @@ class MeasurementProvider extends ChangeNotifier {
     // Buat entri lokal sementara agar langsung muncul di dashboard
     final newEntry = MeasurementModel(
       glucoseEstimated: newValue,
-      status: newValue > 200 ? 'hiperglikemia' : (newValue < 70 ? 'hipoglikemia' : 'normal'),
+      status: newValue > 200
+          ? 'hiperglikemia'
+          : (newValue < 70 ? 'hipoglikemia' : 'normal'),
       ppgHeartRate: 75,
       skinTempCelsius: 36.5,
       createdAt: DateTime.now(),
