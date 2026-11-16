@@ -59,13 +59,13 @@ export default function DownloadPage() {
             className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3.5 rounded-lg transition shadow-sm cursor-pointer"
           >
             <FaAndroid className="text-xl" />
-            <span>Unduh APK (v1.0.3)</span>
+            <span>Unduh APK (v1.0.4)</span>
             <FaDownload className="text-sm opacity-80" />
           </button>
 
           {/* Keterangan Berkas */}
           <div className="mt-4 text-xs text-slate-500 flex items-center justify-center gap-4">
-            <span>Ukuran: <strong>53 MB</strong></span>
+            <span>Ukuran: <strong>55 MB</strong></span>
             <span>•</span>
             <span>OS: <strong>Android 8.0 ke atas</strong></span>
             <span>•</span>
