@@ -27,8 +27,9 @@ def login(cursor):
     is_locked, remaining_seconds = login_rate_limiter.is_locked(client_ip, email)
     if is_locked:
         minutes = max(1, (remaining_seconds + 59) // 60)
+        time_desc = f"{minutes} menit" if remaining_seconds >= 60 else f"{remaining_seconds} detik"
         return jsonify({
-            'msg': f'Terlalu banyak permintaan. Coba lagi dalam {minutes} menit.',
+            'msg': f'Terlalu banyak percobaan login gagal. Akun dibekukan sementara. Coba lagi dalam {time_desc}.',
             'retry_after_seconds': remaining_seconds
         }), 429
 
@@ -38,8 +39,10 @@ def login(cursor):
     if not user:
         is_now_locked, lockout_dur, remaining = login_rate_limiter.record_failure(client_ip, email)
         if is_now_locked:
+            minutes = max(1, (lockout_dur + 59) // 60)
+            time_desc = f"{minutes} menit" if lockout_dur >= 60 else f"{lockout_dur} detik"
             return jsonify({
-                'msg': 'Terlalu banyak permintaan. Coba lagi dalam 5 menit.',
+                'msg': f'Batas percobaan login tercapai. Akun dibekukan sementara selama {time_desc}.',
                 'retry_after_seconds': lockout_dur
             }), 429
         return jsonify({
@@ -63,8 +66,10 @@ def login(cursor):
     if not is_valid:
         is_now_locked, lockout_dur, remaining = login_rate_limiter.record_failure(client_ip, email)
         if is_now_locked:
+            minutes = max(1, (lockout_dur + 59) // 60)
+            time_desc = f"{minutes} menit" if lockout_dur >= 60 else f"{lockout_dur} detik"
             return jsonify({
-                'msg': 'Terlalu banyak permintaan. Coba lagi dalam 5 menit.',
+                'msg': f'Batas percobaan login tercapai. Akun dibekukan sementara selama {time_desc}.',
                 'retry_after_seconds': lockout_dur
             }), 429
         return jsonify({

@@ -21,12 +21,16 @@ def validate_password(password: str):
 class LoginRateLimiter:
     """
     In-memory rate limiter & brute-force protector thread-safe.
-    Membatasi percobaan login gagal maksimal 5 kali dalam jendela waktu tertentu.
-    Jika melampaui batas, akun/IP dibekukan sementara selama 5 menit.
+    Membatasi percobaan login gagal maksimal 5 kali.
+    Tahapan durasi blokir (incremental lockout):
+    - Blokir ke-1: 1 menit (60 detik)
+    - Blokir ke-2 (jika gagal lagi setelah blokir berakhir): 2 menit (120 detik)
+    - Blokir ke-3+ (jika gagal lagi): 5 menit (300 detik, batas maksimum)
+    Selama periode blokir, sekalipun password benar, request tetap ditolak (429).
+    Setelah login berhasil, counter dan seluruh riwayat blokir di-reset total.
     """
-    def __init__(self, max_attempts=5, lockout_seconds=300):
+    def __init__(self, max_attempts=5):
         self.max_attempts = max_attempts
-        self.lockout_seconds = lockout_seconds
         self.records = {}
         self.lock = Lock()
 
@@ -61,9 +65,11 @@ class LoginRateLimiter:
                 remaining = int(locked_until - now)
                 return True, max(1, remaining)
 
-            # Jika waktu penguncian sudah lewat, bersihkan status penguncian
+            # Jika waktu penguncian sudah selesai lewat, kosongkan waktu lock tapi pertahankan level
+            # agar jika langsung gagal lagi, penalti durasi blokir naik ke tingkat berikutnya
             if record.get('locked_until', 0) > 0 and now >= locked_until:
-                del self.records[key]
+                record['locked_until'] = 0
+                record['attempts'] = 0
 
             return False, 0
 
@@ -75,26 +81,46 @@ class LoginRateLimiter:
         now = time.time()
         key = self._get_key(ip, email)
         with self.lock:
-            # Bersihkan riwayat yang sudah usang (> 1 jam) agar memori tetap bersih
+            # Bersihkan riwayat yang sudah tidak aktif (> 2 jam)
             for k in list(self.records.keys()):
-                if now - self.records[k].get('last_attempt', 0) > 3600:
+                if now - self.records[k].get('last_attempt', 0) > 7200:
                     del self.records[k]
 
             record = self.records.setdefault(key, {
                 'attempts': 0,
                 'locked_until': 0,
+                'lockout_level': 0,
                 'last_attempt': now
             })
 
-            record['attempts'] += 1
             record['last_attempt'] = now
+            record['attempts'] += 1
 
-            if record['attempts'] >= self.max_attempts:
-                record['locked_until'] = now + self.lockout_seconds
-                return True, self.lockout_seconds, 0
+            # Tentukan apakah akun harus diblokir:
+            # 1. Jika sudah pernah diblokir sebelumnya (lockout_level > 0), 1 kali gagal lagi langsung kena blokir tier berikutnya
+            # 2. Atau jika baru pertama kali, blokir aktif setelah mencapai max_attempts (5 kali)
+            should_lock = False
+            if record['lockout_level'] > 0:
+                record['lockout_level'] += 1
+                should_lock = True
+            elif record['attempts'] >= self.max_attempts:
+                record['lockout_level'] = 1
+                should_lock = True
+
+            if should_lock:
+                level = record['lockout_level']
+                if level == 1:
+                    lockout_duration = 60    # 1 menit
+                elif level == 2:
+                    lockout_duration = 120   # 2 menit
+                else:
+                    lockout_duration = 300   # 5 menit (maksimum)
+
+                record['locked_until'] = now + lockout_duration
+                return True, lockout_duration, 0
 
             remaining = self.max_attempts - record['attempts']
-            return False, 0, remaining
+            return False, 0, max(0, remaining)
 
     def record_success(self, ip: str, email: str):
         """Mereset counter percobaan login setelah login berhasil."""
@@ -104,5 +130,5 @@ class LoginRateLimiter:
                 del self.records[key]
 
 # Singleton instance untuk aplikasi
-login_rate_limiter = LoginRateLimiter(max_attempts=5, lockout_seconds=300)
+login_rate_limiter = LoginRateLimiter(max_attempts=5)
 

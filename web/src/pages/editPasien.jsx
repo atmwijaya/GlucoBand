@@ -82,8 +82,12 @@ export default function EditPasien() {
     }
 
     if (password) {
-      if (password.length < 6) {
-        newErrors.password = 'Password minimal 6 karakter.'
+      if (password.length < 8) {
+        newErrors.password = 'Password minimal 8 karakter.'
+      } else if (!/[a-zA-Z]/.test(password)) {
+        newErrors.password = 'Password harus mengandung minimal 1 huruf.'
+      } else if (!/[0-9]/.test(password)) {
+        newErrors.password = 'Password harus mengandung minimal 1 angka.'
       }
       if (password !== confirmPassword) {
         newErrors.confirmPassword = 'Password dan konfirmasi tidak cocok.'
@@ -98,14 +102,25 @@ export default function EditPasien() {
     setErrors({})
     setLoading(true)
     try {
-      const payload = { ...form }
+      const payload = {
+        ...form,
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        age: form.age ? parseInt(form.age, 10) : null,
+        weight_kg: form.weight_kg ? parseFloat(form.weight_kg) : null,
+        height_cm: form.height_cm ? parseFloat(form.height_cm) : null,
+        blood_pressure_sys: form.blood_pressure_sys ? parseInt(form.blood_pressure_sys, 10) : null,
+        blood_pressure_dia: form.blood_pressure_dia ? parseInt(form.blood_pressure_dia, 10) : null,
+        tenaga_medis_id: form.tenaga_medis_id ? parseInt(form.tenaga_medis_id, 10) : null,
+      }
       if (password) {
         payload.password = password
       }
       await apiClient.put(`/patients/${id}`, payload)
       setModal({ isOpen: true, title: 'Berhasil', message: 'Data pasien berhasil diperbarui.', type: 'success' })
-    } catch {
-      setModal({ isOpen: true, title: 'Gagal', message: 'Terjadi kesalahan saat memperbarui data.', type: 'error' })
+    } catch (err) {
+      const errorMsg = err.response?.data?.msg || err.response?.data?.message || 'Terjadi kesalahan saat memperbarui data.'
+      setModal({ isOpen: true, title: 'Gagal', message: errorMsg, type: 'error' })
     } finally {
       setLoading(false)
     }
@@ -173,15 +188,17 @@ export default function EditPasien() {
                 setPassword(e.target.value)
                 if (errors.password) setErrors(prev => ({ ...prev, password: '' }))
               }}
-              placeholder="Minimal 6 karakter"
+              placeholder="Minimal 8 karakter (kombinasi huruf & angka)"
               className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none transition ${
                 errors.password
                   ? 'border-red-500 bg-red-50/20 focus:ring-2 focus:ring-red-200'
                   : 'border-lineGray focus:ring-2 focus:ring-primaryBlue/30'
               }`}
             />
-            {errors.password && (
+            {errors.password ? (
               <p className="text-xs text-red-500 mt-1 font-medium">{errors.password}</p>
+            ) : (
+              <p className="text-xs text-slate-400 mt-1">Minimal 8 karakter, kombinasi huruf dan angka (kosongkan jika tidak diubah).</p>
             )}
           </div>
 

@@ -55,8 +55,12 @@ export default function TambahPasien() {
     }
     if (!form.password) {
       newErrors.password = 'Password wajib diisi.'
-    } else if (form.password.length < 6) {
-      newErrors.password = 'Password minimal 6 karakter.'
+    } else if (form.password.length < 8) {
+      newErrors.password = 'Password minimal 8 karakter.'
+    } else if (!/[a-zA-Z]/.test(form.password)) {
+      newErrors.password = 'Password harus mengandung minimal 1 huruf.'
+    } else if (!/[0-9]/.test(form.password)) {
+      newErrors.password = 'Password harus mengandung minimal 1 angka.'
     }
     if (!form.age || !String(form.age).trim()) {
       newErrors.age = 'Usia wajib diisi.'
@@ -70,10 +74,22 @@ export default function TambahPasien() {
     setErrors({})
     setLoading(true)
     try {
-      await apiClient.post('/patients', form)
+      const payload = {
+        ...form,
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        age: form.age ? parseInt(form.age, 10) : null,
+        weight_kg: form.weight_kg ? parseFloat(form.weight_kg) : null,
+        height_cm: form.height_cm ? parseFloat(form.height_cm) : null,
+        blood_pressure_sys: form.blood_pressure_sys ? parseInt(form.blood_pressure_sys, 10) : null,
+        blood_pressure_dia: form.blood_pressure_dia ? parseInt(form.blood_pressure_dia, 10) : null,
+        tenaga_medis_id: form.tenaga_medis_id ? parseInt(form.tenaga_medis_id, 10) : null,
+      }
+      await apiClient.post('/patients', payload)
       setModal({ isOpen: true, title: 'Berhasil', message: 'Pasien baru berhasil ditambahkan.', type: 'success' })
-    } catch {
-      setModal({ isOpen: true, title: 'Gagal', message: 'Terjadi kesalahan. Periksa kembali data.', type: 'error' })
+    } catch (err) {
+      const errorMsg = err.response?.data?.msg || err.response?.data?.message || 'Terjadi kesalahan. Periksa kembali data.'
+      setModal({ isOpen: true, title: 'Gagal Menambahkan Pasien', message: errorMsg, type: 'error' })
     } finally {
       setLoading(false)
     }
@@ -137,15 +153,17 @@ export default function TambahPasien() {
               name="password"
               value={form.password}
               onChange={handleChange}
-              placeholder="Minimal 6 karakter"
+              placeholder="Minimal 8 karakter (kombinasi huruf & angka)"
               className={`w-full px-4 py-2.5 border rounded-lg focus:outline-none transition ${
                 errors.password
                   ? 'border-red-500 bg-red-50/20 focus:ring-2 focus:ring-red-200'
                   : 'border-lineGray focus:ring-2 focus:ring-primaryBlue/30'
               }`}
             />
-            {errors.password && (
+            {errors.password ? (
               <p className="text-xs text-red-500 mt-1 font-medium">{errors.password}</p>
+            ) : (
+              <p className="text-xs text-slate-400 mt-1">Minimal 8 karakter, harus ada huruf dan angka.</p>
             )}
           </div>
 
