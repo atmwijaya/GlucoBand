@@ -14,10 +14,10 @@ def _get_cursor():
 @settings_bp.get('/app-version')
 def get_app_version():
     version_info = {
-        'latest_version': '1.0.3',
-        'latest_build_number': 4,
+        'latest_version': '1.0.4',
+        'latest_build_number': 5,
         'download_url': 'https://glucobandpro.id/download/glucoband.apk',
-        'changelog': '• Perbaikan halaman pengukuran estimasi gula darah\n• Perbaikan bug\n• Peningkatan keamanan',
+        'changelog': '• Fitur estimasi kadar gula darah tersedia\n• Perbaikan bug\n• Peningkatan keamanan',
         'force_update': False
     }
 

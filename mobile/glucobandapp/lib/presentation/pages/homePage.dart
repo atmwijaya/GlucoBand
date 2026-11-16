@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../providers/settingsProvider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/updateService.dart';
+import '../../services/localNotificationService.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -28,6 +29,7 @@ class HomePageState extends State<HomePage> {
         listen: false,
       ).fetchEmergencyContact();
       UpdateService.checkForUpdate(context);
+      LocalNotificationService.checkAndPromptPermission(context);
     });
   }
 

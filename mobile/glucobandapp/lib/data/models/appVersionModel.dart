@@ -21,7 +21,7 @@ class AppVersionModel {
           : int.tryParse(json['latest_build_number']?.toString() ?? '1') ?? 1,
       downloadUrl:
           json['download_url']?.toString() ??
-          'https://glucobandpro.id/download/glucoband.apk',
+          'https://glucobandpro.id/download/',
       changelog:
           json['changelog']?.toString() ??
           'Pembaruan aplikasi GlucoBand telah tersedia.',

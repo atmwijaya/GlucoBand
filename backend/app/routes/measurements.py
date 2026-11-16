@@ -190,14 +190,23 @@ def add_measurement(cursor):
         from app import socketio
         glucose_val = float(data.get('glucose_estimated') or 0)
         status_calc = 'Normal'
+        notif_type = None
         if glucose_val > 200:
             status_calc = 'Hiperglikemia'
+            notif_type = 'hiperglikemia'
         elif glucose_val < 70 and glucose_val > 0:
             status_calc = 'Hipoglikemia'
+            notif_type = 'hipoglikemia'
+
+        # Ambil nama pasien untuk informasi realtime tenaga medis
+        cursor.execute("SELECT name FROM users WHERE id = %s", (patient_id,))
+        p_row = cursor.fetchone()
+        patient_name = p_row['name'] if p_row else f"Pasien #{patient_id}"
 
         measurement_payload = {
             'id': new_id,
             'patient_id': int(patient_id),
+            'patient_name': patient_name,
             'glucose_estimated': glucose_val,
             'ppg_heart_rate': int(data.get('ppg_heart_rate') or 0),
             'skin_temp_celsius': float(data.get('skin_temp_celsius') or 0),
@@ -206,8 +215,34 @@ def add_measurement(cursor):
             'created_at': created_at
         }
         socketio.emit('new_measurement', measurement_payload)
+
+        # Jika kondisi klinis kritis (Hipoglikemia / Hiperglikemia), simpan ke database notifikasi & pancarkan alert ke web tenaga medis
+        if notif_type:
+            try:
+                cursor.execute("""
+                    INSERT INTO notifications (patient_id, measurement_id, type, glucose_value, is_sent_patient, is_sent_medis, sent_at)
+                    VALUES (%s, %s, %s, %s, 1, 1, NOW())
+                """, (patient_id, new_id, notif_type, glucose_val))
+                notif_id = cursor.lastrowid
+            except Exception as dbe:
+                print(f"[DB Error] Gagal insert notifications: {dbe}")
+                notif_id = None
+
+            notif_payload = {
+                'id': notif_id,
+                'patient_id': int(patient_id),
+                'patient_name': patient_name,
+                'measurement_id': new_id,
+                'type': notif_type,
+                'glucose_value': glucose_val,
+                'message': f"Peringatan {status_calc}! Pasien {patient_name} terdeteksi kadar gula darah {glucose_val} mg/dL.",
+                'created_at': created_at,
+                'status': status_calc
+            }
+            socketio.emit('new_notification', notif_payload)
+            socketio.emit('glucose_alert', notif_payload)
     except Exception as e:
-        print(f"[SocketIO Error] Gagal emit new_measurement: {e}")
+        print(f"[SocketIO Error] Gagal emit new_measurement/notification: {e}")
 
     return jsonify({'msg': 'Data tersimpan', 'id': new_id}), 201
 

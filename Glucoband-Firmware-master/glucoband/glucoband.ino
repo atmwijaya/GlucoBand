@@ -43,6 +43,8 @@ float spectralT = 0;
 float spectralU = 0;
 float spectralV = 0;
 float spectralW = 0;
+float estimatedGlucose = 0.0;
+bool glucoseEstimatedOk = false;
 unsigned long lastMaxRead = 0;
 unsigned long lastMlxRead = 0;
 unsigned long lastASRead = 0;
@@ -232,6 +234,8 @@ void readAS726X() {
     spectralU = 0;
     spectralV = 0;
     spectralW = 0;
+    estimatedGlucose = 0.0;
+    glucoseEstimatedOk = false;
     return;
   }
 
@@ -243,10 +247,19 @@ void readAS726X() {
   spectralU = asSensor.getCalibratedU();
   spectralV = asSensor.getCalibratedV();
   spectralW = asSensor.getCalibratedW();
+
+  // Integrasi AI XGBoost: Jika terhubung ke WiFi, estimasi kadar gula darah langsung via API
+  if (wifiConfig.isConnected()) {
+    float outGlucose = 0.0;
+    if (wifiConfig.predictGlucose(spectralR, spectralS, spectralT, spectralU, spectralV, spectralW, outGlucose)) {
+      estimatedGlucose = outGlucose;
+      glucoseEstimatedOk = true;
+    }
+  }
 }
 
 void printSerialData() {
-  Serial.println("\n========== SENSOR DATA ==========");
+  Serial.println("\n========== GLUCOBAND SENSOR DATA ==========");
   Serial.print("MAX30105 IR   : "); Serial.println(irValue);
   Serial.print("Finger Status : "); Serial.println(fingerPresent ? "TERDETEKSI" : "TIDAK ADA");
 
@@ -255,7 +268,7 @@ void printSerialData() {
     if (bpmAverage > 0) Serial.println(bpmAverage);
     else Serial.println("Menghitung...");
 
-    Serial.print("Suhu Objek    : ");
+    Serial.print("Suhu Kulit    : ");
     if (mlxOk && !isnan(objectTemp)) {
       Serial.print(objectTemp, 1);
       Serial.println(" C");
@@ -263,17 +276,30 @@ void printSerialData() {
       Serial.println("N/A");
     }
 
+    Serial.print("Estimasi Gula : ");
+    if (glucoseEstimatedOk && estimatedGlucose > 0) {
+      Serial.print(estimatedGlucose, 1);
+      Serial.print(" mg/dL (Status: ");
+      if (estimatedGlucose < 70.0) Serial.print("Hipoglikemia");
+      else if (estimatedGlucose <= 140.0) Serial.print("Normal");
+      else if (estimatedGlucose <= 199.0) Serial.print("Pradiabetes");
+      else Serial.print("Hiperglikemia");
+      Serial.println(")");
+    } else if (wifiConfig.isConnected()) {
+      Serial.println("Mengestimasi kadar gula darah");
+    } else {
+      Serial.println("Menunggu WiFi untuk inferensi AI...");
+    }
+
     if (asOk) {
-      Serial.println("--- Spektrum NIR (R,S,T,U,V,W) ---");
-      // Murni angka CSV sebaris tanpa embel-embel teks di depannya
-      Serial.printf("%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\n", 
+      Serial.printf("Spektrum NIR (R,S,T,U,V,W): %.2f, %.2f, %.2f, %.2f, %.2f, %.2f\n", 
                     spectralR, spectralS, spectralT, 
                     spectralU, spectralV, spectralW);
     }
   } else {
     Serial.println("Sensor AS726X standby (menunggu jari).");
   }
-  Serial.println("=================================");
+  Serial.println("===========================================");
 }
 
 void updateOLED() {
@@ -326,9 +352,8 @@ void updateOLED() {
       oledPage = (oledPage == 0) ? 1 : 0;
     }
 
-    display.setTextSize(1);
-
     if (oledPage == 0) {
+      display.setTextSize(1);
       display.setCursor(0, 4);
       display.print("BPM  : ");
       if (bpmAverage > 0) {
@@ -348,18 +373,38 @@ void updateOLED() {
         display.print("--");
       }
     } else {
-      display.setCursor(0, 0);
-      display.print("R:"); display.print(spectralR, 1);
-      display.setCursor(0, 11);
-      display.print("S:"); display.print(spectralS, 1);
-      display.setCursor(0, 22);
-      display.print("T:"); display.print(spectralT, 1);
-      display.setCursor(66, 0);
-      display.print("U:"); display.print(spectralU, 1);
-      display.setCursor(66, 11);
-      display.print("V:"); display.print(spectralV, 1);
-      display.setCursor(66, 22);
-      display.print("W:"); display.print(spectralW, 1);
+      // Halaman 1: Estimasi Gula Darah XGBoost (mg/dL) - BUKAN RAW DATA
+      display.setCursor(0, 2);
+      display.setTextSize(1);
+      display.print("Estimasi Gula Darah:");
+
+      if (glucoseEstimatedOk && estimatedGlucose > 0) {
+        display.setCursor(0, 16);
+        display.setTextSize(2);
+        display.print((int)round(estimatedGlucose));
+        display.setTextSize(1);
+        display.print(" mg/dL");
+
+        // Status glukosa singkat di sebelah kanan
+        display.setCursor(84, 18);
+        if (estimatedGlucose < 70) {
+          display.print("Rendah");
+        } else if (estimatedGlucose <= 140) {
+          display.print("Normal");
+        } else if (estimatedGlucose <= 199) {
+          display.print("Sedang");
+        } else {
+          display.print("Tinggi");
+        }
+      } else if (wifiConfig.isConnected()) {
+        display.setCursor(0, 18);
+        display.setTextSize(1);
+        display.print("Mengestimasi (AI)...");
+      } else {
+        display.setCursor(0, 18);
+        display.setTextSize(1);
+        display.print("Sambungkan WiFi");
+      }
     }
   }
 

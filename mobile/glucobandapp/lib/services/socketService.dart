@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import '../core/constants/apiConstant.dart';
 
 class SocketService {
   IO.Socket? _socket;
   Function? onNewNotification;
+  Function(Map<String, dynamic> data)? onGlucoseAlert;
 
   void connect(String token) {
     if (_socket != null && _socket!.connected) return;
@@ -36,7 +38,19 @@ class SocketService {
       }
     });
 
-    _socket!.onDisconnect((_) => print('Socket disconnected'));
+    _socket!.on('glucose_alert', (data) {
+      debugPrint('[SocketService] Received glucose_alert: $data');
+      if (data is Map<String, dynamic> && onGlucoseAlert != null) {
+        onGlucoseAlert!(data);
+      } else if (data is Map && onGlucoseAlert != null) {
+        onGlucoseAlert!(Map<String, dynamic>.from(data));
+      }
+      if (onNewNotification != null) {
+        onNewNotification!();
+      }
+    });
+
+    _socket!.onDisconnect((_) => debugPrint('Socket disconnected'));
 
     _socket!.connect();
   }

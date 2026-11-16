@@ -251,6 +251,80 @@ export default function RealtimeMonitorPage() {
       }
     })
 
+    // B2. Event Live Glucose Estimate (Hasil estimasi model XGBoost via NIR)
+    socket.on('live_glucose_estimate', (data) => {
+      if (connectionMode !== 'online') return
+
+      const currentPatient = selectedPatientRef.current
+      if (currentPatient && Number(currentPatient.id) === Number(data.patient_id)) {
+        const glucoseVal = Number(data.glucose_estimated ?? data.glucose) || 0
+        setGlucoseData(prev => ({
+          ...prev,
+          glucose_estimated: glucoseVal,
+          fingerPresent: true,
+          isMeasuring: false
+        }))
+
+        // Tambahkan ke grafik garis
+        setHistory(prev => {
+          const newPoint = {
+            id: Date.now(),
+            created_at: new Date().toISOString(),
+            glucose_estimated: glucoseVal
+          }
+          const updated = [...prev, newPoint]
+          return updated.slice(-20)
+        })
+
+        setRealtimeAlert({
+          show: true,
+          message: `Estimasi kadar gula darah: ${glucoseVal} mg/dL (${data.status || 'Normal'})`,
+          time: new Date().toLocaleTimeString('id-ID')
+        })
+
+        setTimeout(() => {
+          setRealtimeAlert(prev => ({ ...prev, show: false }))
+        }, 7000)
+      }
+    })
+
+    // B2. Event Live Glucose Estimate (Hasil estimasi model XGBoost via NIR)
+    socket.on('live_glucose_estimate', (data) => {
+      if (connectionMode !== 'online') return
+
+      const currentPatient = selectedPatientRef.current
+      if (currentPatient && Number(currentPatient.id) === Number(data.patient_id)) {
+        const glucoseVal = Number(data.glucose_estimated ?? data.glucose) || 0
+        setGlucoseData(prev => ({
+          ...prev,
+          glucose_estimated: glucoseVal,
+          fingerPresent: true,
+          isMeasuring: false
+        }))
+
+        // Tambahkan ke grafik garis
+        setHistory(prev => {
+          const newPoint = {
+            id: Date.now(),
+            created_at: new Date().toISOString(),
+            glucose_estimated: glucoseVal
+          }
+          const updated = [...prev, newPoint]
+          return updated.slice(-20)
+        })
+
+        setRealtimeAlert({
+          show: true,
+          message: `Estimasi kadar gula darah: ${glucoseVal} mg/dL (${data.status || 'Normal'})`,
+          time: new Date().toLocaleTimeString('id-ID')
+        })
+
+        setTimeout(() => {
+          setRealtimeAlert(prev => ({ ...prev, show: false }))
+        }, 7000)
+      }
+    })
+
     // C. Event Prediksi Tren LSTM Real-time
     socket.on('new_prediction_trend', (data) => {
       data.isNew = true

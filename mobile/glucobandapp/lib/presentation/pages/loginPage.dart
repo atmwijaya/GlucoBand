@@ -263,14 +263,13 @@ class _LoginPageState extends State<LoginPage> {
                                     _passwordController.text.trim(),
                                   );
                                   if (success) {
+                                    if (!mounted) return;
                                     final notifProvider = Provider.of<NotificationProvider>(context, listen: false);
-                                    notifProvider.connectSocket(auth.token!);
-                                    if (context.mounted) {
-                                      Navigator.pushReplacement(
-                                        context,
-                                        MaterialPageRoute(builder: (_) => const HomePage()),
-                                      );
-                                    }
+                                    notifProvider.connectSocket(auth.token!, currentUserId: auth.user?.id);
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const HomePage()),
+                                    );
                                   }
                                 },
                           style: ElevatedButton.styleFrom(

@@ -8,4 +8,5 @@ class ApiConstants {
   static const String register = '/auth/register/pasien';
   static const String faq = '/faq';
   static const String appVersion = '/app-version';
+  static const String xgbPredict = '/xgb/predict';
 }
