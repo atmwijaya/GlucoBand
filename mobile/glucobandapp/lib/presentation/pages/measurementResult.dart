@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/profileProvider.dart';
+import '../providers/authProvider.dart';
 import '../providers/measurementProvider.dart';
-import '../../services/apiService.dart';
-import 'measurementPage.dart';
+import 'measurementHistoryPage.dart';
 
-class MeasurementResultPage extends StatelessWidget {
+class MeasurementResultPage extends StatefulWidget {
   final double glucose;
   final int heartRate;
   final double temperature;
@@ -18,12 +18,103 @@ class MeasurementResultPage extends StatelessWidget {
   });
 
   @override
+  State<MeasurementResultPage> createState() => _MeasurementResultPageState();
+}
+
+class _MeasurementResultPageState extends State<MeasurementResultPage> {
+  bool _isSaving = false;
+
+  Future<void> _handleSave() async {
+    if (_isSaving) return;
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    try {
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+      final profile = Provider.of<ProfileProvider>(context, listen: false);
+      final measProvider = Provider.of<MeasurementProvider>(context, listen: false);
+
+      // Ambil ID pasien yang sah dari sesi aktif akun
+      final patientId = auth.user?.id != null && auth.user!.id > 0
+          ? auth.user!.id
+          : (profile.profileData?['id'] ?? 1);
+
+      final isSuccess = await measProvider.saveMeasurement(
+        patientId: patientId,
+        glucose: widget.glucose,
+        heartRate: widget.heartRate,
+        temperature: widget.temperature,
+      );
+
+      if (!mounted) return;
+
+      if (isSuccess) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Data berhasil disimpan ke riwayat pengukuran & disinkronkan!'),
+            backgroundColor: Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+        // Arahkan langsung ke halaman riwayat pengukuran agar pengguna bisa melihat hasilnya
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const MeasurementHistoryPage(),
+          ),
+        );
+      } else {
+        // Fallback: simpan di state lokal sementara
+        measProvider.updateGlucose(widget.glucose);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Data pengukuran tersimpan di riwayat lokal.'),
+            backgroundColor: Color(0xFF10B981),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const MeasurementHistoryPage(),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan saat menyimpan: $e'),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final status = glucose > 200
+    final status = widget.glucose > 200
         ? 'Hiperglikemia'
-        : glucose < 70
+        : widget.glucose < 70
         ? 'Hipoglikemia'
         : 'Normal';
+
+    final statusColor = widget.glucose > 200
+        ? const Color(0xFFEF4444)
+        : widget.glucose < 70
+        ? const Color(0xFFF59E0B)
+        : const Color(0xFF10B981);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
@@ -48,29 +139,14 @@ class MeasurementResultPage extends StatelessWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    glucose > 200
-                        ? const Color(0xFFEF4444)
-                        : glucose < 70
-                        ? const Color(0xFFF59E0B)
-                        : const Color(0xFF10B981),
-                    (glucose > 200
-                            ? const Color(0xFFEF4444)
-                            : glucose < 70
-                            ? const Color(0xFFF59E0B)
-                            : const Color(0xFF10B981))
-                        .withValues(alpha: 0.7),
+                    statusColor,
+                    statusColor.withValues(alpha: 0.7),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color:
-                        (glucose > 200
-                                ? const Color(0xFFEF4444)
-                                : glucose < 70
-                                ? const Color(0xFFF59E0B)
-                                : const Color(0xFF10B981))
-                            .withValues(alpha: 0.4),
+                    color: statusColor.withValues(alpha: 0.4),
                     blurRadius: 20,
                     offset: const Offset(0, 8),
                   ),
@@ -85,7 +161,7 @@ class MeasurementResultPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    '${glucose.toInt()} mg/dL',
+                    '${widget.glucose.toInt()} mg/dL',
                     style: const TextStyle(
                       fontSize: 40,
                       fontWeight: FontWeight.bold,
@@ -122,8 +198,8 @@ class MeasurementResultPage extends StatelessWidget {
                   child: _buildInfoCard(
                     Icons.favorite,
                     const Color(0xFFEF4444),
-                    '$heartRate',
-                    'BPM (${heartRate >= 60 && heartRate <= 100 ? "Normal" : (heartRate < 60 ? "Rendah" : "Tinggi")})',
+                    '${widget.heartRate}',
+                    'BPM (${widget.heartRate >= 60 && widget.heartRate <= 100 ? "Normal" : (widget.heartRate < 60 ? "Rendah" : "Tinggi")})',
                     'Detak Jantung (OLED)',
                   ),
                 ),
@@ -132,7 +208,7 @@ class MeasurementResultPage extends StatelessWidget {
                   child: _buildInfoCard(
                     Icons.thermostat,
                     const Color(0xFFF59E0B),
-                    '${temperature.toStringAsFixed(1)}°C',
+                    '${widget.temperature.toStringAsFixed(1)}°C',
                     'Suhu Kulit',
                     'Inframerah MLX',
                   ),
@@ -170,13 +246,13 @@ class MeasurementResultPage extends StatelessWidget {
                   _buildDetailRow(
                     Icons.favorite,
                     'Detak Jantung (MAX30105)',
-                    '$heartRate BPM (Sama dengan Layar OLED)',
+                    '${widget.heartRate} BPM (Sama dengan Layar OLED)',
                   ),
                   const Divider(height: 16),
                   _buildDetailRow(
                     Icons.thermostat,
                     'Suhu Kulit (MLX90614)',
-                    '${temperature.toStringAsFixed(1)} °C (Objek Termal)',
+                    '${widget.temperature.toStringAsFixed(1)} °C (Objek Termal)',
                   ),
                   const Divider(height: 16),
                   _buildDetailRow(
@@ -201,52 +277,20 @@ class MeasurementResultPage extends StatelessWidget {
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton.icon(
-                    onPressed: () async {
-                      try {
-                        final profile = Provider.of<ProfileProvider>(context, listen: false);
-                        final patientId = profile.profileData?['id'] ?? 1;
-
-                        await ApiService().post('/measurements', data: {
-                          'patient_id': patientId,
-                          'glucose_estimated': glucose,
-                          'ppg_heart_rate': heartRate,
-                          'skin_temp_celsius': temperature,
-                          'ppg_spo2': 98,
-                          'created_at': DateTime.now().toIso8601String(),
-                          'source': 'mobile_app'
-                        });
-
-                        if (context.mounted) {
-                          Provider.of<MeasurementProvider>(context, listen: false).fetchMeasurements();
-                        }
-
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Data berhasil disimpan & disinkronkan ke Web Tenaga Medis!'),
-                              backgroundColor: Color(0xFF10B981),
-                              behavior: SnackBarBehavior.floating,
+                    onPressed: _isSaving ? null : _handleSave,
+                    icon: _isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
                             ),
-                          );
-                          Navigator.pop(context);
-                        }
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Data tersimpan di perangkat lokal.'),
-                              backgroundColor: Color(0xFF10B981),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                          Navigator.pop(context);
-                        }
-                      }
-                    },
-                    icon: const Icon(Icons.save),
-                    label: const Text(
-                      'Simpan Data',
-                      style: TextStyle(
+                          )
+                        : const Icon(Icons.save),
+                    label: Text(
+                      _isSaving ? 'Menyimpan...' : 'Simpan Data',
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -255,6 +299,7 @@ class MeasurementResultPage extends StatelessWidget {
                       backgroundColor: const Color(0xFF613EEA),
                       foregroundColor: Colors.white,
                       elevation: 0,
+                      disabledBackgroundColor: const Color(0xFF613EEA).withValues(alpha: 0.6),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),

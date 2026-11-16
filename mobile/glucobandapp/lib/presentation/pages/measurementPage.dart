@@ -6,7 +6,7 @@ import '../providers/measurementProvider.dart';
 import '../../services/espService.dart';
 import '../widgets/deviceConfigDialog.dart';
 import 'measurementResult.dart';
-import 'predictionHistoryPage.dart';
+import 'measurementHistoryPage.dart';
 
 class MeasurementPage extends StatefulWidget {
   final bool autoStart;
@@ -605,7 +605,7 @@ class _MeasurementPageState extends State<MeasurementPage>
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const PredictionHistoryPage(),
+                          builder: (_) => const MeasurementHistoryPage(),
                         ),
                       );
                     },

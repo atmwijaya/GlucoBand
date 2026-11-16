@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/apiService.dart';
 import '../../services/secureStorageService.dart';
 import '../../data/models/userModel.dart';
@@ -15,6 +17,9 @@ class AuthProvider extends ChangeNotifier {
   bool _isInitialized = false;
   String? _errorMessage;
 
+  int _lockoutSeconds = 0;
+  Timer? _countdownTimer;
+
   UserModel? get user => _user;
   String? get token => _token;
   bool get isLoggedIn => _token != null;
@@ -22,7 +27,61 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
+  int get lockoutSeconds => _lockoutSeconds;
+  bool get isLockedOut => _lockoutSeconds > 0;
+
+  /// Memeriksa apakah ada lockout aktif dari sesi sebelumnya (tersimpan di SharedPreferences)
+  Future<void> checkExistingLockout() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lockoutUntilMs = prefs.getInt('login_lockout_until') ?? 0;
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      if (lockoutUntilMs > nowMs) {
+        final remainingSec = ((lockoutUntilMs - nowMs) / 1000).ceil();
+        startLockoutCountdown(remainingSec);
+      } else if (lockoutUntilMs > 0) {
+        await prefs.remove('login_lockout_until');
+      }
+    } catch (e) {
+      debugPrint('[AuthProvider] checkExistingLockout error: $e');
+    }
+  }
+
+  /// Memulai timer hitungan mundur lockout
+  void startLockoutCountdown(int seconds) {
+    _countdownTimer?.cancel();
+    _lockoutSeconds = seconds;
+    _errorMessage = null;
+    notifyListeners();
+
+    SharedPreferences.getInstance().then((prefs) {
+      final lockoutUntilMs = DateTime.now().millisecondsSinceEpoch + (seconds * 1000);
+      prefs.setInt('login_lockout_until', lockoutUntilMs);
+    });
+
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_lockoutSeconds > 1) {
+        _lockoutSeconds--;
+        notifyListeners();
+      } else {
+        _lockoutSeconds = 0;
+        _errorMessage = null; // Bersihkan pesan error agar tidak tertinggal setelah hitungan selesai
+        timer.cancel();
+        _countdownTimer = null;
+        SharedPreferences.getInstance().then((prefs) {
+          prefs.remove('login_lockout_until');
+        });
+        notifyListeners();
+      }
+    });
+  }
+
   Future<bool> login(String email, String password) async {
+    // Jika sedang terkunci, batalkan pemanggilan ke server
+    if (isLockedOut) {
+      return false;
+    }
+
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -45,15 +104,30 @@ class AuthProvider extends ChangeNotifier {
         role: _user!.role,
       );
 
+      // Reset lockout jika login berhasil
+      _countdownTimer?.cancel();
+      _lockoutSeconds = 0;
+      SharedPreferences.getInstance().then((prefs) => prefs.remove('login_lockout_until'));
+
       _isInitialized = true;
       _isLoading = false;
       notifyListeners();
       return true;
     } catch (e) {
       debugPrint('Login exception: $e');
-      if (e is DioException && e.response?.data != null) {
-        final data = e.response!.data;
-        if (data is Map && (data['msg'] != null || data['message'] != null)) {
+      if (e is DioException) {
+        final statusCode = e.response?.statusCode;
+        final data = e.response?.data;
+
+        if (statusCode == 429) {
+          int retryAfter = 60;
+          if (data is Map && data['retry_after_seconds'] != null) {
+            retryAfter = int.tryParse(data['retry_after_seconds'].toString()) ?? 60;
+          }
+          final serverMsg = (data is Map) ? (data['msg'] ?? data['message']) : null;
+          _errorMessage = serverMsg?.toString() ?? 'Batas percobaan login tercapai. Akun diblokir sementara.';
+          startLockoutCountdown(retryAfter);
+        } else if (data is Map && (data['msg'] != null || data['message'] != null)) {
           _errorMessage = data['msg'] ?? data['message'];
         } else {
           _errorMessage = 'Login gagal. Periksa email & password Anda.';
@@ -173,5 +247,11 @@ class AuthProvider extends ChangeNotifier {
     _isInitialized = true;
     notifyListeners();
     return false;
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
   }
 }

@@ -12,6 +12,7 @@ import 'notificationPage.dart';
 import 'profilePage.dart';
 import 'homePage.dart';
 import 'predictionHistoryPage.dart';
+import 'measurementHistoryPage.dart';
 import '../../services/espService.dart';
 import '../widgets/deviceConfigDialog.dart';
 
@@ -734,7 +735,7 @@ class _BerandaPageState extends State<BerandaPage> {
                                 onPressed: () {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(builder: (_) => const PredictionHistoryPage()),
+                                    MaterialPageRoute(builder: (_) => const MeasurementHistoryPage()),
                                   );
                                 },
                                 icon: const Icon(Icons.history, color: Color(0xFF613EEA), size: 20),

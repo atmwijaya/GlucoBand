@@ -48,7 +48,7 @@ class _PredictionPageState extends State<PredictionPage> {
       context,
       listen: false,
     );
-    
+
     if (profileProvider.profileData == null) {
       final auth = Provider.of<AuthProvider>(context, listen: false);
       if (auth.token != null) {
@@ -112,9 +112,9 @@ class _PredictionPageState extends State<PredictionPage> {
   }
 
   void _calculateBMI() {
-    final w = double.tryParse(_weightController.text);
-    final h = double.tryParse(_heightController.text);
-    if (w != null && h != null && h > 0) {
+    final w = double.tryParse(_weightController.text.trim());
+    final h = double.tryParse(_heightController.text.trim());
+    if (w != null && h != null && h >= 50 && w >= 20) {
       _bmi = w / ((h / 100) * (h / 100));
     } else {
       _bmi = 0;
@@ -124,7 +124,10 @@ class _PredictionPageState extends State<PredictionPage> {
 
   Future<void> _refreshProfile() async {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Menyinkronkan data profil...'), duration: Duration(seconds: 1)),
+      const SnackBar(
+        content: Text('Menyinkronkan data profil...'),
+        duration: Duration(seconds: 1),
+      ),
     );
     final auth = Provider.of<AuthProvider>(context, listen: false);
     if (auth.token != null) {
@@ -159,11 +162,60 @@ class _PredictionPageState extends State<PredictionPage> {
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Terdapat data yang belum diisi. Harap lengkapi form!'),
+          content: Text(
+            'Data belum lengkap atau tidak valid. Harap periksa nilai isian',
+          ),
           backgroundColor: Colors.redAccent,
         ),
       );
       return;
+    }
+
+    final weight = double.tryParse(_weightController.text.trim()) ?? 0;
+    final height = double.tryParse(_heightController.text.trim()) ?? 0;
+    final age = int.tryParse(_ageController.text.trim()) ?? 0;
+
+    if (weight <= 0 || weight < 20 || weight > 300) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Berat badan harus valid.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (height <= 0 || height < 50 || height > 250) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tinggi badan harus valid.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    if (age <= 0 || age < 1 || age > 120) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Usia harus valid.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    for (int i = 0; i < _glucoseControllers.length; i++) {
+      final g = double.tryParse(_glucoseControllers[i].text.trim());
+      if (g == null || g <= 0 || g < 30 || g > 600) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Kadar gula darah ke-${i + 1} harus valid.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
     }
 
     setState(() => _isLoading = true);
@@ -342,6 +394,16 @@ class _PredictionPageState extends State<PredictionPage> {
                 Icons.monitor_weight_outlined,
                 TextInputType.number,
                 (_) => _calculateBMI(),
+                (v) {
+                  if (v == null || v.trim().isEmpty)
+                    return 'Berat badan wajib diisi';
+                  final val = double.tryParse(v.trim());
+                  if (val == null) return 'Harus berupa angka valid';
+                  if (val <= 0) return 'Berat badan harus lebih dari 0 kg';
+                  if (val < 20 || val > 300)
+                    return 'Nilai tidak masuk akal (rentang: 20 - 300 kg)';
+                  return null;
+                },
               ),
               const SizedBox(height: 12),
               _buildTextField(
@@ -350,6 +412,16 @@ class _PredictionPageState extends State<PredictionPage> {
                 Icons.height,
                 TextInputType.number,
                 (_) => _calculateBMI(),
+                (v) {
+                  if (v == null || v.trim().isEmpty)
+                    return 'Tinggi badan wajib diisi';
+                  final val = double.tryParse(v.trim());
+                  if (val == null) return 'Harus berupa angka valid';
+                  if (val <= 0) return 'Tinggi badan harus lebih dari 0 cm';
+                  if (val < 50 || val > 250)
+                    return 'Nilai tidak masuk akal (rentang: 50 - 250 cm)';
+                  return null;
+                },
               ),
 
               if (_bmi > 0)
@@ -391,9 +463,19 @@ class _PredictionPageState extends State<PredictionPage> {
               const SizedBox(height: 12),
               _buildTextField(
                 _ageController,
-                'Usia',
+                'Usia (tahun)',
                 Icons.calendar_today,
                 TextInputType.number,
+                null,
+                (v) {
+                  if (v == null || v.trim().isEmpty) return 'Usia wajib diisi';
+                  final val = int.tryParse(v.trim());
+                  if (val == null) return 'Harus berupa angka bulat valid';
+                  if (val <= 0) return 'Usia harus lebih dari 0 tahun';
+                  if (val < 1 || val > 120)
+                    return 'Nilai tidak masuk akal (rentang: 1 - 120 tahun)';
+                  return null;
+                },
               ),
 
               const SizedBox(height: 12),
@@ -443,6 +525,15 @@ class _PredictionPageState extends State<PredictionPage> {
                         null,
                         TextInputType.number,
                         null,
+                        (v) {
+                          if (v == null || v.trim().isEmpty)
+                            return 'Wajib diisi';
+                          final val = double.tryParse(v.trim());
+                          if (val == null) return 'Harus angka';
+                          if (val <= 0) return 'Harus > 0';
+                          if (val < 30 || val > 600) return '30-600 mg/dL';
+                          return null;
+                        },
                       ),
                     ),
                   ),
@@ -457,7 +548,9 @@ class _PredictionPageState extends State<PredictionPage> {
                   onPressed: _isLoading ? null : _submit,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF613EEA),
-                    disabledBackgroundColor: const Color(0xFF613EEA).withValues(alpha: 0.7),
+                    disabledBackgroundColor: const Color(
+                      0xFF613EEA,
+                    ).withValues(alpha: 0.7),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
@@ -496,6 +589,7 @@ class _PredictionPageState extends State<PredictionPage> {
     IconData? icon,
     TextInputType? type, [
     Function(String)? onChanged,
+    String? Function(String?)? validator,
   ]) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -505,7 +599,7 @@ class _PredictionPageState extends State<PredictionPage> {
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w400,
-            color: Color(0xFF1E293B), // Dark text for label
+            color: Color(0xFF1E293B),
           ),
         ),
         const SizedBox(height: 6),
@@ -513,15 +607,22 @@ class _PredictionPageState extends State<PredictionPage> {
           controller: controller,
           keyboardType: type,
           onChanged: onChanged,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Wajib diisi';
-            }
-            return null;
-          },
+          validator:
+              validator ??
+              (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Wajib diisi';
+                }
+                return null;
+              },
           decoration: InputDecoration(
             filled: true,
             fillColor: Colors.white,
+            errorMaxLines: 2,
+            errorStyle: const TextStyle(
+              fontSize: 11.5,
+              color: Colors.redAccent,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(30),
               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -529,6 +630,14 @@ class _PredictionPageState extends State<PredictionPage> {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(30),
               borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30),
+              borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(30),
+              borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(30),
@@ -568,12 +677,17 @@ class _PredictionPageState extends State<PredictionPage> {
           initialValue: effectiveValue,
           dropdownColor: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey),
+          icon: const Icon(
+            Icons.keyboard_arrow_down_rounded,
+            color: Colors.grey,
+          ),
           items: items
-              .map((e) => DropdownMenuItem(
-                    value: e,
-                    child: Text(e, style: const TextStyle(fontSize: 15)),
-                  ))
+              .map(
+                (e) => DropdownMenuItem(
+                  value: e,
+                  child: Text(e, style: const TextStyle(fontSize: 15)),
+                ),
+              )
               .toList(),
           onChanged: (val) {
             if (val != null) onChanged?.call(val);

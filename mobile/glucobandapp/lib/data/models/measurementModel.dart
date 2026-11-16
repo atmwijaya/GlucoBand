@@ -5,7 +5,7 @@ class MeasurementModel {
   final double glucoseEstimated;
   final String status;
   final int ppgHeartRate;
-  final int ppgSpo2;
+  final int? ppgSpo2;
   final double skinTempCelsius;
   final DateTime createdAt;
 
@@ -16,7 +16,7 @@ class MeasurementModel {
     required this.glucoseEstimated,
     required this.status,
     required this.ppgHeartRate,
-    required this.ppgSpo2,
+    this.ppgSpo2,
     required this.skinTempCelsius,
     required this.createdAt,
   });
@@ -40,7 +40,7 @@ class MeasurementModel {
       glucoseEstimated: double.tryParse(json['glucose_estimated']?.toString() ?? '0') ?? 0.0,
       status: json['status']?.toString() ?? 'normal',
       ppgHeartRate: int.tryParse(json['ppg_heart_rate']?.toString() ?? '0') ?? 0,
-      ppgSpo2: int.tryParse(json['ppg_spo2']?.toString() ?? '98') ?? 98,
+      ppgSpo2: json['ppg_spo2'] != null ? int.tryParse(json['ppg_spo2'].toString()) : null,
       skinTempCelsius: double.tryParse(json['skin_temp_celsius']?.toString() ?? '0') ?? 0.0,
       createdAt: parsedDate,
     );

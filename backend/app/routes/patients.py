@@ -32,6 +32,16 @@ def _get_cursor():
     return conn, conn.cursor(dictionary=True)
 
 
+def _clean_num(val, cast_type=float):
+    """Membersihkan nilai numerik: string kosong atau None diubah menjadi None (NULL di SQL)."""
+    if val is None or str(val).strip() == '':
+        return None
+    try:
+        return cast_type(val)
+    except (ValueError, TypeError):
+        return None
+
+
 @patients_bp.get('/patients')
 @medis_required
 def get_patients(identity):
@@ -125,11 +135,23 @@ def get_patient(identity, id):
 @medis_required
 def add_patient(identity):
     data = request.get_json()
-    if not data or 'email' not in data or 'password' not in data:
-        return jsonify({'msg': 'Data tidak lengkap'}), 400
+    if not data:
+        return jsonify({'msg': 'Data tidak ditemukan dalam request (harus berformat JSON)'}), 400
 
-    email = str(data['email']).strip().lower()
-    password = str(data['password']).strip()
+    name = str(data.get('name', '')).strip()
+    if not name:
+        return jsonify({'msg': 'Nama lengkap wajib diisi'}), 400
+
+    raw_email = str(data.get('email', '')).strip().lower()
+    if not raw_email:
+        return jsonify({'msg': 'Email wajib diisi'}), 400
+    if '@' not in raw_email or '.' not in raw_email:
+        return jsonify({'msg': 'Format email tidak valid'}), 400
+    email = raw_email
+
+    password = str(data.get('password', '')).strip()
+    if not password:
+        return jsonify({'msg': 'Password wajib diisi'}), 400
 
     is_valid_pw, pw_err = validate_password(password)
     if not is_valid_pw:
@@ -149,24 +171,33 @@ def add_patient(identity):
         # Enkripsi / Hashing kata sandi pasien
         hashed_password = generate_password_hash(password)
 
+        age = _clean_num(data.get('age'), int)
+        weight_kg = _clean_num(data.get('weight_kg'), float)
+        height_cm = _clean_num(data.get('height_cm'), float)
+        bp_sys = _clean_num(data.get('blood_pressure_sys'), int)
+        bp_dia = _clean_num(data.get('blood_pressure_dia'), int)
+        diabetes_history = int(data.get('diabetes_history') or 0)
+        smoking_history = int(data.get('smoking_history') or 0)
+        tenaga_medis_id = _clean_num(data.get('tenaga_medis_id') or data.get('medical_staff_id'), int)
+
         sql = """
             INSERT INTO users (name, email, password, role, age, gender, weight_kg, height_cm,
                               blood_pressure_sys, blood_pressure_dia, diabetes_history, smoking_history, tenaga_medis_id)
             VALUES (%s, %s, %s, 'pasien', %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         cursor.execute(sql, (
-            data.get('name'),
+            name,
             email,
             hashed_password,
-            data.get('age'),
-            data.get('gender'),
-            data.get('weight_kg'),
-            data.get('height_cm'),
-            data.get('blood_pressure_sys'),
-            data.get('blood_pressure_dia'),
-            data.get('diabetes_history', 0),
-            data.get('smoking_history', 0),
-            data.get('tenaga_medis_id') or data.get('medical_staff_id')
+            age,
+            data.get('gender') or 'L',
+            weight_kg,
+            height_cm,
+            bp_sys,
+            bp_dia,
+            diabetes_history,
+            smoking_history,
+            tenaga_medis_id
         ))
         conn.commit()
         return jsonify({'msg': 'Pasien berhasil ditambahkan', 'id': cursor.lastrowid or 0}), 201
@@ -183,6 +214,9 @@ def add_patient(identity):
 @medis_required
 def update_patient(identity, id):
     data = request.get_json()
+    if not data:
+        return jsonify({'msg': 'Data tidak ditemukan dalam request'}), 400
+
     conn, cursor = _get_cursor()
     if not conn:
         return jsonify({'msg': 'Koneksi database gagal'}), 500
@@ -196,17 +230,31 @@ def update_patient(identity, id):
 
         fields = []
         values = []
+
+        num_int_fields = {'age', 'blood_pressure_sys', 'blood_pressure_dia', 'diabetes_history', 'smoking_history', 'tenaga_medis_id'}
+        num_float_fields = {'weight_kg', 'height_cm'}
+
         for key in ['name', 'email', 'age', 'gender', 'weight_kg', 'height_cm',
                     'blood_pressure_sys', 'blood_pressure_dia', 'diabetes_history', 'smoking_history', 'tenaga_medis_id']:
             if key in data:
                 val = data[key]
                 if key == 'email' and val:
                     val = str(val).strip().lower()
+                    if '@' not in val or '.' not in val:
+                        return jsonify({'msg': 'Format email tidak valid'}), 400
+                elif key == 'name' and val:
+                    val = str(val).strip()
+                elif key in num_int_fields:
+                    val = _clean_num(val, int)
+                elif key in num_float_fields:
+                    val = _clean_num(val, float)
+
                 fields.append(f"{key} = %s")
                 values.append(val)
+
         if 'medical_staff_id' in data and 'tenaga_medis_id' not in data:
             fields.append("tenaga_medis_id = %s")
-            values.append(data['medical_staff_id'])
+            values.append(_clean_num(data['medical_staff_id'], int))
 
         if 'password' in data and data['password']:
             new_password = str(data['password']).strip()

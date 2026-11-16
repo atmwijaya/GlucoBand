@@ -134,4 +134,6 @@ class ApiService {
       _dio.put(path, data: data);
   Future<Response> post(String path, {dynamic data}) =>
       _dio.post(path, data: data);
+  Future<Response> delete(String path, {dynamic data}) =>
+      _dio.delete(path, data: data);
 }

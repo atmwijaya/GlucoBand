@@ -139,15 +139,31 @@ def add_measurement(cursor):
     Jika request membawa token otentikasi (dari aplikasi mobile),
     sistem memastikan data hanya bisa disimpan atas nama akun pengguna sendiri.
     """
-    data = request.get_json()
-    required = ['patient_id', 'created_at']
-    if not data or not all(k in data for k in required):
-        return jsonify({'msg': 'Data tidak lengkap'}), 400
+    data = request.get_json() or {}
 
     user = get_current_user()
-    if user:
-        if not can_access_patient(user, data['patient_id']):
+    # Jika pasien terautentikasi mengirim data, selalu pastikan ID pasien sesuai akun login
+    if user and user.get('role') == 'pasien':
+        patient_id = user.get('id')
+    else:
+        patient_id = data.get('patient_id')
+
+    if not patient_id:
+        return jsonify({'msg': 'patient_id wajib disertakan'}), 400
+
+    created_at = data.get('created_at')
+    if not created_at:
+        from datetime import datetime
+        created_at = datetime.now().isoformat()
+
+    if user and user.get('role') != 'tenaga_medis':
+        if not can_access_patient(user, patient_id):
             return jsonify({'msg': 'Akses ditolak: Anda tidak memiliki izin mengunggah data untuk pasien lain.'}), 403
+
+    # Sanitasi sumber data (hanya 'wifi' atau 'sdcard' sesuai enum MySQL)
+    source_val = str(data.get('source', 'wifi')).lower()
+    if source_val not in ('wifi', 'sdcard'):
+        source_val = 'wifi'
 
     sql = """
         INSERT INTO measurements
@@ -157,7 +173,7 @@ def add_measurement(cursor):
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
     cursor.execute(sql, (
-        data['patient_id'],
+        patient_id,
         data.get('device_id'),
         data.get('nir_610nm'), data.get('nir_680nm'), data.get('nir_730nm'),
         data.get('nir_760nm'), data.get('nir_810nm'), data.get('nir_860nm'),
@@ -165,8 +181,8 @@ def add_measurement(cursor):
         data.get('skin_temp_celsius'),
         data.get('glucose_estimated'), data.get('glucose_invasive'),
         data.get('is_calibration', False),
-        data['created_at'],
-        data.get('source', 'wifi')
+        created_at,
+        source_val
     ))
     new_id = cursor.lastrowid
 
@@ -181,13 +197,13 @@ def add_measurement(cursor):
 
         measurement_payload = {
             'id': new_id,
-            'patient_id': int(data['patient_id']),
+            'patient_id': int(patient_id),
             'glucose_estimated': glucose_val,
             'ppg_heart_rate': int(data.get('ppg_heart_rate') or 0),
             'skin_temp_celsius': float(data.get('skin_temp_celsius') or 0),
             'ppg_spo2': int(data.get('ppg_spo2') or 98),
             'status': status_calc,
-            'created_at': data['created_at']
+            'created_at': created_at
         }
         socketio.emit('new_measurement', measurement_payload)
     except Exception as e:
@@ -214,3 +230,28 @@ def stream_sensor_data():
     except Exception as e:
         print(f"[SocketIO Error] Gagal emit live_sensor_stream: {e}")
     return jsonify({'status': 'streamed'}), 200
+
+
+@measurements_bp.delete('/measurements/<int:id>')
+@jwt_required()
+@db_connection
+def delete_measurement(cursor, id):
+    """
+    Menghapus satu data riwayat pengukuran berdasarkan ID.
+    Pasien hanya boleh menghapus datanya sendiri (Anti-IDOR).
+    """
+    user = get_current_user()
+    if not user:
+        return jsonify({'msg': 'Token otentikasi tidak valid'}), 401
+
+    cursor.execute("SELECT id, patient_id FROM measurements WHERE id = %s", (id,))
+    meas = cursor.fetchone()
+    if not meas:
+        return jsonify({'msg': 'Data pengukuran tidak ditemukan'}), 404
+
+    if user.get('role') == 'pasien':
+        if int(meas['patient_id']) != int(user.get('id', 0)):
+            return jsonify({'msg': 'Akses ditolak: Anda tidak memiliki izin menghapus data ini'}), 403
+
+    cursor.execute("DELETE FROM measurements WHERE id = %s", (id,))
+    return jsonify({'msg': 'Data pengukuran berhasil dihapus'}), 200

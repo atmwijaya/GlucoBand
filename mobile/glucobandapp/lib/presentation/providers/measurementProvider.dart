@@ -232,6 +232,51 @@ class MeasurementProvider extends ChangeNotifier {
     }
   }
 
+  /// Menyimpan data pengukuran baru ke API Backend & otomatis menyinkronkan riwayat
+  Future<bool> saveMeasurement({
+    required int patientId,
+    required double glucose,
+    required int heartRate,
+    required double temperature,
+  }) async {
+    try {
+      final payload = {
+        'patient_id': patientId,
+        'glucose_estimated': glucose,
+        'ppg_heart_rate': heartRate,
+        'skin_temp_celsius': temperature,
+        'created_at': DateTime.now().toIso8601String(),
+        'source': 'wifi',
+      };
+
+      final response = await _apiService.post(ApiConstants.measurements, data: payload);
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        await fetchMeasurements();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('[MeasurementProvider] Error saveMeasurement: $e');
+      return false;
+    }
+  }
+
+  /// Menghapus satu item pengukuran dari backend dan state lokal
+  Future<bool> deleteMeasurement(int id) async {
+    try {
+      final response = await _apiService.delete('${ApiConstants.measurements}/$id');
+      if (response.statusCode == 200) {
+        _measurements.removeWhere((m) => m.id == id);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint('[MeasurementProvider] Error deleteMeasurement: $e');
+      return false;
+    }
+  }
+
   /// Memperbarui nilai glukosa secara langsung saat selesai pengukuran di perangkat
   void updateGlucose(double newValue) {
     _liveGlucose = newValue;
@@ -240,7 +285,6 @@ class MeasurementProvider extends ChangeNotifier {
       glucoseEstimated: newValue,
       status: newValue > 200 ? 'hiperglikemia' : (newValue < 70 ? 'hipoglikemia' : 'normal'),
       ppgHeartRate: 75,
-      ppgSpo2: 98,
       skinTempCelsius: 36.5,
       createdAt: DateTime.now(),
     );
