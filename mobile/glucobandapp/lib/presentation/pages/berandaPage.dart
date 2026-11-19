@@ -14,6 +14,7 @@ import 'homePage.dart';
 import 'measurementHistoryPage.dart';
 import '../../services/espService.dart';
 import '../widgets/deviceConfigDialog.dart';
+import '../widgets/glucoseChart.dart';
 import '../../core/utils/glucoseStatus.dart';
 import '../../data/models/measurementModel.dart';
 
@@ -291,32 +292,32 @@ class _BerandaPageState extends State<BerandaPage> {
                               },
                               itemBuilder: (BuildContext context) => [
                                 const PopupMenuItem<String>(
-                                  value: '6 Jam',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.history_toggle_off, size: 18, color: Color(0xFF613EEA)),
-                                      SizedBox(width: 8),
-                                      Text('6 Jam Terakhir', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                                    ],
-                                  ),
-                                ),
-                                const PopupMenuItem<String>(
-                                  value: 'Harian',
+                                  value: '1 Hari',
                                   child: Row(
                                     children: [
                                       Icon(Icons.today, size: 18, color: Color(0xFF613EEA)),
                                       SizedBox(width: 8),
-                                      Text('Harian (24 Jam)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                      Text('1 Hari (24 Jam)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                                     ],
                                   ),
                                 ),
                                 const PopupMenuItem<String>(
-                                  value: 'Mingguan',
+                                  value: '2 Hari',
                                   child: Row(
                                     children: [
                                       Icon(Icons.date_range, size: 18, color: Color(0xFF613EEA)),
                                       SizedBox(width: 8),
-                                      Text('Mingguan (7 Hari)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                      Text('2 Hari (48 Jam)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuItem<String>(
+                                  value: '3 Hari',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.calendar_month, size: 18, color: Color(0xFF613EEA)),
+                                      SizedBox(width: 8),
+                                      Text('3 Hari (72 Jam)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                                     ],
                                   ),
                                 ),
@@ -745,44 +746,15 @@ class _BerandaPageState extends State<BerandaPage> {
 
                                   const SizedBox(height: 24),
 
-                                  // HEADER TREN GRAFIK INTERAKTIF
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      Text(
-                                        'Tren Riwayat (${measurement.timeFilter})',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF64748B),
-                                        ),
-                                      ),
-                                      const Row(
-                                        children: [
-                                          Icon(Icons.touch_app_outlined, size: 12, color: Color(0xFF94A3B8)),
-                                          SizedBox(width: 3),
-                                          Text(
-                                            'Sentuh titik untuk detail',
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.w500,
-                                              color: Color(0xFF94A3B8),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10),
-
-                                  // GRAFIK LINE CHART INTERAKTIF
-                                  SizedBox(
-                                    height: 110,
-                                    child: _buildMainChart(
-                                      measurement.mainChartSpots,
-                                      measurement.mainChartMeasurements,
-                                      statusColor,
-                                    ),
+                                  // GRAFIK GLUKOSA ALA BURSA SAHAM REALTIME (INTERVAL 5 MENIT)
+                                  GlucoseStockChart(
+                                    measurements: measurement.measurements,
+                                    latestGlucose: currentGlucose,
+                                    timeFilter: measurement.timeFilter,
+                                    statusColor: statusColor,
+                                    onFilterChanged: (newFilter) {
+                                      measurement.setTimeFilter(newFilter);
+                                    },
                                   ),
                                 ],
                               ),
@@ -1297,118 +1269,6 @@ class _BerandaPageState extends State<BerandaPage> {
           },
         ),
       ],
-    );
-  }
-
-  Widget _buildMainChart(
-    List<FlSpot> spots,
-    List<MeasurementModel> measurements,
-    Color dynamicColor,
-  ) {
-    if (spots.isEmpty) {
-      return Center(
-        child: Text(
-          'Belum ada data glukosa di rentang waktu ini',
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[400],
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      );
-    }
-
-    double minY = 40.0;
-    double maxY = 250.0;
-    for (final spot in spots) {
-      if (spot.y < minY) minY = (spot.y - 15).clamp(20.0, 400.0);
-      if (spot.y > maxY) maxY = (spot.y + 25).clamp(160.0, 450.0);
-    }
-
-    return LineChart(
-      LineChartData(
-        minY: minY,
-        maxY: maxY,
-        lineTouchData: LineTouchData(
-          enabled: true,
-          handleBuiltInTouches: true,
-          touchTooltipData: LineTouchTooltipData(
-            getTooltipColor: (_) => const Color(0xFF0F172A),
-            tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            tooltipMargin: 8,
-            getTooltipItems: (touchedSpots) {
-              return touchedSpots.map((barSpot) {
-                final idx = barSpot.x.toInt();
-                String timeStr = '';
-                String condStr = '';
-                if (idx >= 0 && idx < measurements.length) {
-                  final m = measurements[idx];
-                  timeStr = DateFormat('HH:mm').format(m.createdAt);
-                  condStr = GlucoseStatusHelper.getLabel(m.glucoseEstimated);
-                }
-                return LineTooltipItem(
-                  '${barSpot.y.toStringAsFixed(1)} mg/dL\n$timeStr • $condStr',
-                  const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    height: 1.3,
-                  ),
-                );
-              }).toList();
-            },
-          ),
-        ),
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: 50,
-          getDrawingHorizontalLine: (value) {
-            final isTargetRange = (value == 70 || value == 140);
-            return FlLine(
-              color: isTargetRange
-                  ? const Color(0xFF10B981).withValues(alpha: 0.35)
-                  : Colors.grey.withValues(alpha: 0.12),
-              strokeWidth: isTargetRange ? 1.5 : 1,
-              dashArray: isTargetRange ? [4, 4] : [5, 5],
-            );
-          },
-        ),
-        titlesData: const FlTitlesData(show: false),
-        borderData: FlBorderData(show: false),
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            curveSmoothness: 0.35,
-            color: dynamicColor,
-            barWidth: 3.5,
-            isStrokeCapRound: true,
-            dotData: FlDotData(
-              show: spots.length <= 15,
-              getDotPainter: (spot, percent, barData, index) {
-                return FlDotCirclePainter(
-                  radius: 4,
-                  color: Colors.white,
-                  strokeWidth: 2.5,
-                  strokeColor: dynamicColor,
-                );
-              },
-            ),
-            belowBarData: BarAreaData(
-              show: true,
-              gradient: LinearGradient(
-                colors: [
-                  dynamicColor.withValues(alpha: 0.22),
-                  dynamicColor.withValues(alpha: 0.01),
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

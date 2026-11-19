@@ -59,9 +59,8 @@ void WiFiConfig::begin() {
       Serial.print("[WiFi] Gagal konek router. Percobaan ke: ");
       Serial.println(failedAttempts);
       
-      // Kembalikan ke mode AP murni agar sinyal AP tidak drop akibat scanning
-      WiFi.mode(WIFI_AP);
-      WiFi.setSleep(false);
+      // Re-inisialisasi mode AP secara bersih lengkap dengan IP statis dan DHCP aktif
+      startAPMode();
       
       if (failedAttempts >= 2) {
         Serial.println("[WiFi] Gagal 2x. Menghapus konfigurasi lama yang salah...");
@@ -85,35 +84,44 @@ void WiFiConfig::begin() {
 void WiFiConfig::startAPMode() {
   // Matikan koneksi WiFi sebelumnya secara bersih
   WiFi.disconnect(true, false);
-  delay(50);
+  delay(100);
 
   // Set mode AP_STA agar mendukung Access Point sekaligus koneksi STA
   WiFi.mode(WIFI_AP_STA);
-  delay(50);
+  delay(100);
+
+  // Set konfigurasi regulasi negara (Indonesia/International) kanal 1-13
+  // Sangat penting agar beacon AP terdeteksi oleh smartphone Samsung, Oppo, Vivo, iPhone
+  wifi_country_t country = { .cc = "ID", .schan = 1, .nchan = 13, .max_tx_power = 78, .policy = WIFI_COUNTRY_POLICY_AUTO };
+  esp_wifi_set_country(&country);
 
   // Alamat IP statis default AP (192.168.4.1)
   IPAddress apIP(192, 168, 4, 1);
   IPAddress gateway(192, 168, 4, 1);
   IPAddress subnet(255, 255, 255, 0);
   WiFi.softAPConfig(apIP, gateway, subnet);
+  delay(100);
 
   // Parameter: SSID, password (NULL = Terbuka), channel 1, hidden 0, max 4 device
   bool apSuccess = WiFi.softAP("GlucoBand-Setup", NULL, 1, 0, 4);
 
-  // Optimasi kompabilitas untuk SEMUA merek HP (Samsung, Vivo, Xiaomi/Redmi, Oppo, Realme):
+  // Optimasi kompatibilitas untuk SEMUA merek HP (Samsung, Vivo, Xiaomi/Redmi, Oppo, Realme, iPhone):
   // 1. Nonaktifkan modem sleep & set kekuatan sinyal RF maksimal (+19.5 dBm)
   WiFi.setSleep(false);
   WiFi.setTxPower(WIFI_POWER_19_5dBm);
-
-  // 2. Kunci bandwidth AP ke 20MHz (HT20) untuk kompatibilitas chipset MediaTek/Redmi
-  esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20);
-  esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
   esp_wifi_set_ps(WIFI_PS_NONE);
 
+  // 2. Kunci bandwidth AP ke 20MHz (HT20) untuk kompatibilitas chipset MediaTek/Exynos/Qualcomm
+  esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20);
+  esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
+
   // 3. Jalankan Captive Portal DNS Server pada port 53
-  // Ini SANGAT KRUSIAL untuk Xiaomi/Redmi/MIUI/HyperOS agar tidak mendiskoneksi AP karena cek captive portal
   dnsServer.stop();
   dnsServer.start(53, "*", apIP);
+
+  // 4. Aktifkan responder mDNS untuk domain glucoband.local pada AP
+  MDNS.begin("glucoband");
+  MDNS.addService("http", "tcp", 80);
 
   apModeActive = true;
 
@@ -123,7 +131,9 @@ void WiFiConfig::startAPMode() {
     Serial.print("[WiFi] IP Gateway AP: ");
     Serial.println(WiFi.softAPIP());
   } else {
-    Serial.println("[WiFi] PERINGATAN: Gagal mengaktifkan SoftAP!");
+    Serial.println("[WiFi] PERINGATAN: Gagal mengaktifkan SoftAP! Mencoba ulang...");
+    delay(200);
+    WiFi.softAP("GlucoBand-Setup", NULL, 1, 0, 4);
   }
 }
 
@@ -137,12 +147,48 @@ void WiFiConfig::setupRoutes() {
   server.on("/", HTTP_GET, [this]() { handleRoot(); });
   server.on("/scan", HTTP_GET, [this]() { handleScan(); });
   server.on("/save", HTTP_POST, [this]() { handleSave(); });
-  server.on("/generate_204", HTTP_GET, [this]() { server.send(204); });
-  server.on("/gen_204", HTTP_GET, [this]() { server.send(204); });
-  server.on("/connect.rom.miui.com/generate_204", HTTP_GET, [this]() { server.send(204); });
-  server.on("/ncsi.txt", HTTP_GET, [this]() { server.send(200, "text/plain", "Microsoft NCSI"); });
-  server.on("/hotspot-detect.html", HTTP_GET, [this]() { handleRoot(); });
-  server.on("/canonical.html", HTTP_GET, [this]() { handleRoot(); });
+
+  // Android / Google / Samsung / Pixel / Motorola Captive Portal Probes
+  server.on("/generate_204", HTTP_GET, [this]() { sendCorsHeader(); server.send(204); });
+  server.on("/gen_204", HTTP_GET, [this]() { sendCorsHeader(); server.send(204); });
+  server.on("/mobile/status", HTTP_GET, [this]() { sendCorsHeader(); server.send(204); });
+
+  // Xiaomi / Redmi / MIUI / HyperOS
+  server.on("/connect.rom.miui.com/generate_204", HTTP_GET, [this]() { sendCorsHeader(); server.send(204); });
+
+  // Oppo / Realme / OnePlus (ColorOS)
+  server.on("/check_network_status", HTTP_GET, [this]() { sendCorsHeader(); server.send(200, "text/plain", "SUCCESS"); });
+  server.on("/network/check", HTTP_GET, [this]() { sendCorsHeader(); server.send(200, "text/plain", "SUCCESS"); });
+
+  // Vivo / iQOO (FuntouchOS / OriginOS)
+  server.on("/portal/check", HTTP_GET, [this]() { sendCorsHeader(); server.send(200, "text/plain", "SUCCESS"); });
+
+  // Huawei (EMUI / HarmonyOS)
+  server.on("/connectivity-check.html", HTTP_GET, [this]() { sendCorsHeader(); server.send(204); });
+
+  // Apple iOS / macOS Captive Network Assistant (CNA)
+  server.on("/hotspot-detect.html", HTTP_GET, [this]() { 
+    sendCorsHeader();
+    server.send(200, "text/html", "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>"); 
+  });
+  server.on("/canonical.html", HTTP_GET, [this]() { 
+    sendCorsHeader();
+    server.send(200, "text/html", "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>"); 
+  });
+  server.on("/success.html", HTTP_GET, [this]() { 
+    sendCorsHeader();
+    server.send(200, "text/html", "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>"); 
+  });
+  server.on("/library/test/success.html", HTTP_GET, [this]() { 
+    sendCorsHeader();
+    server.send(200, "text/html", "<HTML><HEAD><TITLE>Success</TITLE></HEAD><BODY>Success</BODY></HTML>"); 
+  });
+
+  // Microsoft Windows NCSI
+  server.on("/ncsi.txt", HTTP_GET, [this]() { sendCorsHeader(); server.send(200, "text/plain", "Microsoft NCSI"); });
+  server.on("/connecttest.txt", HTTP_GET, [this]() { sendCorsHeader(); server.send(200, "text/plain", "Microsoft Connect Test"); });
+
+  // REST API Routes
   server.on("/api/status", HTTP_GET, [this]() { handleApiStatus(); });
   server.on("/api/scan", HTTP_GET, [this]() { handleScan(); });
   server.on("/api/init", HTTP_GET, [this]() { handleApiInit(); });
@@ -157,17 +203,27 @@ void WiFiConfig::setupRoutes() {
     if (server.method() == HTTP_OPTIONS) {
       sendCorsHeader();
       server.send(204);
+      return;
+    }
+
+    // Jika request mengarah ke endpoint API yang tidak terdaftar, kembalikan 404 JSON (bukan HTML)
+    // agar aplikasi Flutter tidak mengalami crash/format exception
+    if (server.uri().startsWith("/api/")) {
+      sendCorsHeader();
+      server.send(404, "application/json", "{\"error\":\"API endpoint tidak ditemukan\"}");
+      return;
+    }
+
+    if (apModeActive) {
+      handleRoot();
     } else {
-      if (apModeActive) {
-        handleRoot();
-      } else {
-        server.send(404, "text/plain", "Not Found");
-      }
+      server.send(404, "text/plain", "Not Found");
     }
   });
 }
 
 void WiFiConfig::handleRoot() {
+  sendCorsHeader();
   String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>";
   html += "<title>GlucoBand WiFi Setup</title>";
   html += "<style>body{font-family:system-ui,-apple-system,sans-serif;margin:0;padding:20px;background:#f1f5f9;color:#0f172a}";
@@ -178,6 +234,7 @@ void WiFiConfig::handleRoot() {
   html += "select:focus,input:focus{border-color:#6366f1}";
   html += "button{width:100%;padding:14px;background:#4f46e5;color:white;border:none;border-radius:10px;cursor:pointer;font-size:15px;font-weight:700;margin-top:18px;transition:0.2s}";
   html += "button:hover{background:#4338ca}.info{color:#64748b;font-size:12px;margin-top:16px;text-align:center}";
+  html += ".alert{background:#fef3c7;color:#92400e;padding:10px 14px;border-radius:10px;font-size:12px;margin-bottom:14px;text-align:left;line-height:1.4}";
   html += ".loading{text-align:center;color:#64748b;padding:12px;font-size:13px}</style>";
   html += "<script>";
   html += "function loadNetworks(){";
@@ -203,6 +260,7 @@ void WiFiConfig::handleRoot() {
   html += "<div class='card'>";
   html += "<h2>GlucoBand Device</h2>";
   html += "<div style='text-align:center'><span class='badge'>Status: " + connectionStatus + "</span></div>";
+  html += "<div class='alert'><b>Tips Samsung/Vivo/Oppo:</b> Jika muncul notifikasi <i>'WiFi tidak ada internet'</i>, ketuk dan pilih <b>Tetap Terhubung</b> atau nonaktifkan Data Seluler sementara agar koneksi stabil.</div>";
   html += "<div id='networks'></div>";
   html += "<form action='/save' method='POST'>";
   html += "<label>Pilih WiFi Rumah/Hotspot:</label>";
@@ -212,6 +270,7 @@ void WiFiConfig::handleRoot() {
   html += "<button type='submit'>Simpan & Hubungkan</button>";
   html += "<div class='info'>Alamat IP: 192.168.4.1</div>";
   html += "</form></div></body></html>";
+  sendCorsHeader();
   server.send(200, "text/html", html);
 }
 
@@ -259,6 +318,7 @@ void WiFiConfig::handleSave() {
   html += "<p>GlucoBand sedang me-restart untuk terhubung ke <b>" + ssid + "</b>...</p>";
   html += "<p style='color:#64748b;font-size:13px'>Periksa layar OLED untuk melihat alamat IP barunya.</p></div></body></html>";
   
+  sendCorsHeader();
   server.send(200, "text/html", html);
   
   delay(1200);
@@ -501,9 +561,12 @@ void WiFiConfig::checkResetButton() {
 void WiFiConfig::handle() {
   checkResetButton();
 
-  // Proses request DNS Captive Portal untuk semua smartphone (terutama Xiaomi/Redmi)
+  // Proses antrean DNS Captive Portal secara cepat (burst processing)
+  // Sangat krusial untuk Samsung, Oppo, Vivo, Realme, dan iPhone agar tidak timeout saat background DNS dikirim
   if (apModeActive) {
-    dnsServer.processNextRequest();
+    for (int i = 0; i < 4; i++) {
+      dnsServer.processNextRequest();
+    }
   }
 
   // Reset via perintah huruf 'r' di Serial Monitor untuk mempermudah pengujian
@@ -521,7 +584,9 @@ void WiFiConfig::handle() {
   server.handleClient();
   
   // Auto reconnect ke router jika sempat putus
-  if (!wifiConnected && ssid.length() > 0 && failedAttempts < 2) {
+  // PENTING: Hanya lakukan jika TIDAK ADA HP yang sedang terhubung ke SoftAP (getConnectedClients() == 0)
+  // agar proses scanning router tidak memutus (channel-hopping) koneksi HP yang sedang konfigurasi!
+  if (!wifiConnected && ssid.length() > 0 && failedAttempts < 2 && getConnectedClients() == 0) {
     if (millis() - lastConnectionAttempt > 30000) {
       lastConnectionAttempt = millis();
       Serial.println("[WiFi] Mencoba konek ulang ke router...");
