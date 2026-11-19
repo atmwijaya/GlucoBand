@@ -8,7 +8,9 @@ import {
   FaCalendarAlt,
   FaChevronLeft,
   FaChevronRight,
-  FaHeartbeat
+  FaHeartbeat,
+  FaSortAmountDown,
+  FaSortAmountUp
 } from 'react-icons/fa'
 import {
   BarChart,
@@ -37,6 +39,31 @@ function getGreeting() {
   return 'Selamat Malam'
 }
 
+function getDiabetesRisk(patient) {
+  const r = (patient.risk_level || '').toLowerCase()
+  if (r === 'tinggi' || r === 'high') {
+    return { level: 'Tinggi', badgeClass: 'bg-red-50 text-red-700 border border-red-200' }
+  }
+  if (r === 'sedang' || r === 'moderate' || r === 'medium') {
+    return { level: 'Sedang', badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200' }
+  }
+  if (r === 'rendah' || r === 'low') {
+    return { level: 'Rendah', badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200' }
+  }
+
+  const glucose = patient.latest_glucose !== null && patient.latest_glucose !== undefined ? Number(patient.latest_glucose) : null
+  const bmi = patient.bmi ? Number(patient.bmi) : null
+  const hasDiabetesHistory = patient.diabetes_history === 1 || patient.diabetes_history === '1'
+
+  if (hasDiabetesHistory || (glucose !== null && glucose >= 200)) {
+    return { level: 'Tinggi', badgeClass: 'bg-red-50 text-red-700 border border-red-200' }
+  }
+  if ((glucose !== null && glucose >= 140) || (bmi !== null && bmi >= 25.0)) {
+    return { level: 'Sedang', badgeClass: 'bg-amber-50 text-amber-700 border border-amber-200' }
+  }
+  return { level: 'Rendah', badgeClass: 'bg-emerald-50 text-emerald-700 border border-emerald-200' }
+}
+
 export default function DashboardPage() {
   const navigate = useNavigate()
   const greeting = getGreeting()
@@ -45,7 +72,9 @@ export default function DashboardPage() {
   const [allPatients, setAllPatients] = useState([])
   const [monthlyData, setMonthlyData] = useState([])
   const [loading, setLoading] = useState(true)
-  const [patientTableView, setPatientTableView] = useState('pengukuran_terbaru')
+  const [filterType, setFilterType] = useState('pengukuran_tertinggi')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
   const [chartView, setChartView] = useState('patient_daily')
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [selectedPatientId, setSelectedPatientId] = useState(null)
@@ -65,8 +94,11 @@ export default function DashboardPage() {
         setAllPatients(patients)
 
         if (patients.length > 0) {
-          const sortedByGlucose = [...patients].sort((a, b) => (Number(b.latest_glucose) || 0) - (Number(a.latest_glucose) || 0))
-          const topPatient = sortedByGlucose[0]
+          const withMeasurements = patients.filter((p) => p.latest_glucose !== null && p.latest_glucose !== undefined)
+          const sorted = withMeasurements.length > 0
+            ? [...withMeasurements].sort((a, b) => Number(b.latest_glucose) - Number(a.latest_glucose))
+            : patients
+          const topPatient = sorted[0]
           setSelectedPatientId((prev) => prev || (topPatient ? topPatient.id : patients[0].id))
         }
 
@@ -88,28 +120,49 @@ export default function DashboardPage() {
     fetchData()
   }, [])
 
-  const highestMeasurementPatients = useMemo(() => {
-    return [...allPatients]
-      .sort((a, b) => {
-        const gA = Number(a.latest_glucose) || 0
-        const gB = Number(b.latest_glucose) || 0
-        if (gB !== gA) return gB - gA
-        const tA = new Date(a.latest_measurement_at || a.created_at || 0).getTime()
-        const tB = new Date(b.latest_measurement_at || b.created_at || 0).getTime()
-        return tB - tA
+  const filteredPatients = useMemo(() => {
+    const list = [...allPatients]
+    if (filterType === 'pengukuran_tertinggi') {
+      return list.sort((a, b) => {
+        const hasA = a.latest_glucose !== null && a.latest_glucose !== undefined
+        const hasB = b.latest_glucose !== null && b.latest_glucose !== undefined
+        if (hasA && !hasB) return -1
+        if (!hasA && hasB) return 1
+        if (hasA && hasB) {
+          const diff = Number(b.latest_glucose) - Number(a.latest_glucose)
+          if (diff !== 0) return diff
+        }
+        return new Date(b.latest_measurement_at || b.created_at || 0).getTime() -
+               new Date(a.latest_measurement_at || a.created_at || 0).getTime()
       })
-      .slice(0, 8)
-  }, [allPatients])
+    }
+    if (filterType === 'pengukuran_terendah') {
+      return list.sort((a, b) => {
+        const hasA = a.latest_glucose !== null && a.latest_glucose !== undefined
+        const hasB = b.latest_glucose !== null && b.latest_glucose !== undefined
+        if (hasA && !hasB) return -1
+        if (!hasA && hasB) return 1
+        if (hasA && hasB) {
+          const diff = Number(a.latest_glucose) - Number(b.latest_glucose)
+          if (diff !== 0) return diff
+        }
+        return new Date(b.latest_measurement_at || b.created_at || 0).getTime() -
+               new Date(a.latest_measurement_at || a.created_at || 0).getTime()
+      })
+    }
+    return list.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+  }, [allPatients, filterType])
 
-  const newlyRegisteredPatients = useMemo(() => {
-    return [...allPatients]
-      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
-      .slice(0, 8)
-  }, [allPatients])
+  const totalPages = Math.ceil(filteredPatients.length / itemsPerPage) || 1
+  const paginatedPatients = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return filteredPatients.slice(start, start + itemsPerPage)
+  }, [filteredPatients, currentPage, itemsPerPage])
 
-  const displayedPatients = patientTableView === 'pengukuran_terbaru'
-    ? highestMeasurementPatients
-    : newlyRegisteredPatients
+  const handleFilterChange = (type) => {
+    setFilterType(type)
+    setCurrentPage(1)
+  }
 
   useEffect(() => {
     if (!selectedPatientId) return
@@ -476,46 +529,64 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Tabel Pengukuran Terbaru / Pasien Terbaru */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5 border-b pb-4">
           <div className="flex flex-wrap items-center gap-3">
             <h3 className="text-lg font-bold text-darkNavy">
-              {patientTableView === 'pengukuran_terbaru' ? 'Pengukuran Terbaru Pasien' : 'Pasien Baru Terdaftar'}
+              {filterType === 'pengukuran_tertinggi'
+                ? 'Pengukuran Tertinggi Pasien'
+                : filterType === 'pengukuran_terendah'
+                ? 'Pengukuran Terendah Pasien'
+                : 'Pasien Baru Terdaftar'}
             </h3>
 
-            {/* Switcher / Swipe Tab */}
-            <div className="flex items-center bg-slate-100 p-1 rounded-xl">
+            <div className="flex flex-wrap items-center bg-slate-100 p-1 rounded-xl gap-1">
               <button
                 type="button"
-                onClick={() => setPatientTableView('pengukuran_terbaru')}
+                onClick={() => handleFilterChange('pengukuran_tertinggi')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                  patientTableView === 'pengukuran_terbaru'
+                  filterType === 'pengukuran_tertinggi'
                     ? 'bg-white text-primaryBlue shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <FaHeartbeat size={13} className={patientTableView === 'pengukuran_terbaru' ? 'text-primaryBlue' : 'text-slate-500'} />
-                <span>Pengukuran Terbaru (Tertinggi)</span>
+                <FaSortAmountDown size={12} className={filterType === 'pengukuran_tertinggi' ? 'text-primaryBlue' : 'text-slate-500'} />
+                <span>Pengukuran Tertinggi</span>
               </button>
+
               <button
                 type="button"
-                onClick={() => setPatientTableView('pasien_terbaru')}
+                onClick={() => handleFilterChange('pengukuran_terendah')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-                  patientTableView === 'pasien_terbaru'
+                  filterType === 'pengukuran_terendah'
                     ? 'bg-white text-primaryBlue shadow-sm'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <FaUsers size={13} className={patientTableView === 'pasien_terbaru' ? 'text-primaryBlue' : 'text-slate-500'} />
+                <FaSortAmountUp size={12} className={filterType === 'pengukuran_terendah' ? 'text-primaryBlue' : 'text-slate-500'} />
+                <span>Pengukuran Terendah</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleFilterChange('pasien_terbaru')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  filterType === 'pasien_terbaru'
+                    ? 'bg-white text-primaryBlue shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <FaUsers size={12} className={filterType === 'pasien_terbaru' ? 'text-primaryBlue' : 'text-slate-500'} />
                 <span>Pasien Terbaru</span>
               </button>
             </div>
           </div>
 
           <span className="text-xs text-slate-500">
-            {patientTableView === 'pengukuran_terbaru'
+            {filterType === 'pengukuran_tertinggi'
               ? 'Diurutkan dari kadar glukosa tertinggi ke terendah'
+              : filterType === 'pengukuran_terendah'
+              ? 'Diurutkan dari kadar glukosa terendah ke tertinggi'
               : 'Diurutkan dari tanggal registrasi terbaru'}
           </span>
         </div>
@@ -527,112 +598,147 @@ export default function DashboardPage() {
                 <th className="py-3 font-medium">Nama Pasien</th>
                 <th className="py-3 font-medium">Usia</th>
                 <th className="py-3 font-medium">BMI</th>
-                <th className="py-3 font-medium">
-                  {patientTableView === 'pengukuran_terbaru' ? 'Hasil Glukosa Terkini' : 'Glukosa Terakhir'}
-                </th>
-                <th className="py-3 font-medium">Status Klinis</th>
+                <th className="py-3 font-medium">Kadar Glukosa</th>
+                <th className="py-3 font-medium">Risiko Diabetes</th>
                 <th className="py-3 font-medium text-right">Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {displayedPatients.map((patient) => {
-                const glucose = patient.latest_glucose !== null && patient.latest_glucose !== undefined
-                  ? Number(patient.latest_glucose)
-                  : null
+              {paginatedPatients.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-10 text-center text-slate-400 text-sm">
+                    Tidak ada data pasien yang ditemukan.
+                  </td>
+                </tr>
+              ) : (
+                paginatedPatients.map((patient) => {
+                  const glucose = patient.latest_glucose !== null && patient.latest_glucose !== undefined
+                    ? Number(patient.latest_glucose)
+                    : null
 
-                const status = glucose
-                  ? (glucose > 200 ? 'Hiperglikemia' : glucose < 70 ? 'Hipoglikemia' : glucose >= 140 ? 'Waspada' : 'Normal')
-                  : 'Belum Ada'
+                  const risk = getDiabetesRisk(patient)
+                  const isCurrentlySelected = selectedPatientId === patient.id
 
-                const statusColor = glucose
-                  ? (glucose > 200
-                      ? 'text-red-700 bg-red-50 border border-red-200'
-                      : glucose < 70
-                      ? 'text-amber-700 bg-amber-50 border border-amber-200'
-                      : glucose >= 140
-                      ? 'text-orange-700 bg-orange-50 border border-orange-200'
-                      : 'text-emerald-700 bg-emerald-50 border border-emerald-200')
-                  : 'text-gray-400 bg-gray-50 border border-gray-200'
-
-                const isCurrentlySelected = selectedPatientId === patient.id
-
-                return (
-                  <tr
-                    key={patient.id}
-                    className={`border-b border-lineGray transition ${
-                      isCurrentlySelected ? 'bg-blue-50/50' : 'hover:bg-slate-50/80'
-                    }`}
-                  >
-                    <td className="py-3.5 font-bold text-slate-900">
-                      <div className="flex items-center gap-2">
-                        <span>{patient.name}</span>
-                        {patientTableView === 'pengukuran_terbaru' && glucose && glucose > 200 && (
-                          <span className="w-2 h-2 rounded-full bg-red-500" title="Kadar Gula Kritis (Tinggi)" />
+                  return (
+                    <tr
+                      key={patient.id}
+                      className={`border-b border-lineGray transition ${
+                        isCurrentlySelected ? 'bg-blue-50/50' : 'hover:bg-slate-50/80'
+                      }`}
+                    >
+                      <td className="py-3.5 font-bold text-slate-900">
+                        <div className="flex items-center gap-2">
+                          <span>{patient.name}</span>
+                          {glucose && glucose > 200 && (
+                            <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" title="Kadar Gula Kritis (Tinggi)" />
+                          )}
+                        </div>
+                        {patient.latest_measurement_at && (
+                          <span className="text-[11px] text-slate-400 font-normal block mt-0.5">
+                            Ukur: {format(new Date(patient.latest_measurement_at), 'dd MMM yyyy, HH:mm', { locale: id })} WIB
+                          </span>
                         )}
-                      </div>
-                      {patient.latest_measurement_at && (
-                        <span className="text-[11px] text-slate-400 font-normal block mt-0.5">
-                          Ukur: {format(new Date(patient.latest_measurement_at), 'dd MMM yyyy, HH:mm', { locale: id })} WIB
+                      </td>
+                      <td className="py-3.5 text-sm text-slate-600">{patient.age ? `${patient.age} th` : '—'}</td>
+                      <td className="py-3.5 text-sm text-slate-600">{patient.bmi || '—'}</td>
+                      <td className="py-3.5 text-sm font-extrabold">
+                        {glucose !== null ? (
+                          <span className={glucose > 200 ? 'text-red-600 text-base' : glucose < 70 ? 'text-amber-600 text-base' : 'text-emerald-600 text-base'}>
+                            {glucose.toFixed(1)} <span className="text-xs font-semibold text-slate-500">mg/dL</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-normal">—</span>
+                        )}
+                      </td>
+                      <td className="py-3.5">
+                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${risk.badgeClass}`}>
+                          {risk.level}
                         </span>
-                      )}
-                    </td>
-                    <td className="py-3.5 text-sm text-slate-600">{patient.age} th</td>
-                    <td className="py-3.5 text-sm text-slate-600">{patient.bmi || '—'}</td>
-                    <td className="py-3.5 text-sm font-extrabold">
-                      {glucose ? (
-                        <span className={glucose > 200 ? 'text-red-600 text-base' : glucose < 70 ? 'text-amber-600 text-base' : 'text-emerald-600 text-base'}>
-                          {glucose.toFixed(1)} <span className="text-xs font-semibold text-slate-500">mg/dL</span>
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 font-normal">—</span>
-                      )}
-                    </td>
-                    <td className="py-3.5">
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusColor}`}>
-                        {status}
-                      </span>
-                    </td>
-                    <td className="py-3.5 text-right space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedPatientId(patient.id)
-                          setChartView('patient_daily')
-                          window.scrollTo({ top: 180, behavior: 'smooth' })
-                        }}
-                        className={`text-xs px-2.5 py-1.5 rounded-lg font-bold transition inline-flex items-center gap-1.5 ${
-                          isCurrentlySelected
-                            ? 'bg-primaryBlue text-white shadow-sm'
-                            : 'bg-slate-100 text-primaryBlue hover:bg-blue-100'
-                        }`}
-                        title="Tampilkan grafik harian pasien di panel atas"
-                      >
-                        <FaChartLine size={12} />
-                        <span>{isCurrentlySelected ? 'Dipilih' : 'Grafik'}</span>
-                      </button>
+                      </td>
+                      <td className="py-3.5 text-right space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedPatientId(patient.id)
+                            setChartView('patient_daily')
+                            window.scrollTo({ top: 180, behavior: 'smooth' })
+                          }}
+                          className={`text-xs px-2.5 py-1.5 rounded-lg font-bold transition inline-flex items-center gap-1.5 ${
+                            isCurrentlySelected
+                              ? 'bg-primaryBlue text-white shadow-sm'
+                              : 'bg-slate-100 text-primaryBlue hover:bg-blue-100'
+                          }`}
+                          title="Tampilkan grafik harian pasien di panel atas"
+                        >
+                          <FaChartLine size={12} />
+                          <span>{isCurrentlySelected ? 'Dipilih' : 'Grafik'}</span>
+                        </button>
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigate('/admin/monitoring', {
-                            state: {
-                              patientId: patient.id,
-                              patient
-                            }
-                          })
-                        }}
-                        className="text-xs px-2.5 py-1.5 rounded-lg font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-xs inline-flex items-center gap-1"
-                        title="Inspect monitoring real-time pasien ini"
-                      >
-                        <span>Monitoring</span>
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigate('/admin/monitoring', {
+                              state: {
+                                patientId: patient.id,
+                                patient
+                              }
+                            })
+                          }}
+                          className="text-xs px-2.5 py-1.5 rounded-lg font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-xs inline-flex items-center gap-1"
+                          title="Inspect monitoring real-time pasien ini"
+                        >
+                          <span>Monitoring</span>
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
             </tbody>
           </table>
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-3 mt-5 pt-4 border-t border-slate-100 text-sm">
+            <p className="text-xs sm:text-sm text-textSecondary">
+              Menampilkan <span className="font-semibold text-slate-800">{filteredPatients.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}</span> - <span className="font-semibold text-slate-800">{Math.min(currentPage * itemsPerPage, filteredPatients.length)}</span> dari <span className="font-semibold text-slate-800">{filteredPatients.length}</span> pasien
+            </p>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-2 rounded-lg border border-lineGray disabled:opacity-30 hover:bg-gray-50 transition text-slate-600"
+                title="Halaman Sebelumnya"
+              >
+                <FaChevronLeft size={12} />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-8 h-8 rounded-lg text-xs font-bold transition ${
+                    currentPage === page
+                      ? 'bg-primaryBlue text-white shadow-sm'
+                      : 'border border-lineGray hover:bg-gray-50 text-slate-700'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-2 rounded-lg border border-lineGray disabled:opacity-30 hover:bg-gray-50 transition text-slate-600"
+                title="Halaman Selanjutnya"
+              >
+                <FaChevronRight size={12} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
