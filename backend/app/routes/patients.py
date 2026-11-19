@@ -73,7 +73,14 @@ def get_patients(identity):
                        WHERE m.patient_id = u.id 
                        ORDER BY m.created_at DESC 
                        LIMIT 1
-                   ) AS latest_measurement_at
+                   ) AS latest_measurement_at,
+                   (
+                       SELECT pr.risk_level 
+                       FROM predictions_risk pr 
+                       WHERE pr.patient_id = u.id 
+                       ORDER BY pr.created_at DESC 
+                       LIMIT 1
+                   ) AS risk_level
             FROM users u
             LEFT JOIN tenaga_medis tm ON u.tenaga_medis_id = tm.id
             WHERE u.role = 'pasien'
@@ -87,6 +94,7 @@ def get_patients(identity):
             p['latest_glucose'] = float(p['latest_glucose']) if p.get('latest_glucose') is not None else None
             p['latest_measurement_at'] = p['latest_measurement_at'].isoformat() if p.get('latest_measurement_at') else None
             p['created_at'] = p['created_at'].isoformat() if p['created_at'] else None
+            p['risk_level'] = str(p['risk_level']).lower() if p.get('risk_level') is not None else None
         return jsonify(patients)
     except Exception as e:
         conn.rollback()
@@ -139,7 +147,14 @@ def get_patient(identity, id):
                        WHERE m.patient_id = u.id 
                        ORDER BY m.created_at DESC 
                        LIMIT 1
-                   ) AS latest_measurement_at
+                   ) AS latest_measurement_at,
+                   (
+                       SELECT pr.risk_level 
+                       FROM predictions_risk pr 
+                       WHERE pr.patient_id = u.id 
+                       ORDER BY pr.created_at DESC 
+                       LIMIT 1
+                   ) AS risk_level
             FROM users u
             LEFT JOIN tenaga_medis tm ON u.tenaga_medis_id = tm.id
             WHERE u.id = %s AND u.role = 'pasien'
@@ -153,6 +168,7 @@ def get_patient(identity, id):
         patient['latest_glucose'] = float(patient['latest_glucose']) if patient.get('latest_glucose') is not None else None
         patient['latest_measurement_at'] = patient['latest_measurement_at'].isoformat() if patient.get('latest_measurement_at') else None
         patient['created_at'] = patient['created_at'].isoformat() if patient['created_at'] else None
+        patient['risk_level'] = str(patient['risk_level']).lower() if patient.get('risk_level') is not None else None
         return jsonify(patient)
     except Exception as e:
         conn.rollback()
