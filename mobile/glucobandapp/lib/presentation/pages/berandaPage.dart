@@ -14,6 +14,8 @@ import 'homePage.dart';
 import 'measurementHistoryPage.dart';
 import '../../services/espService.dart';
 import '../widgets/deviceConfigDialog.dart';
+import '../../core/utils/glucoseStatus.dart';
+import '../../data/models/measurementModel.dart';
 
 class BerandaPage extends StatefulWidget {
   const BerandaPage({super.key});
@@ -347,35 +349,53 @@ class _BerandaPageState extends State<BerandaPage> {
                         child: Row(
                           children: [
                             Expanded(
-                              child: _buildStatCard(
+                              child: _buildInteractiveStatCard(
                                 title: 'GLUCOSE AVG',
+                                icon: Icons.water_drop_rounded,
+                                iconColor: const Color(0xFF613EEA),
                                 value: measurement.glucoseAvg > 0
                                     ? measurement.glucoseAvg.toStringAsFixed(0)
                                     : '--',
                                 unit: ' mg/dL',
-                                child: _buildMiniBarChart(measurement.miniBarHeights),
+                                statusBadge: GlucoseStatusHelper.getLabel(measurement.glucoseAvg),
+                                statusColor: GlucoseStatusHelper.getColor(measurement.glucoseAvg),
+                                statusBg: GlucoseStatusHelper.getBgColor(measurement.glucoseAvg),
+                                metricType: 'glucose',
+                                measurements: measurement.recentMeasurements,
                               ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: _buildStatCard(
+                              child: _buildInteractiveStatCard(
                                 title: 'BPM AVG',
+                                icon: Icons.favorite_rounded,
+                                iconColor: const Color(0xFFEF4444),
                                 value: measurement.heartRateAvg > 0
                                     ? '${measurement.heartRateAvg}'
                                     : '--',
                                 unit: ' BPM',
-                                child: _buildMiniLineChart(measurement.bpmSpots),
+                                statusBadge: GlucoseStatusHelper.getBpmLabel(measurement.heartRateAvg),
+                                statusColor: GlucoseStatusHelper.getBpmColor(measurement.heartRateAvg),
+                                statusBg: GlucoseStatusHelper.getBpmColor(measurement.heartRateAvg).withValues(alpha: 0.12),
+                                metricType: 'bpm',
+                                measurements: measurement.recentMeasurements,
                               ),
                             ),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: _buildStatCard(
+                              child: _buildInteractiveStatCard(
                                 title: 'SUHU AVG',
+                                icon: Icons.thermostat_rounded,
+                                iconColor: const Color(0xFF0D9488),
                                 value: measurement.tempAvg > 0
                                     ? measurement.tempAvg.toStringAsFixed(1)
                                     : '--',
                                 unit: ' °C',
-                                child: _buildMiniTempChart(measurement.tempHeights),
+                                statusBadge: GlucoseStatusHelper.getTempLabel(measurement.tempAvg),
+                                statusColor: GlucoseStatusHelper.getTempColor(measurement.tempAvg),
+                                statusBg: GlucoseStatusHelper.getTempColor(measurement.tempAvg).withValues(alpha: 0.12),
+                                metricType: 'temp',
+                                measurements: measurement.recentMeasurements,
                               ),
                             ),
                           ],
@@ -590,27 +610,10 @@ class _BerandaPageState extends State<BerandaPage> {
                       Builder(
                         builder: (context) {
                           final double currentGlucose = measurement.latestGlucose;
-                          String statusLabel = 'Normal';
-                          Color statusColor = const Color(0xFF059669);
-                          Color statusBgColor = const Color(0xFF10B981).withValues(alpha: 0.18);
-                          String rangeSubtitle = '70-120 range (Normal)';
-
-                          if (currentGlucose > 200) {
-                            statusLabel = 'Hiperglikemia';
-                            statusColor = const Color(0xFFDC2626);
-                            statusBgColor = const Color(0xFFEF4444).withValues(alpha: 0.18);
-                            rangeSubtitle = '> 200 mg/dL (Tinggi)';
-                          } else if (currentGlucose < 70 && currentGlucose > 0) {
-                            statusLabel = 'Hipoglikemia';
-                            statusColor = const Color(0xFFD97706);
-                            statusBgColor = const Color(0xFFF59E0B).withValues(alpha: 0.18);
-                            rangeSubtitle = '< 70 mg/dL (Rendah)';
-                          } else if (currentGlucose <= 0) {
-                            statusLabel = 'Belum Ada';
-                            statusColor = const Color(0xFF64748B);
-                            statusBgColor = const Color(0xFF94A3B8).withValues(alpha: 0.18);
-                            rangeSubtitle = 'Belum ada pengukuran';
-                          }
+                          final statusColor = GlucoseStatusHelper.getColor(currentGlucose);
+                          final statusBgColor = GlucoseStatusHelper.getBgColor(currentGlucose);
+                          final statusLabel = GlucoseStatusHelper.getLabel(currentGlucose);
+                          final rangeSubtitle = GlucoseStatusHelper.getSubtitle(currentGlucose);
 
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -620,11 +623,19 @@ class _BerandaPageState extends State<BerandaPage> {
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(24),
+                                border: Border.all(
+                                  color: currentGlucose > 200
+                                      ? const Color(0xFFEF4444).withValues(alpha: 0.25)
+                                      : (currentGlucose < 70 && currentGlucose > 0
+                                          ? const Color(0xFFF59E0B).withValues(alpha: 0.25)
+                                          : const Color(0xFFF1F5F9)),
+                                  width: currentGlucose > 200 || (currentGlucose < 70 && currentGlucose > 0) ? 1.5 : 1.0,
+                                ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.02),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
+                                    color: statusColor.withValues(alpha: 0.06),
+                                    blurRadius: 14,
+                                    offset: const Offset(0, 6),
                                   ),
                                 ],
                               ),
@@ -645,10 +656,10 @@ class _BerandaPageState extends State<BerandaPage> {
                                                 currentGlucose > 0
                                                     ? currentGlucose.toStringAsFixed(1)
                                                     : '--',
-                                                style: const TextStyle(
+                                                style: TextStyle(
                                                   fontSize: 48,
                                                   fontWeight: FontWeight.w800,
-                                                  color: Color(0xFF1E293B),
+                                                  color: currentGlucose > 0 ? statusColor : const Color(0xFF1E293B),
                                                   letterSpacing: -1,
                                                 ),
                                               ),
@@ -665,7 +676,7 @@ class _BerandaPageState extends State<BerandaPage> {
                                           ),
                                           const SizedBox(height: 4),
                                           const Text(
-                                            'CURRENT GLUCOSE LEVEL',
+                                            'LEVEL GLUKOSA SAAT INI',
                                             style: TextStyle(
                                               fontSize: 10,
                                               color: Color(0xFF94A3B8),
@@ -687,14 +698,31 @@ class _BerandaPageState extends State<BerandaPage> {
                                             decoration: BoxDecoration(
                                               color: statusBgColor,
                                               borderRadius: BorderRadius.circular(20),
-                                            ),
-                                            child: Text(
-                                              statusLabel,
-                                              style: TextStyle(
-                                                color: statusColor,
-                                                fontWeight: FontWeight.w700,
-                                                fontSize: 13,
+                                              border: Border.all(
+                                                color: statusColor.withValues(alpha: 0.3),
                                               ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Container(
+                                                  width: 7,
+                                                  height: 7,
+                                                  decoration: BoxDecoration(
+                                                    color: statusColor,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 6),
+                                                Text(
+                                                  statusLabel,
+                                                  style: TextStyle(
+                                                    color: statusColor,
+                                                    fontWeight: FontWeight.w700,
+                                                    fontSize: 13,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                           const SizedBox(height: 6),
@@ -710,10 +738,51 @@ class _BerandaPageState extends State<BerandaPage> {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 30),
+                                  const SizedBox(height: 20),
+
+                                  // METERAN INDIKATOR GAUGE INTERAKTIF
+                                  _buildGlucoseMeter(currentGlucose, statusColor),
+
+                                  const SizedBox(height: 24),
+
+                                  // HEADER TREN GRAFIK INTERAKTIF
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'Tren Riwayat (${measurement.timeFilter})',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: Color(0xFF64748B),
+                                        ),
+                                      ),
+                                      const Row(
+                                        children: [
+                                          Icon(Icons.touch_app_outlined, size: 12, color: Color(0xFF94A3B8)),
+                                          SizedBox(width: 3),
+                                          Text(
+                                            'Sentuh titik untuk detail',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w500,
+                                              color: Color(0xFF94A3B8),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 10),
+
+                                  // GRAFIK LINE CHART INTERAKTIF
                                   SizedBox(
-                                    height: 100,
-                                    child: _buildMainChart(measurement.mainChartSpots),
+                                    height: 110,
+                                    child: _buildMainChart(
+                                      measurement.mainChartSpots,
+                                      measurement.mainChartMeasurements,
+                                      statusColor,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -893,115 +962,349 @@ class _BerandaPageState extends State<BerandaPage> {
     );
   }
 
-  Widget _buildStatCard({required String title, required String value, required String unit, required Widget child}) {
+  Widget _buildInteractiveStatCard({
+    required String title,
+    required IconData icon,
+    required Color iconColor,
+    required String value,
+    required String unit,
+    required String statusBadge,
+    required Color statusColor,
+    required Color statusBg,
+    required String metricType,
+    required List<MeasurementModel> measurements,
+  }) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
+        border: Border.all(color: const Color(0xFFF1F5F9)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 10, color: Color(0xFF64748B), fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-          const SizedBox(height: 8),
+          // Header Judul & Icon
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    color: Color(0xFF64748B),
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.4,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(icon, size: 13, color: iconColor),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Nilai Rata-rata & Satuan
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF1E293B))),
-              Text(unit, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(width: 2),
+              Text(
+                unit,
+                style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 16),
-          SizedBox(height: 40, child: child),
+          const SizedBox(height: 4),
+
+          // Chip Status Ringkas
+          if (value != '--')
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+              decoration: BoxDecoration(
+                color: statusBg,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                statusBadge,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  color: statusColor,
+                ),
+              ),
+            )
+          else
+            const SizedBox(height: 15),
+
+          const SizedBox(height: 10),
+
+          // Diagram Batang Interaktif Seragam
+          SizedBox(
+            height: 44,
+            child: _buildMiniBarChartWidget(metricType, measurements),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildMiniBarChart(List<double> heights) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: heights.map((h) {
-        Color barColor = const Color(0xFF613EEA);
-        if (h >= 32) {
-          barColor = const Color(0xFFEF4444);
-        } else if (h <= 18) {
-          barColor = const Color(0xFFF59E0B);
-        }
-        return _bar(h, barColor);
-      }).toList(),
-    );
-  }
-  
-  Widget _bar(double height, Color color) {
-    return Container(
-      width: 6,
-      height: height,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(4),
-      ),
-    );
-  }
+  Widget _buildMiniBarChartWidget(
+    String metricType,
+    List<MeasurementModel> measurements,
+  ) {
+    if (measurements.isEmpty) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: List.generate(
+          4,
+          (_) => Container(
+            width: 6,
+            height: 14,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE2E8F0),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+        ),
+      );
+    }
 
-  Widget _buildMiniLineChart(List<FlSpot> spots) {
-    return LineChart(
-      LineChartData(
+    final List<BarChartGroupData> barGroups = [];
+    double maxY = 100.0;
+
+    for (int i = 0; i < measurements.length; i++) {
+      final m = measurements[i];
+      double toY = 0.0;
+      Color barColor = const Color(0xFF613EEA);
+
+      if (metricType == 'glucose') {
+        toY = m.glucoseEstimated;
+        barColor = GlucoseStatusHelper.getColor(m.glucoseEstimated);
+        if (toY > maxY) maxY = toY;
+      } else if (metricType == 'bpm') {
+        toY = m.ppgHeartRate.toDouble();
+        barColor = GlucoseStatusHelper.getBpmColor(m.ppgHeartRate);
+        if (toY > maxY) maxY = toY;
+      } else {
+        final temp = m.skinTempCelsius;
+        toY = temp > 0
+            ? ((temp - 34.0) / (40.0 - 34.0) * 35.0 + 8.0).clamp(6.0, 42.0)
+            : 0.0;
+        barColor = GlucoseStatusHelper.getTempColor(temp);
+        maxY = 45.0;
+      }
+
+      barGroups.add(
+        BarChartGroupData(
+          x: i,
+          barRods: [
+            BarChartRodData(
+              toY: toY > 0 ? toY : 3.0,
+              color: toY > 0 ? barColor : const Color(0xFFE2E8F0),
+              width: 7,
+              borderRadius: BorderRadius.circular(4),
+              backDrawRodData: BackgroundBarChartRodData(
+                show: true,
+                toY: maxY > 0 ? maxY : 100.0,
+                color: const Color(0xFFF8FAFC),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return BarChart(
+      BarChartData(
+        maxY: maxY > 0 ? maxY * 1.15 : 100.0,
+        minY: 0,
         gridData: const FlGridData(show: false),
         titlesData: const FlTitlesData(show: false),
         borderData: FlBorderData(show: false),
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            color: const Color(0xFF613EEA),
-            barWidth: 2,
-            isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
+        barTouchData: BarTouchData(
+          enabled: true,
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (_) => const Color(0xFF0F172A),
+            tooltipPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            tooltipMargin: 4,
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              if (group.x >= measurements.length) return null;
+              final m = measurements[group.x];
+              String valStr = '';
+              if (metricType == 'glucose') {
+                valStr = '${m.glucoseEstimated.toStringAsFixed(0)} mg/dL';
+              } else if (metricType == 'bpm') {
+                valStr = m.ppgHeartRate > 0 ? '${m.ppgHeartRate} BPM' : '-- BPM';
+              } else {
+                valStr = m.skinTempCelsius > 0
+                    ? '${m.skinTempCelsius.toStringAsFixed(1)} °C'
+                    : '-- °C';
+              }
+              final timeStr = DateFormat('HH:mm').format(m.createdAt);
+              return BarTooltipItem(
+                '$valStr\n$timeStr',
+                const TextStyle(
+                  color: Colors.white,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  height: 1.2,
+                ),
+              );
+            },
           ),
-        ],
+        ),
+        barGroups: barGroups,
       ),
     );
   }
 
-  Widget _buildMiniTempChart(List<double> heights) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: heights.map((h) {
-        Color barColor = const Color(0xFF10B981); // Hijau normal
-        if (h >= 32) {
-          barColor = const Color(0xFFEF4444); // Hangat / demam
-        } else if (h <= 18) {
-          barColor = const Color(0xFF38BDF8); // Sejuk
-        }
-        return _bar(h, barColor);
-      }).toList(),
-    );
-  }
-
-  Widget _buildMiniFlatChart(double insulinUnits) {
-    final double width = (insulinUnits * 5.0).clamp(12.0, 48.0);
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        width: width,
-        height: 3,
-        decoration: BoxDecoration(
-          color: const Color(0xFF613EEA),
-          borderRadius: BorderRadius.circular(2),
+  Widget _meterZoneBadge(String label, Color color, bool isActive) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isActive ? color.withValues(alpha: 0.18) : Colors.transparent,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isActive ? color.withValues(alpha: 0.6) : Colors.transparent,
+          width: 1,
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+          color: isActive ? color : const Color(0xFF94A3B8),
         ),
       ),
     );
   }
 
-  Widget _buildMainChart(List<FlSpot> spots) {
+  Widget _buildGlucoseMeter(double currentGlucose, Color statusColor) {
+    final double fraction = GlucoseStatusHelper.getMeterFraction(currentGlucose);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Baris Label Zona Meter
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _meterZoneBadge('< 70 Hipo', const Color(0xFFF59E0B), currentGlucose < 70 && currentGlucose > 0),
+            _meterZoneBadge('70-140 Normal', const Color(0xFF10B981), currentGlucose >= 70 && currentGlucose <= 140),
+            _meterZoneBadge('140-200 Waspada', const Color(0xFFF97316), currentGlucose > 140 && currentGlucose <= 200),
+            _meterZoneBadge('> 200 Hiper', const Color(0xFFEF4444), currentGlucose > 200),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Batang Meteran Bersegmen
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final totalWidth = constraints.maxWidth;
+            final pointerX = (fraction * (totalWidth - 14)).clamp(0.0, totalWidth - 14);
+
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // 4 Segmen Warna Meter
+                Container(
+                  height: 8,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Row(
+                    children: [
+                      // Hipo: < 70 (30 / 260 ≈ 15%)
+                      Expanded(
+                        flex: 15,
+                        child: Container(color: const Color(0xFFF59E0B)),
+                      ),
+                      const SizedBox(width: 2),
+                      // Normal: 70 - 140 (70 / 260 ≈ 35%)
+                      Expanded(
+                        flex: 35,
+                        child: Container(color: const Color(0xFF10B981)),
+                      ),
+                      const SizedBox(width: 2),
+                      // Waspada: 140 - 200 (60 / 260 ≈ 25%)
+                      Expanded(
+                        flex: 25,
+                        child: Container(color: const Color(0xFFF97316)),
+                      ),
+                      const SizedBox(width: 2),
+                      // Hiper: > 200 (60 / 260 ≈ 25%)
+                      Expanded(
+                        flex: 25,
+                        child: Container(color: const Color(0xFFEF4444)),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Jarum Penunjuk Meteran (Animated Pointer Indicator)
+                if (currentGlucose > 0)
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 600),
+                    curve: Curves.easeOutBack,
+                    left: pointerX,
+                    top: -4,
+                    child: Container(
+                      width: 14,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: statusColor,
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: statusColor.withValues(alpha: 0.5),
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMainChart(
+    List<FlSpot> spots,
+    List<MeasurementModel> measurements,
+    Color dynamicColor,
+  ) {
     if (spots.isEmpty) {
       return Center(
         child: Text(
@@ -1015,17 +1318,59 @@ class _BerandaPageState extends State<BerandaPage> {
       );
     }
 
+    double minY = 40.0;
+    double maxY = 250.0;
+    for (final spot in spots) {
+      if (spot.y < minY) minY = (spot.y - 15).clamp(20.0, 400.0);
+      if (spot.y > maxY) maxY = (spot.y + 25).clamp(160.0, 450.0);
+    }
+
     return LineChart(
       LineChartData(
+        minY: minY,
+        maxY: maxY,
+        lineTouchData: LineTouchData(
+          enabled: true,
+          handleBuiltInTouches: true,
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (_) => const Color(0xFF0F172A),
+            tooltipPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            tooltipMargin: 8,
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((barSpot) {
+                final idx = barSpot.x.toInt();
+                String timeStr = '';
+                String condStr = '';
+                if (idx >= 0 && idx < measurements.length) {
+                  final m = measurements[idx];
+                  timeStr = DateFormat('HH:mm').format(m.createdAt);
+                  condStr = GlucoseStatusHelper.getLabel(m.glucoseEstimated);
+                }
+                return LineTooltipItem(
+                  '${barSpot.y.toStringAsFixed(1)} mg/dL\n$timeStr • $condStr',
+                  const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    height: 1.3,
+                  ),
+                );
+              }).toList();
+            },
+          ),
+        ),
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: 25,
+          horizontalInterval: 50,
           getDrawingHorizontalLine: (value) {
+            final isTargetRange = (value == 70 || value == 140);
             return FlLine(
-              color: Colors.grey.withValues(alpha: 0.15),
-              strokeWidth: 1,
-              dashArray: [5, 5],
+              color: isTargetRange
+                  ? const Color(0xFF10B981).withValues(alpha: 0.35)
+                  : Colors.grey.withValues(alpha: 0.12),
+              strokeWidth: isTargetRange ? 1.5 : 1,
+              dashArray: isTargetRange ? [4, 4] : [5, 5],
             );
           },
         ),
@@ -1035,16 +1380,27 @@ class _BerandaPageState extends State<BerandaPage> {
           LineChartBarData(
             spots: spots,
             isCurved: true,
-            color: const Color(0xFF613EEA),
-            barWidth: 3,
+            curveSmoothness: 0.35,
+            color: dynamicColor,
+            barWidth: 3.5,
             isStrokeCapRound: true,
-            dotData: const FlDotData(show: false),
+            dotData: FlDotData(
+              show: spots.length <= 15,
+              getDotPainter: (spot, percent, barData, index) {
+                return FlDotCirclePainter(
+                  radius: 4,
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                  strokeColor: dynamicColor,
+                );
+              },
+            ),
             belowBarData: BarAreaData(
               show: true,
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF613EEA).withValues(alpha: 0.15),
-                  const Color(0xFF613EEA).withValues(alpha: 0.01),
+                  dynamicColor.withValues(alpha: 0.22),
+                  dynamicColor.withValues(alpha: 0.01),
                 ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,

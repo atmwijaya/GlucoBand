@@ -10,7 +10,7 @@ class MeasurementProvider extends ChangeNotifier {
   List<MeasurementModel> _measurements = [];
   bool _isLoading = false;
   String? _errorMessage;
-  String _timeFilter = 'Day'; // Pilihan: '6 Jam', 'Day', 'Weekly'
+  String _timeFilter = '6 Jam'; // Pilihan: '6 Jam', 'Harian', 'Mingguan'
   double _liveGlucose = 0.0;
 
   // Getters
@@ -27,18 +27,16 @@ class MeasurementProvider extends ChangeNotifier {
     DateTime cutoff;
     if (_timeFilter == '6 Jam') {
       cutoff = now.subtract(const Duration(hours: 6));
-    } else if (_timeFilter == 'Day') {
+    } else if (_timeFilter == 'Harian' || _timeFilter == 'Day') {
       cutoff = now.subtract(const Duration(hours: 24));
     } else {
-      // 'Weekly'
+      // 'Mingguan' / 'Weekly'
       cutoff = now.subtract(const Duration(days: 7));
     }
 
     final filtered = _measurements
         .where((m) => m.createdAt.isAfter(cutoff))
         .toList();
-    // Jika tidak ada data di rentang ketat (misal baru pertama kali testing),
-    // kita sediakan seluruh data jika rentang diperlebar agar grafik tidak kosong total
     return filtered;
   }
 
@@ -113,6 +111,36 @@ class MeasurementProvider extends ChangeNotifier {
       (prev, m) => prev + m.skinTempCelsius,
     );
     return double.parse((sum / validTemps.length).toStringAsFixed(1));
+  }
+
+  /// Daftar model pengukuran yang ditampilkan pada grafik utama (kronologis)
+  List<MeasurementModel> get mainChartMeasurements {
+    final sourceList = filteredMeasurements.isNotEmpty
+        ? filteredMeasurements
+        : _measurements;
+    if (sourceList.isEmpty) return [];
+
+    final chronological = List<MeasurementModel>.from(sourceList)
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+    return chronological.length > 15
+        ? chronological.sublist(chronological.length - 15)
+        : chronological;
+  }
+
+  /// Daftar hingga 6 pengukuran terbaru (kronologis) untuk diagram batang statistik interaktif
+  List<MeasurementModel> get recentMeasurements {
+    final sourceList = filteredMeasurements.isNotEmpty
+        ? filteredMeasurements
+        : _measurements;
+    if (sourceList.isEmpty) return [];
+
+    final chronological = List<MeasurementModel>.from(sourceList)
+      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+
+    return chronological.length > 6
+        ? chronological.sublist(chronological.length - 6)
+        : chronological;
   }
 
   /// Titik-titik grafik utama (Status Terkini) berdasarkan riwayat kronologis
