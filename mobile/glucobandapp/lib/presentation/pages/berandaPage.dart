@@ -15,6 +15,7 @@ import 'measurementHistoryPage.dart';
 import '../../services/espService.dart';
 import '../widgets/deviceConfigDialog.dart';
 import '../widgets/glucoseChart.dart';
+import '../widgets/offlineBanner.dart';
 import '../../core/utils/glucoseStatus.dart';
 import '../../data/models/measurementModel.dart';
 
@@ -30,6 +31,9 @@ class _BerandaPageState extends State<BerandaPage> {
   String _deviceSsid = 'GlucoBand (ESP32)';
   String _deviceIp = '192.168.4.1';
   String _batteryText = 'Optimal';
+  bool _isPluggedIn = true;
+  int? _batteryPercent;
+  double? _batteryVoltage;
   Timer? _deviceTimer;
   String _glucoseTimeFilter = '1 Hari';
 
@@ -52,6 +56,101 @@ class _BerandaPageState extends State<BerandaPage> {
     super.dispose();
   }
 
+  /// Menghitung persentase baterai lithium 1S (3.20V - 4.20V) secara realtime
+  int _calculateLithiumPercentage(double voltage) {
+    if (voltage >= 4.20) return 100;
+    if (voltage <= 3.20) return 0;
+
+    // Aproksimasi kurva Open Circuit Voltage (OCV) sel Lithium 3.7V nominal / 4.2V max
+    if (voltage >= 4.05) {
+      return (90 + ((voltage - 4.05) / 0.15) * 10).round().clamp(0, 100);
+    } else if (voltage >= 3.90) {
+      return (75 + ((voltage - 3.90) / 0.15) * 15).round().clamp(0, 100);
+    } else if (voltage >= 3.80) {
+      return (55 + ((voltage - 3.80) / 0.10) * 20).round().clamp(0, 100);
+    } else if (voltage >= 3.70) {
+      return (35 + ((voltage - 3.70) / 0.10) * 20).round().clamp(0, 100);
+    } else if (voltage >= 3.60) {
+      return (20 + ((voltage - 3.60) / 0.10) * 15).round().clamp(0, 100);
+    } else if (voltage >= 3.45) {
+      return (10 + ((voltage - 3.45) / 0.15) * 10).round().clamp(0, 100);
+    } else {
+      return (((voltage - 3.20) / 0.25) * 10).round().clamp(0, 100);
+    }
+  }
+
+  IconData _getBatteryIcon() {
+    if (_isPluggedIn) {
+      return Icons.battery_charging_full_rounded;
+    }
+    final pct = _batteryPercent ?? 100;
+    if (pct >= 90) return Icons.battery_full_rounded;
+    if (pct >= 75) return Icons.battery_6_bar_rounded;
+    if (pct >= 55) return Icons.battery_5_bar_rounded;
+    if (pct >= 40) return Icons.battery_4_bar_rounded;
+    if (pct >= 25) return Icons.battery_3_bar_rounded;
+    if (pct >= 15) return Icons.battery_2_bar_rounded;
+    if (pct >= 5) return Icons.battery_1_bar_rounded;
+    return Icons.battery_alert_rounded;
+  }
+
+  Color _getBatteryColor() {
+    if (_isPluggedIn) {
+      return const Color(0xFF059669);
+    }
+    final pct = _batteryPercent ?? 100;
+    if (pct > 25) return const Color(0xFF059669);
+    if (pct > 10) return const Color(0xFFD97706);
+    return const Color(0xFFDC2626);
+  }
+
+  Widget _buildBatteryIndicator() {
+    final battColor = _getBatteryColor();
+    final battIcon = _getBatteryIcon();
+
+    return Tooltip(
+      message: _isPluggedIn
+          ? 'Sumber Daya: Colokan Listrik / Adaptor (Status: Optimal)'
+          : 'Sumber Daya: Baterai Lithium (${_batteryText}${_batteryVoltage != null ? ' • ${_batteryVoltage!.toStringAsFixed(2)}V' : ''})',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+        decoration: BoxDecoration(
+          color: battColor.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: battColor.withValues(alpha: 0.22),
+            width: 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Posisi baterai dibuat miring / horizontal (RotatedBox quarterTurns: 1)
+            RotatedBox(
+              quarterTurns: 1,
+              child: Icon(
+                battIcon,
+                size: 13,
+                color: battColor,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _batteryText,
+              style: TextStyle(
+                color: battColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _checkDeviceStatus() async {
     try {
       final status = await EspService.checkStatus();
@@ -63,14 +162,85 @@ class _BerandaPageState extends State<BerandaPage> {
             : status['ap_ssid'] ?? 'GlucoBand-Setup';
         _deviceSsid = '$ssid';
         _deviceIp = status['ip'] ?? _deviceIp;
+
+        // Cek sumber daya: colokan vs baterai lithium
+        final powerSource = status['power_source']?.toString().toLowerCase();
         final rawBatt = status['battery'] ?? status['battery_level'];
-        _batteryText = rawBatt != null ? '$rawBatt%' : 'Optimal';
+        final rawVolt = status['battery_voltage'] ?? status['voltage'];
+
+        if (rawVolt is num) {
+          _batteryVoltage = rawVolt.toDouble();
+        } else if (rawVolt != null) {
+          _batteryVoltage = double.tryParse(rawVolt.toString());
+        } else {
+          _batteryVoltage = null;
+        }
+
+        final isPlugged = status['is_plugged'] == true ||
+            status['charging'] == true ||
+            status['is_charging'] == true ||
+            powerSource == 'usb' ||
+            powerSource == 'colokan' ||
+            powerSource == 'plugged' ||
+            (_batteryVoltage != null && _batteryVoltage! >= 4.30);
+
+        if (isPlugged) {
+          _isPluggedIn = true;
+          _batteryPercent = null;
+          _batteryText = 'Optimal';
+        } else if (powerSource == 'battery' ||
+            powerSource == 'lithium' ||
+            (!isPlugged && (_batteryVoltage != null || (rawBatt != null && rawBatt.toString().toLowerCase() != 'optimal')))) {
+          // Baterai Lithium: hitung persentase realtime
+          _isPluggedIn = false;
+          if (_batteryVoltage != null) {
+            _batteryPercent = _calculateLithiumPercentage(_batteryVoltage!);
+            _batteryText = '$_batteryPercent%';
+          } else if (rawBatt is num) {
+            _batteryPercent = rawBatt.toInt().clamp(0, 100);
+            _batteryText = '$_batteryPercent%';
+          } else if (rawBatt != null) {
+            final parsed = int.tryParse(rawBatt.toString().replaceAll('%', '').trim());
+            if (parsed != null) {
+              _batteryPercent = parsed.clamp(0, 100);
+              _batteryText = '$_batteryPercent%';
+            } else {
+              _batteryPercent = 85;
+              _batteryText = '85%';
+            }
+          } else {
+            _batteryPercent = 85;
+            _batteryText = '85%';
+          }
+        } else {
+          // Default jika terhubung colokan listrik
+          final rawStr = rawBatt?.toString().trim();
+          if (rawStr != null && rawStr.toLowerCase() != 'optimal') {
+            final parsed = int.tryParse(rawStr.replaceAll('%', '').trim());
+            if (parsed != null) {
+              _isPluggedIn = false;
+              _batteryPercent = parsed.clamp(0, 100);
+              _batteryText = '$_batteryPercent%';
+            } else {
+              _isPluggedIn = true;
+              _batteryPercent = null;
+              _batteryText = 'Optimal';
+            }
+          } else {
+            _isPluggedIn = true;
+            _batteryPercent = null;
+            _batteryText = 'Optimal';
+          }
+        }
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _isDeviceConnected = false;
         _batteryText = '--';
+        _batteryPercent = null;
+        _batteryVoltage = null;
+        _isPluggedIn = false;
       });
     }
   }
@@ -188,6 +358,7 @@ class _BerandaPageState extends State<BerandaPage> {
                   ],
                 ),
               ),
+              const OfflineBanner(),
               Expanded(
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -565,26 +736,8 @@ class _BerandaPageState extends State<BerandaPage> {
                                       ),
                                     ),
                                     if (_isDeviceConnected) ...[
-                                      const SizedBox(height: 4),
-                                      Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(
-                                            Icons.battery_std_rounded,
-                                            size: 13,
-                                            color: Color(0xFF10B981),
-                                          ),
-                                          const SizedBox(width: 2),
-                                          Text(
-                                            _batteryText,
-                                            style: const TextStyle(
-                                              color: Color(0xFF059669),
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+                                      const SizedBox(height: 5),
+                                      _buildBatteryIndicator(),
                                     ],
                                   ],
                                 ),

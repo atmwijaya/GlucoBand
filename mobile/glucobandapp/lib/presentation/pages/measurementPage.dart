@@ -6,6 +6,7 @@ import '../providers/measurementProvider.dart';
 import '../providers/authProvider.dart';
 import '../../services/espService.dart';
 import '../widgets/deviceConfigDialog.dart';
+import '../widgets/offlineBanner.dart';
 import 'measurementResult.dart';
 import 'measurementHistoryPage.dart';
 import '../../services/apiService.dart';
@@ -648,6 +649,8 @@ class _MeasurementPageState extends State<MeasurementPage>
                 ],
               ),
             ),
+
+            const OfflineBanner(),
 
             const SizedBox(height: 16),
 

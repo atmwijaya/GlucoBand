@@ -254,6 +254,29 @@ class EspService {
   }
 
   /// Membaca data sensor secara real-time dari ESP32
+  /// Mengatur / mensimulasikan mode daya ESP32 (colokan / usb vs baterai lithium)
+  static Future<Map<String, dynamic>?> setPowerMode({
+    required String mode,
+    double? voltage,
+    int? percent,
+  }) async {
+    final ip = await getDeviceIp();
+    try {
+      final response = await _dio.get(
+        'http://$ip/api/battery',
+        queryParameters: {
+          'mode': mode,
+          if (voltage != null) 'v': voltage,
+          if (percent != null) 'pct': percent,
+        },
+      );
+      if (response.statusCode == 200 && response.data is Map) {
+        return Map<String, dynamic>.from(response.data);
+      }
+    } catch (_) {}
+    return null;
+  }
+
   static Future<Map<String, dynamic>> getLiveSensors() async {
     final ip = await getDeviceIp();
     final response = await _dio.get('http://$ip/api/sensors');
