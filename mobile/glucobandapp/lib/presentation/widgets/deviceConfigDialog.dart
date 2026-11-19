@@ -30,6 +30,34 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
   bool _isSuccess = false;
   Map<String, dynamic>? _sensorStatus;
   String _batteryText = 'Optimal';
+  bool _isPluggedIn = true;
+  int? _batteryPercent;
+  double? _batteryVoltage;
+
+  int _calculateLithiumPercentage(double voltage) {
+    if (voltage >= 4.20) return 100;
+    if (voltage <= 3.20) return 0;
+    if (voltage >= 4.05) return (90 + ((voltage - 4.05) / 0.15) * 10).round().clamp(0, 100);
+    if (voltage >= 3.90) return (75 + ((voltage - 3.90) / 0.15) * 15).round().clamp(0, 100);
+    if (voltage >= 3.80) return (55 + ((voltage - 3.80) / 0.10) * 20).round().clamp(0, 100);
+    if (voltage >= 3.70) return (35 + ((voltage - 3.70) / 0.10) * 20).round().clamp(0, 100);
+    if (voltage >= 3.60) return (20 + ((voltage - 3.60) / 0.10) * 15).round().clamp(0, 100);
+    if (voltage >= 3.45) return (10 + ((voltage - 3.45) / 0.15) * 10).round().clamp(0, 100);
+    return (((voltage - 3.20) / 0.25) * 10).round().clamp(0, 100);
+  }
+
+  IconData _getBatteryIcon() {
+    if (_isPluggedIn) return Icons.battery_charging_full_rounded;
+    final pct = _batteryPercent ?? 100;
+    if (pct >= 90) return Icons.battery_full_rounded;
+    if (pct >= 75) return Icons.battery_6_bar_rounded;
+    if (pct >= 55) return Icons.battery_5_bar_rounded;
+    if (pct >= 40) return Icons.battery_4_bar_rounded;
+    if (pct >= 25) return Icons.battery_3_bar_rounded;
+    if (pct >= 15) return Icons.battery_2_bar_rounded;
+    if (pct >= 5) return Icons.battery_1_bar_rounded;
+    return Icons.battery_alert_rounded;
+  }
 
   // Status Jaringan WiFi Router Saat Ini
   bool _isEspWifiConnected = false;
@@ -102,8 +130,56 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
       final int rssi = (status['rssi'] is num)
           ? (status['rssi'] as num).toInt()
           : 0;
+      final powerSource = status['power_source']?.toString().toLowerCase();
       final rawBatt = status['battery'] ?? status['battery_level'];
-      final battStr = rawBatt != null ? '$rawBatt%' : 'Optimal';
+      final rawVolt = status['battery_voltage'] ?? status['voltage'];
+      double? volt;
+      if (rawVolt is num) {
+        volt = rawVolt.toDouble();
+      } else if (rawVolt != null) {
+        volt = double.tryParse(rawVolt.toString());
+      }
+      _batteryVoltage = volt;
+
+      final isPlugged = status['is_plugged'] == true ||
+          status['charging'] == true ||
+          status['is_charging'] == true ||
+          powerSource == 'usb' ||
+          powerSource == 'colokan' ||
+          powerSource == 'plugged' ||
+          (_batteryVoltage != null && _batteryVoltage! >= 4.30);
+
+      String battStr;
+      if (isPlugged) {
+        _isPluggedIn = true;
+        _batteryPercent = null;
+        battStr = 'Optimal';
+      } else if (powerSource == 'battery' ||
+          powerSource == 'lithium' ||
+          (!isPlugged && (_batteryVoltage != null || (rawBatt != null && rawBatt.toString().toLowerCase() != 'optimal')))) {
+        _isPluggedIn = false;
+        if (_batteryVoltage != null) {
+          _batteryPercent = _calculateLithiumPercentage(_batteryVoltage!);
+          battStr = '$_batteryPercent%';
+        } else if (rawBatt is num) {
+          _batteryPercent = rawBatt.toInt().clamp(0, 100);
+          battStr = '$_batteryPercent%';
+        } else if (rawBatt != null) {
+          final parsed = int.tryParse(rawBatt.toString().replaceAll('%', '').trim());
+          if (parsed != null) {
+            _batteryPercent = parsed.clamp(0, 100);
+            battStr = '$_batteryPercent%';
+          } else {
+            battStr = '85%';
+          }
+        } else {
+          battStr = '85%';
+        }
+      } else {
+        _isPluggedIn = true;
+        _batteryPercent = null;
+        battStr = 'Optimal';
+      }
 
       setState(() {
         _isLoading = false;
@@ -790,10 +866,13 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
-                              Icons.battery_std_rounded,
-                              size: 13,
-                              color: Color(0xFF047857),
+                            RotatedBox(
+                              quarterTurns: 1,
+                              child: Icon(
+                                _isPluggedIn ? Icons.battery_charging_full_rounded : _getBatteryIcon(),
+                                size: 13,
+                                color: const Color(0xFF047857),
+                              ),
                             ),
                             const SizedBox(width: 3),
                             Text(
@@ -883,10 +962,13 @@ class _DeviceConfigDialogState extends State<DeviceConfigDialog> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(
-                            Icons.battery_std_rounded,
-                            size: 13,
-                            color: Color(0xFF1D4ED8),
+                          RotatedBox(
+                            quarterTurns: 1,
+                            child: Icon(
+                              _isPluggedIn ? Icons.battery_charging_full_rounded : _getBatteryIcon(),
+                              size: 13,
+                              color: const Color(0xFF1D4ED8),
+                            ),
                           ),
                           const SizedBox(width: 3),
                           Text(

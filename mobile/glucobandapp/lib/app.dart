@@ -8,6 +8,7 @@ import 'presentation/providers/profileProvider.dart';
 import 'presentation/providers/predictionProvider.dart';
 import 'presentation/providers/articleProvider.dart';
 import 'presentation/providers/settingsProvider.dart';
+import 'presentation/providers/connectivityProvider.dart';
 import 'presentation/pages/loginPage.dart';
 import 'presentation/pages/homePage.dart';
 
@@ -37,6 +38,7 @@ class GlucoBandApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => SettingsProvider()..fetchEmergencyContact(),
         ),
+        ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
