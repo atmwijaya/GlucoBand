@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { io } from 'socket.io-client'
 import {
   FaUser, FaChartLine, FaHistory, FaChevronDown, FaChevronUp, FaSearch,
@@ -24,7 +25,27 @@ export default function RealtimeMonitorPage() {
   })()
   const isPatientLogin = loggedUser.role === 'pasien'
 
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
+
   const [selectedPatient, setSelectedPatient] = useState(isPatientLogin ? loggedUser : null)
+
+  // Otomatis inspect per-pasien jika diarahkan dari halaman notifikasi / riwayat
+  useEffect(() => {
+    if (isPatientLogin) return
+    const targetPatientId = location.state?.patientId || searchParams.get('patient_id')
+    if (targetPatientId) {
+      if (location.state?.patient && Number(location.state.patient.id) === Number(targetPatientId)) {
+        setSelectedPatient(location.state.patient)
+        return
+      }
+      apiClient.get(`/patients/${targetPatientId}`)
+        .then(({ data }) => {
+          if (data) setSelectedPatient(data)
+        })
+        .catch(console.error)
+    }
+  }, [location.state, searchParams, isPatientLogin])
   const [showPatientModal, setShowPatientModal] = useState(false)
   const [glucoseData, setGlucoseData] = useState({
     glucose_estimated: 0,
