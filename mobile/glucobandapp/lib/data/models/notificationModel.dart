@@ -5,6 +5,7 @@ class NotificationItem {
   final String type;      
   final String? subtype;  
   final String message;
+  final double? glucoseValue;
   final String? createdAt;
   bool isRead;
   bool isNew;
@@ -14,17 +15,24 @@ class NotificationItem {
     required this.type,
     this.subtype,
     required this.message,
+    this.glucoseValue,
     this.createdAt,
     this.isRead = false,
     this.isNew = false,
   });
 
   factory NotificationItem.fromJson(Map<String, dynamic> json) {
+    final rawGlucose = json['glucose_value'];
+    final double? gVal = rawGlucose is num
+        ? rawGlucose.toDouble()
+        : double.tryParse(rawGlucose?.toString() ?? '');
+
     return NotificationItem(
       id: json['id'] ?? 0,
       type: json['type'] ?? 'alert',
       subtype: json['subtype'],
       message: json['message'] ?? '',
+      glucoseValue: gVal,
       createdAt: json['created_at'],
       isRead: json['is_read'] == 1 || json['is_read'] == true,
     );

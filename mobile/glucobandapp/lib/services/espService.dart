@@ -424,7 +424,7 @@ class EspService {
     return null;
   }
 
-  /// Menghapus kredensial WiFi pada ESP32 (kembali ke AP mode murni)
+  /// Menghapus kredensial WiFi pada ESP32 (kembali ke AP mode murni 192.168.4.1)
   static Future<bool> resetWifi() async {
     final ip = await getDeviceIp();
     final ipsToTry = [ip];
@@ -433,15 +433,27 @@ class EspService {
     for (final targetIp in ipsToTry) {
       try {
         final response = await _dio.post(
-          'http://$targetIp/api/reset',
+          'http://$targetIp/api/disconnect',
           options: Options(receiveTimeout: const Duration(milliseconds: 2500)),
         );
         if (response.statusCode == 200) {
           await saveDeviceIp(_defaultIp);
           return true;
         }
-      } catch (_) {}
+      } catch (_) {
+        try {
+          final fallback = await _dio.post(
+            'http://$targetIp/api/reset',
+            options: Options(receiveTimeout: const Duration(milliseconds: 2500)),
+          );
+          if (fallback.statusCode == 200) {
+            await saveDeviceIp(_defaultIp);
+            return true;
+          }
+        } catch (_) {}
+      }
     }
+    await saveDeviceIp(_defaultIp);
     return false;
   }
 }

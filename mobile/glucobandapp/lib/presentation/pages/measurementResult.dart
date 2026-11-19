@@ -5,7 +5,6 @@ import '../providers/authProvider.dart';
 import '../providers/measurementProvider.dart';
 import '../providers/notificationProvider.dart';
 import '../../services/localNotificationService.dart';
-import 'measurementHistoryPage.dart';
 
 class MeasurementResultPage extends StatefulWidget {
   final double glucose;
@@ -75,37 +74,130 @@ class _MeasurementResultPageState extends State<MeasurementResultPage> {
               .fetchNotifications(auth.token!);
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Data berhasil disimpan ke riwayat pengukuran & disinkronkan!'),
-            backgroundColor: Color(0xFF10B981),
-            behavior: SnackBarBehavior.floating,
+        // Tampilkan pop up hasil pengukuran telah tersimpan
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogCtx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 40),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Pengukuran Tersimpan',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Hasil pengukuran Anda berhasil disimpan.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(dialogCtx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF613EEA),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
 
-        // Arahkan langsung ke halaman riwayat pengukuran agar pengguna bisa melihat hasilnya
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const MeasurementHistoryPage(),
-          ),
-        );
+        // Kembali ke halaman measurementPage
+        if (!mounted) return;
+        Navigator.pop(context);
       } else {
         // Fallback: simpan di state lokal sementara
         measProvider.updateGlucose(widget.glucose);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Data pengukuran tersimpan di riwayat lokal.'),
-            backgroundColor: Color(0xFF10B981),
-            behavior: SnackBarBehavior.floating,
+
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogCtx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(Icons.info_rounded, color: Color(0xFFF59E0B), size: 40),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Tersimpan di Lokal',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Data pengukuran tersimpan di riwayat lokal perangkat.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(dialogCtx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF613EEA),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const MeasurementHistoryPage(),
-          ),
-        );
+
+        if (!mounted) return;
+        Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
@@ -269,20 +361,20 @@ class _MeasurementResultPageState extends State<MeasurementResultPage> {
                   const SizedBox(height: 12),
                   _buildDetailRow(
                     Icons.favorite,
-                    'Detak Jantung (MAX30105)',
-                    '${widget.heartRate} BPM (Sama dengan Layar OLED)',
+                    'Detak Jantung',
+                    '${widget.heartRate} BPM',
                   ),
                   const Divider(height: 16),
                   _buildDetailRow(
                     Icons.thermostat,
-                    'Suhu Kulit (MLX90614)',
-                    '${widget.temperature.toStringAsFixed(1)} °C (Objek Termal)',
+                    'Suhu Kulit',
+                    '${widget.temperature.toStringAsFixed(1)} °C',
                   ),
                   const Divider(height: 16),
                   _buildDetailRow(
                     Icons.wifi,
-                    'Spektrometer NIR (AS7263)',
-                    '6 Saluran Spektral (R–W Terkalibrasi)',
+                    'Spektrometer NIR',
+                    '6 Saluran Spektral',
                   ),
                   const Divider(height: 16),
                   _buildDetailRow(

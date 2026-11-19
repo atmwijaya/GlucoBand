@@ -365,115 +365,173 @@ class _MeasurementHistoryPageState extends State<MeasurementHistoryPage> {
     final statusColor = _getStatusColor(item.status, item.glucoseEstimated);
     final statusLabel = _formatStatusLabel(item.status, item.glucoseEstimated);
     final formattedDate = _formatDate(item.createdAt);
+    final itemKey = ValueKey(item.id != null ? 'meas_${item.id}' : 'meas_${item.createdAt.millisecondsSinceEpoch}');
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return Dismissible(
+      key: itemKey,
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (direction) async {
+        return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Hapus Riwayat'),
+            content: const Text('Apakah Anda yakin ingin menghapus data pengukuran ini?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Hapus', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        );
+      },
+      onDismissed: (direction) async {
+        final success = await provider.deleteMeasurement(item.id, createdAt: item.createdAt);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(success ? 'Riwayat pengukuran berhasil dihapus' : 'Gagal menghapus data'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEF4444),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.end,
           children: [
-            // Baris Atas: Glukosa & Tanggal
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      '${item.glucoseEstimated.toStringAsFixed(0)}',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: statusColor,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'mg/dL',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        statusLabel,
+            Icon(Icons.delete_outline, color: Colors.white, size: 24),
+            SizedBox(width: 6),
+            Text(
+              'Hapus',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Baris Atas: Glukosa, Status & Tombol Hapus
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        item.glucoseEstimated.toStringAsFixed(0),
                         style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
                           color: statusColor,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                Text(
-                  formattedDate,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF94A3B8),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'mg/dL',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          statusLabel,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-            const Divider(height: 1, color: Color(0xFFF1F5F9)),
-            const SizedBox(height: 10),
-
-            // Baris Bawah: Detak Jantung, Suhu Kulit, dan Hapus
-            Row(
-              children: [
-                // Detak Jantung (BPM)
-                _buildSensorPill(
-                  Icons.favorite,
-                  const Color(0xFFEF4444),
-                  '${item.ppgHeartRate} BPM',
-                ),
-                const SizedBox(width: 8),
-
-                // Suhu Kulit (°C)
-                _buildSensorPill(
-                  Icons.thermostat,
-                  const Color(0xFFF59E0B),
-                  '${item.skinTempCelsius.toStringAsFixed(1)} °C',
-                ),
-
-                const Spacer(),
-
-                // Tombol Hapus (jika memiliki ID)
-                if (item.id != null)
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFF94A3B8)),
-                    tooltip: 'Hapus Riwayat',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => _confirmDelete(item.id!, provider),
+                  Row(
+                    children: [
+                      Text(
+                        formattedDate,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 20, color: Color(0xFFEF4444)),
+                        tooltip: 'Hapus Riwayat',
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () => _confirmDelete(item, provider),
+                      ),
+                    ],
                   ),
-              ],
-            ),
-          ],
+                ],
+              ),
+
+              const SizedBox(height: 12),
+              const Divider(height: 1, color: Color(0xFFF1F5F9)),
+              const SizedBox(height: 10),
+
+              // Baris Bawah: Detak Jantung, Suhu Kulit
+              Row(
+                children: [
+                  // Detak Jantung (BPM)
+                  _buildSensorPill(
+                    Icons.favorite,
+                    const Color(0xFFEF4444),
+                    '${item.ppgHeartRate} BPM',
+                  ),
+                  const SizedBox(width: 8),
+
+                  // Suhu Kulit (°C)
+                  _buildSensorPill(
+                    Icons.thermostat,
+                    const Color(0xFFF59E0B),
+                    '${item.skinTempCelsius.toStringAsFixed(1)} °C',
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -505,11 +563,12 @@ class _MeasurementHistoryPageState extends State<MeasurementHistoryPage> {
     );
   }
 
-  void _confirmDelete(int id, MeasurementProvider provider) {
+  void _confirmDelete(MeasurementModel item, MeasurementProvider provider) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Hapus Pengukuran'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Hapus Riwayat'),
         content: const Text('Apakah Anda yakin ingin menghapus data pengukuran ini?'),
         actions: [
           TextButton(
@@ -519,7 +578,7 @@ class _MeasurementHistoryPageState extends State<MeasurementHistoryPage> {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              final success = await provider.deleteMeasurement(id);
+              final success = await provider.deleteMeasurement(item.id, createdAt: item.createdAt);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -531,7 +590,7 @@ class _MeasurementHistoryPageState extends State<MeasurementHistoryPage> {
                 );
               }
             },
-            child: const Text('Hapus', style: TextStyle(color: Colors.redAccent)),
+            child: const Text('Hapus', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
