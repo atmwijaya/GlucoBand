@@ -59,7 +59,7 @@ export default function DownloadPage() {
             className="w-full sm:w-auto inline-flex items-center justify-center gap-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3.5 rounded-lg transition shadow-sm cursor-pointer"
           >
             <FaAndroid className="text-xl" />
-            <span>Unduh APK (v1.0.5)</span>
+            <span>Unduh APK (v1.0.6)</span>
             <FaDownload className="text-sm opacity-80" />
           </button>
 
