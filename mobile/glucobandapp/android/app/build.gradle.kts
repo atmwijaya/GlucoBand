@@ -38,23 +38,31 @@ android {
         versionName = flutter.versionName
     }
 
+    val hasReleaseKeystore = keystorePropertiesFile != null && keystoreProperties.containsKey("storeFile")
+
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String?
-            keyPassword = keystoreProperties["keyPassword"] as String?
-            storeFile = keystoreProperties["storeFile"]?.let {
-                val f1 = file(it)
-                if (f1.exists()) f1 else rootProject.file(it)
+        if (hasReleaseKeystore) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String?
+                keyPassword = keystoreProperties["keyPassword"] as String?
+                storeFile = keystoreProperties["storeFile"]?.let {
+                    val f1 = file(it)
+                    if (f1.exists()) f1 else rootProject.file(it)
+                }
+                storePassword = keystoreProperties["storePassword"] as String?
+                enableV1Signing = true
+                enableV2Signing = true
             }
-            storePassword = keystoreProperties["storePassword"] as String?
-            enableV1Signing = true
-            enableV2Signing = true
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
