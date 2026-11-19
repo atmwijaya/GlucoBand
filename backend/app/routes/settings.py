@@ -14,8 +14,8 @@ def _get_cursor():
 @settings_bp.get('/app-version')
 def get_app_version():
     version_info = {
-        'latest_version': '1.0.7',
-        'latest_build_number': 8,
+        'latest_version': '1.0.8',
+        'latest_build_number': 9,
         'download_url': 'https://glucobandpro.id/download',
         'changelog': '• Perbaikan minor aplikasi\n• Perbaikan Bug',
         'force_update': False

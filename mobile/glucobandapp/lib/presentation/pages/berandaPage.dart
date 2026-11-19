@@ -31,6 +31,7 @@ class _BerandaPageState extends State<BerandaPage> {
   String _deviceIp = '192.168.4.1';
   String _batteryText = 'Optimal';
   Timer? _deviceTimer;
+  String _glucoseTimeFilter = '1 Hari';
 
   @override
   void initState() {
@@ -292,32 +293,32 @@ class _BerandaPageState extends State<BerandaPage> {
                               },
                               itemBuilder: (BuildContext context) => [
                                 const PopupMenuItem<String>(
+                                  value: '6 Jam',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.access_time, size: 18, color: Color(0xFF613EEA)),
+                                      SizedBox(width: 8),
+                                      Text('6 Jam', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuItem<String>(
                                   value: '1 Hari',
                                   child: Row(
                                     children: [
                                       Icon(Icons.today, size: 18, color: Color(0xFF613EEA)),
                                       SizedBox(width: 8),
-                                      Text('1 Hari (24 Jam)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                      Text('1 Hari', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                                     ],
                                   ),
                                 ),
                                 const PopupMenuItem<String>(
-                                  value: '2 Hari',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.date_range, size: 18, color: Color(0xFF613EEA)),
-                                      SizedBox(width: 8),
-                                      Text('2 Hari (48 Jam)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                                    ],
-                                  ),
-                                ),
-                                const PopupMenuItem<String>(
-                                  value: '3 Hari',
+                                  value: '7 Hari',
                                   child: Row(
                                     children: [
                                       Icon(Icons.calendar_month, size: 18, color: Color(0xFF613EEA)),
                                       SizedBox(width: 8),
-                                      Text('3 Hari (72 Jam)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                      Text('7 Hari', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                                     ],
                                   ),
                                 ),
@@ -741,19 +742,19 @@ class _BerandaPageState extends State<BerandaPage> {
                                   ),
                                   const SizedBox(height: 20),
 
-                                  // METERAN INDIKATOR GAUGE INTERAKTIF
                                   _buildGlucoseMeter(currentGlucose, statusColor),
 
                                   const SizedBox(height: 24),
 
-                                  // GRAFIK GLUKOSA ALA BURSA SAHAM REALTIME (INTERVAL 5 MENIT)
                                   GlucoseStockChart(
                                     measurements: measurement.measurements,
                                     latestGlucose: currentGlucose,
-                                    timeFilter: measurement.timeFilter,
+                                    timeFilter: _glucoseTimeFilter,
                                     statusColor: statusColor,
                                     onFilterChanged: (newFilter) {
-                                      measurement.setTimeFilter(newFilter);
+                                      setState(() {
+                                        _glucoseTimeFilter = newFilter;
+                                      });
                                     },
                                   ),
                                 ],
