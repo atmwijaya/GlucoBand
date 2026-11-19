@@ -297,21 +297,33 @@ class MeasurementProvider extends ChangeNotifier {
   }
 
   /// Menghapus satu item pengukuran dari backend dan state lokal
-  Future<bool> deleteMeasurement(int id) async {
-    try {
-      final response = await _apiService.delete(
-        '${ApiConstants.measurements}/$id',
-      );
-      if (response.statusCode == 200) {
-        _measurements.removeWhere((m) => m.id == id);
-        notifyListeners();
-        return true;
+  Future<bool> deleteMeasurement(int? id, {DateTime? createdAt}) async {
+    bool deletedOnServer = false;
+    if (id != null && id > 0) {
+      try {
+        final response = await _apiService.delete(
+          '${ApiConstants.measurements}/$id',
+        );
+        if (response.statusCode == 200 || response.statusCode == 204) {
+          deletedOnServer = true;
+        }
+      } catch (e) {
+        debugPrint('[MeasurementProvider] Error deleteMeasurement: $e');
       }
-      return false;
-    } catch (e) {
-      debugPrint('[MeasurementProvider] Error deleteMeasurement: $e');
-      return false;
     }
+
+    // Selalu sinkronkan penghapusan pada state list lokal aplikasi
+    final initialCount = _measurements.length;
+    _measurements.removeWhere((m) =>
+        (id != null && m.id == id) ||
+        (createdAt != null && m.createdAt.isAtSameMomentAs(createdAt)));
+
+    if (_measurements.length < initialCount) {
+      notifyListeners();
+      return true;
+    }
+
+    return deletedOnServer;
   }
 
   /// Memperbarui nilai glukosa secara langsung saat selesai pengukuran di perangkat

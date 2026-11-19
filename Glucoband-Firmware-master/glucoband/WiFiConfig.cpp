@@ -1,11 +1,8 @@
 #include "WiFiConfig.h"
-
-// Referensi variabel global hardware dari glucoband.ino
 extern bool oledOk;
 extern bool maxOk;
 extern bool asOk;
 extern bool mlxOk;
-
 extern long irValue;
 extern int bpm;
 extern int bpmAverage;
@@ -36,13 +33,9 @@ void WiFiConfig::begin() {
   
   preferences.begin("wifi-config", false);
   loadCredentials();
-  
-  // 1. Selalu aktifkan Access Point dengan sinyal penuh terlebih dahulu
   startAPMode();
   setupRoutes();
   server.begin();
-  
-  // 2. Jika sudah ada SSID tersimpan, coba hubungkan ke router
   if (ssid.length() > 0) {
     connectionStatus = "Menghubungkan...";
     Serial.print("[WiFi] Menghubungkan ke SSID tersimpan: ");
@@ -91,14 +84,14 @@ void WiFiConfig::begin() {
 
 void WiFiConfig::startAPMode() {
   // Matikan koneksi WiFi sebelumnya secara bersih
-  WiFi.disconnect(true, true);
+  WiFi.disconnect(true, false);
   delay(50);
 
   // Set mode AP_STA agar mendukung Access Point sekaligus koneksi STA
   WiFi.mode(WIFI_AP_STA);
   delay(50);
 
-  // Alamat IP statis default AP
+  // Alamat IP statis default AP (192.168.4.1)
   IPAddress apIP(192, 168, 4, 1);
   IPAddress gateway(192, 168, 4, 1);
   IPAddress subnet(255, 255, 255, 0);
@@ -107,15 +100,26 @@ void WiFiConfig::startAPMode() {
   // Parameter: SSID, password (NULL = Terbuka), channel 1, hidden 0, max 4 device
   bool apSuccess = WiFi.softAP("GlucoBand-Setup", NULL, 1, 0, 4);
 
-  // KRUSIAL UNTUK SMARTPHONE:
-  // Nonaktifkan modem sleep & set kekuatan transmisi radio ke level maksimal (+19.5 dBm)
+  // Optimasi kompabilitas untuk SEMUA merek HP (Samsung, Vivo, Xiaomi/Redmi, Oppo, Realme):
+  // 1. Nonaktifkan modem sleep & set kekuatan sinyal RF maksimal (+19.5 dBm)
   WiFi.setSleep(false);
   WiFi.setTxPower(WIFI_POWER_19_5dBm);
+
+  // 2. Kunci bandwidth AP ke 20MHz (HT20) untuk kompatibilitas chipset MediaTek/Redmi
+  esp_wifi_set_bandwidth(WIFI_IF_AP, WIFI_BW_HT20);
+  esp_wifi_set_protocol(WIFI_IF_AP, WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N);
+  esp_wifi_set_ps(WIFI_PS_NONE);
+
+  // 3. Jalankan Captive Portal DNS Server pada port 53
+  // Ini SANGAT KRUSIAL untuk Xiaomi/Redmi/MIUI/HyperOS agar tidak mendiskoneksi AP karena cek captive portal
+  dnsServer.stop();
+  dnsServer.start(53, "*", apIP);
 
   apModeActive = true;
 
   if (apSuccess) {
     Serial.println("[WiFi] Access Point 'GlucoBand-Setup' AKTIF di Channel 1.");
+    Serial.println("[WiFi] Captive Portal DNS Server aktif (Port 53)");
     Serial.print("[WiFi] IP Gateway AP: ");
     Serial.println(WiFi.softAPIP());
   } else {
@@ -130,17 +134,15 @@ void WiFiConfig::sendCorsHeader() {
 }
 
 void WiFiConfig::setupRoutes() {
-  // Web Form UI (Akses via browser di http://192.168.4.1)
   server.on("/", HTTP_GET, [this]() { handleRoot(); });
   server.on("/scan", HTTP_GET, [this]() { handleScan(); });
   server.on("/save", HTTP_POST, [this]() { handleSave(); });
-
-  // Android & iOS Captive Portal Detection Endpoints
-  server.on("/generate_204", HTTP_GET, [this]() { handleRoot(); });
+  server.on("/generate_204", HTTP_GET, [this]() { server.send(204); });
+  server.on("/gen_204", HTTP_GET, [this]() { server.send(204); });
+  server.on("/connect.rom.miui.com/generate_204", HTTP_GET, [this]() { server.send(204); });
+  server.on("/ncsi.txt", HTTP_GET, [this]() { server.send(200, "text/plain", "Microsoft NCSI"); });
   server.on("/hotspot-detect.html", HTTP_GET, [this]() { handleRoot(); });
   server.on("/canonical.html", HTTP_GET, [this]() { handleRoot(); });
-
-  // REST API untuk Integrasi Software (Flutter Mobile & React Web)
   server.on("/api/status", HTTP_GET, [this]() { handleApiStatus(); });
   server.on("/api/scan", HTTP_GET, [this]() { handleScan(); });
   server.on("/api/init", HTTP_GET, [this]() { handleApiInit(); });
@@ -148,8 +150,9 @@ void WiFiConfig::setupRoutes() {
   server.on("/api/save", HTTP_POST, [this]() { handleApiSave(); });
   server.on("/api/wifi", HTTP_POST, [this]() { handleApiSave(); });
   server.on("/api/reset", HTTP_POST, [this]() { handleApiReset(); });
+  server.on("/api/disconnect", HTTP_POST, [this]() { handleApiDisconnect(); });
+  server.on("/api/disconnect", HTTP_GET, [this]() { handleApiDisconnect(); });
 
-  // CORS Preflight OPTIONS
   server.onNotFound([this]() {
     if (server.method() == HTTP_OPTIONS) {
       sendCorsHeader();
@@ -406,9 +409,30 @@ void WiFiConfig::handleApiSave() {
 void WiFiConfig::handleApiReset() {
   sendCorsHeader();
   clearCredentials();
-  server.send(200, "application/json", "{\"message\":\"Kredensial WiFi dihapus, restart...\"}");
-  delay(1000);
-  ESP.restart();
+  server.send(200, "application/json", "{\"message\":\"Kredensial WiFi dihapus, kembali ke mode AP...\"}");
+  delay(500);
+  disconnectRouter();
+}
+
+void WiFiConfig::handleApiDisconnect() {
+  sendCorsHeader();
+  disconnectRouter();
+  String resp = "{\"success\":true,\"wifi_connected\":false,\"ip\":\"192.168.4.1\",\"ap_ip\":\"192.168.4.1\",\"message\":\"Koneksi router diputus. Mode AP 192.168.4.1 aktif.\"}";
+  server.send(200, "application/json", resp);
+}
+
+void WiFiConfig::disconnectRouter() {
+  Serial.println("\n[WiFi] Memutuskan koneksi router dan mengaktifkan AP 192.168.4.1...");
+  wifiConnected = false;
+  connectionStatus = "AP Setup Mode";
+  failedAttempts = 99; // Hentikan auto-reconnect agar AP tidak terganggu
+
+  // Putuskan STA secara bersih tanpa mematikan modul radio
+  WiFi.disconnect(true, false);
+  delay(100);
+
+  // Re-aktifkan Access Point pada Channel 1 dengan DNS aktif
+  startAPMode();
 }
 
 void WiFiConfig::loadCredentials() {
@@ -428,7 +452,8 @@ void WiFiConfig::clearCredentials() {
   preferences.clear();
   ssid = "";
   password = "";
-  failedAttempts = 0;
+  failedAttempts = 99;
+  WiFi.disconnect(true, true); // Hapus juga dari NVS WiFi driver ESP-IDF!
   Serial.println("[WiFi] Kredensial WiFi berhasil dihapus.");
 }
 
@@ -439,8 +464,13 @@ bool WiFiConfig::connectToWiFi() {
   WiFi.begin(ssid.c_str(), password.c_str());
   
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 15) {
-    delay(500);
+  while (WiFi.status() != WL_CONNECTED && attempts < 12) {
+    delay(400);
+    // Layani DNS & client AP agar koneksi smartphone tidak terputus/freeze saat ESP mencari router
+    if (apModeActive) {
+      dnsServer.processNextRequest();
+      server.handleClient();
+    }
     Serial.print(".");
     attempts++;
   }
@@ -463,13 +493,18 @@ void WiFiConfig::checkResetButton() {
     Serial.println("[WiFi] Tombol reset ditekan 5 detik. Menghapus WiFi...");
     clearCredentials();
     delay(500);
-    ESP.restart();
+    disconnectRouter();
   }
 #endif
 }
 
 void WiFiConfig::handle() {
   checkResetButton();
+
+  // Proses request DNS Captive Portal untuk semua smartphone (terutama Xiaomi/Redmi)
+  if (apModeActive) {
+    dnsServer.processNextRequest();
+  }
 
   // Reset via perintah huruf 'r' di Serial Monitor untuk mempermudah pengujian
   if (Serial.available()) {
@@ -478,7 +513,7 @@ void WiFiConfig::handle() {
       Serial.println("\n[WiFi] Perintah Reset diterima dari Serial. Menghapus konfigurasi WiFi...");
       clearCredentials();
       delay(500);
-      ESP.restart();
+      disconnectRouter();
     }
   }
 

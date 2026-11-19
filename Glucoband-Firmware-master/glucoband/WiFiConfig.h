@@ -7,6 +7,8 @@
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <ESPmDNS.h>
+#include <DNSServer.h>
+#include "esp_wifi.h"
 
 class WiFiConfig {
 public:
@@ -25,9 +27,11 @@ public:
   bool sendData(int id, int bpm, float glucose);
   void checkResetButton();
   void clearCredentials();
+  void disconnectRouter();
   
 private:
   WebServer server;
+  DNSServer dnsServer;
   Preferences preferences;
   String ssid;
   String password;
@@ -50,6 +54,7 @@ private:
   void handleApiSensors();
   void handleApiSave();
   void handleApiReset();
+  void handleApiDisconnect();
   void sendCorsHeader();
   void loadCredentials();
   void saveCredentials();
