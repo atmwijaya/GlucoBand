@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   FaUsers,
   FaBell,
@@ -37,27 +38,21 @@ function getGreeting() {
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate()
   const greeting = getGreeting()
   const user = JSON.parse(sessionStorage.getItem('user')) || { name: 'Dok!' }
-
-  // State Statistik & Data Utama
   const [stats, setStats] = useState({ total_patients: 0, alerts_today: 0, total_measurements: 0 })
   const [allPatients, setAllPatients] = useState([])
   const [monthlyData, setMonthlyData] = useState([])
-  const [recentPatients, setRecentPatients] = useState([])
   const [loading, setLoading] = useState(true)
-
-  // Opsi Tampilan Grafik: 'monthly' (Registrasi Pasien) atau 'patient_daily' (Grafik Harian Pasien)
+  const [patientTableView, setPatientTableView] = useState('pengukuran_terbaru')
   const [chartView, setChartView] = useState('patient_daily')
-
-  // State Grafik Harian Pasien & Kalender
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [selectedPatientId, setSelectedPatientId] = useState(null)
   const [dailyMeasurements, setDailyMeasurements] = useState([])
   const [markedDates, setMarkedDates] = useState([])
   const [loadingDaily, setLoadingDaily] = useState(false)
 
-  // 1. Fetch data statistik dan daftar pasien awal
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -70,7 +65,9 @@ export default function DashboardPage() {
         setAllPatients(patients)
 
         if (patients.length > 0) {
-          setSelectedPatientId((prev) => prev || patients[0].id)
+          const sortedByGlucose = [...patients].sort((a, b) => (Number(b.latest_glucose) || 0) - (Number(a.latest_glucose) || 0))
+          const topPatient = sortedByGlucose[0]
+          setSelectedPatientId((prev) => prev || (topPatient ? topPatient.id : patients[0].id))
         }
 
         const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
@@ -82,7 +79,6 @@ export default function DashboardPage() {
           }
         })
         setMonthlyData(monthNames.map((m) => ({ month: m, count: monthly[m] || 0 })))
-        setRecentPatients(patients.slice(0, 5))
       } catch (err) {
         console.error('Gagal memuat dashboard:', err)
       } finally {
@@ -92,7 +88,29 @@ export default function DashboardPage() {
     fetchData()
   }, [])
 
-  // 2. Fetch tanggal-tanggal yang memiliki data pengukuran untuk pasien terpilih (untuk indikator kalender)
+  const highestMeasurementPatients = useMemo(() => {
+    return [...allPatients]
+      .sort((a, b) => {
+        const gA = Number(a.latest_glucose) || 0
+        const gB = Number(b.latest_glucose) || 0
+        if (gB !== gA) return gB - gA
+        const tA = new Date(a.latest_measurement_at || a.created_at || 0).getTime()
+        const tB = new Date(b.latest_measurement_at || b.created_at || 0).getTime()
+        return tB - tA
+      })
+      .slice(0, 8)
+  }, [allPatients])
+
+  const newlyRegisteredPatients = useMemo(() => {
+    return [...allPatients]
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+      .slice(0, 8)
+  }, [allPatients])
+
+  const displayedPatients = patientTableView === 'pengukuran_terbaru'
+    ? highestMeasurementPatients
+    : newlyRegisteredPatients
+
   useEffect(() => {
     if (!selectedPatientId) return
     getPatientMeasurementDates(selectedPatientId)
@@ -104,7 +122,6 @@ export default function DashboardPage() {
       .catch(() => setMarkedDates([]))
   }, [selectedPatientId])
 
-  // 3. Fetch data pengukuran harian saat pasien atau tanggal kalender berubah
   useEffect(() => {
     if (!selectedPatientId || !selectedDate) return
     setLoadingDaily(true)
@@ -459,31 +476,83 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Tabel Pasien Terbaru */}
+      {/* Tabel Pengukuran Terbaru / Pasien Terbaru */}
       <div className="bg-white rounded-xl shadow-sm p-6 border border-slate-100">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-darkNavy">Pasien Terbaru</h3>
-          <span className="text-xs text-slate-500">Klik "Grafik" untuk melihat tren harian pasien</span>
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5 border-b pb-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="text-lg font-bold text-darkNavy">
+              {patientTableView === 'pengukuran_terbaru' ? 'Pengukuran Terbaru Pasien' : 'Pasien Baru Terdaftar'}
+            </h3>
+
+            {/* Switcher / Swipe Tab */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setPatientTableView('pengukuran_terbaru')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  patientTableView === 'pengukuran_terbaru'
+                    ? 'bg-white text-primaryBlue shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <FaHeartbeat size={13} className={patientTableView === 'pengukuran_terbaru' ? 'text-primaryBlue' : 'text-slate-500'} />
+                <span>Pengukuran Terbaru (Tertinggi)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPatientTableView('pasien_terbaru')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  patientTableView === 'pasien_terbaru'
+                    ? 'bg-white text-primaryBlue shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <FaUsers size={13} className={patientTableView === 'pasien_terbaru' ? 'text-primaryBlue' : 'text-slate-500'} />
+                <span>Pasien Terbaru</span>
+              </button>
+            </div>
+          </div>
+
+          <span className="text-xs text-slate-500">
+            {patientTableView === 'pengukuran_terbaru'
+              ? 'Diurutkan dari kadar glukosa tertinggi ke terendah'
+              : 'Diurutkan dari tanggal registrasi terbaru'}
+          </span>
         </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-lineGray text-sm text-textSecondary">
-                <th className="py-3 font-medium">Nama</th>
+                <th className="py-3 font-medium">Nama Pasien</th>
                 <th className="py-3 font-medium">Usia</th>
                 <th className="py-3 font-medium">BMI</th>
-                <th className="py-3 font-medium">Glukosa Terakhir</th>
-                <th className="py-3 font-medium">Status</th>
+                <th className="py-3 font-medium">
+                  {patientTableView === 'pengukuran_terbaru' ? 'Hasil Glukosa Terkini' : 'Glukosa Terakhir'}
+                </th>
+                <th className="py-3 font-medium">Status Klinis</th>
                 <th className="py-3 font-medium text-right">Aksi</th>
               </tr>
             </thead>
             <tbody>
-              {recentPatients.map((patient) => {
-                const glucose = patient.latest_glucose
-                const status = glucose ? (glucose > 200 ? 'Hiper' : glucose < 70 ? 'Hipo' : 'Normal') : '—'
+              {displayedPatients.map((patient) => {
+                const glucose = patient.latest_glucose !== null && patient.latest_glucose !== undefined
+                  ? Number(patient.latest_glucose)
+                  : null
+
+                const status = glucose
+                  ? (glucose > 200 ? 'Hiperglikemia' : glucose < 70 ? 'Hipoglikemia' : glucose >= 140 ? 'Waspada' : 'Normal')
+                  : 'Belum Ada'
+
                 const statusColor = glucose
-                  ? (glucose > 200 ? 'text-red-600 bg-red-50' : glucose < 70 ? 'text-amber-600 bg-amber-50' : 'text-green-600 bg-green-50')
-                  : 'text-gray-400 bg-gray-50'
+                  ? (glucose > 200
+                      ? 'text-red-700 bg-red-50 border border-red-200'
+                      : glucose < 70
+                      ? 'text-amber-700 bg-amber-50 border border-amber-200'
+                      : glucose >= 140
+                      ? 'text-orange-700 bg-orange-50 border border-orange-200'
+                      : 'text-emerald-700 bg-emerald-50 border border-emerald-200')
+                  : 'text-gray-400 bg-gray-50 border border-gray-200'
 
                 const isCurrentlySelected = selectedPatientId === patient.id
 
@@ -491,40 +560,71 @@ export default function DashboardPage() {
                   <tr
                     key={patient.id}
                     className={`border-b border-lineGray transition ${
-                      isCurrentlySelected ? 'bg-blue-50/40' : 'hover:bg-blue-50/20'
+                      isCurrentlySelected ? 'bg-blue-50/50' : 'hover:bg-slate-50/80'
                     }`}
                   >
-                    <td className="py-3 font-medium text-slate-800">{patient.name}</td>
-                    <td className="py-3 text-sm">{patient.age} th</td>
-                    <td className="py-3 text-sm">{patient.bmi || '—'}</td>
-                    <td
-                      className={`py-3 text-sm font-bold ${
-                        glucose > 200 ? 'text-errorRed' : glucose < 70 ? 'text-warningAmber' : 'text-successGreen'
-                      }`}
-                    >
-                      {glucose ? `${glucose} mg/dL` : '—'}
+                    <td className="py-3.5 font-bold text-slate-900">
+                      <div className="flex items-center gap-2">
+                        <span>{patient.name}</span>
+                        {patientTableView === 'pengukuran_terbaru' && glucose && glucose > 200 && (
+                          <span className="w-2 h-2 rounded-full bg-red-500" title="Kadar Gula Kritis (Tinggi)" />
+                        )}
+                      </div>
+                      {patient.latest_measurement_at && (
+                        <span className="text-[11px] text-slate-400 font-normal block mt-0.5">
+                          Ukur: {format(new Date(patient.latest_measurement_at), 'dd MMM yyyy, HH:mm', { locale: id })} WIB
+                        </span>
+                      )}
                     </td>
-                    <td className="py-3">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusColor}`}>
+                    <td className="py-3.5 text-sm text-slate-600">{patient.age} th</td>
+                    <td className="py-3.5 text-sm text-slate-600">{patient.bmi || '—'}</td>
+                    <td className="py-3.5 text-sm font-extrabold">
+                      {glucose ? (
+                        <span className={glucose > 200 ? 'text-red-600 text-base' : glucose < 70 ? 'text-amber-600 text-base' : 'text-emerald-600 text-base'}>
+                          {glucose.toFixed(1)} <span className="text-xs font-semibold text-slate-500">mg/dL</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 font-normal">—</span>
+                      )}
+                    </td>
+                    <td className="py-3.5">
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusColor}`}>
                         {status}
                       </span>
                     </td>
-                    <td className="py-3 text-right">
+                    <td className="py-3.5 text-right space-x-2">
                       <button
                         type="button"
                         onClick={() => {
                           setSelectedPatientId(patient.id)
                           setChartView('patient_daily')
-                          window.scrollTo({ top: 120, behavior: 'smooth' })
+                          window.scrollTo({ top: 180, behavior: 'smooth' })
                         }}
-                        className={`text-xs px-2.5 py-1 rounded-lg font-bold transition inline-flex items-center gap-1.5 ${
+                        className={`text-xs px-2.5 py-1.5 rounded-lg font-bold transition inline-flex items-center gap-1.5 ${
                           isCurrentlySelected
                             ? 'bg-primaryBlue text-white shadow-sm'
                             : 'bg-slate-100 text-primaryBlue hover:bg-blue-100'
                         }`}
+                        title="Tampilkan grafik harian pasien di panel atas"
                       >
                         <FaChartLine size={12} />
                         <span>{isCurrentlySelected ? 'Dipilih' : 'Grafik'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigate('/admin/monitoring', {
+                            state: {
+                              patientId: patient.id,
+                              patient
+                            }
+                          })
+                        }}
+                        className="text-xs px-2.5 py-1.5 rounded-lg font-semibold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition shadow-xs inline-flex items-center gap-1"
+                        title="Inspect monitoring real-time pasien ini"
+                      >
+                        <span>Monitoring</span>
                       </button>
                     </td>
                   </tr>
