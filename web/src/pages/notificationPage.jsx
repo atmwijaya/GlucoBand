@@ -384,7 +384,7 @@ export default function NotificationPage() {
                         KADAR GLUKOSA
                       </span>
                       <span
-                        className={`text-xl md:text-2xl font-extrabold ${
+                        className={`text-xl md:text-2xl font-bold ${
                           isHiper ? 'text-rose-600' : 'text-amber-500'
                         }`}
                       >
