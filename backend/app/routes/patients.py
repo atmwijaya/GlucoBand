@@ -59,7 +59,21 @@ def get_patients(identity):
                    u.tenaga_medis_id, tm.name AS tenaga_medis_name, tm.phone_number AS tenaga_medis_phone,
                    tm.specialization AS tenaga_medis_specialization,
                    tm.name AS medical_staff_name, tm.phone_number AS medical_staff_phone,
-                   tm.specialization AS medical_staff_specialization
+                   tm.specialization AS medical_staff_specialization,
+                   (
+                       SELECT m.glucose_estimated 
+                       FROM measurements m 
+                       WHERE m.patient_id = u.id 
+                       ORDER BY m.created_at DESC 
+                       LIMIT 1
+                   ) AS latest_glucose,
+                   (
+                       SELECT m.created_at 
+                       FROM measurements m 
+                       WHERE m.patient_id = u.id 
+                       ORDER BY m.created_at DESC 
+                       LIMIT 1
+                   ) AS latest_measurement_at
             FROM users u
             LEFT JOIN tenaga_medis tm ON u.tenaga_medis_id = tm.id
             WHERE u.role = 'pasien'
@@ -70,6 +84,8 @@ def get_patients(identity):
             p['bmi'] = str(p['bmi']) if p['bmi'] is not None else None
             p['weight_kg'] = str(p['weight_kg']) if p['weight_kg'] is not None else None
             p['height_cm'] = str(p['height_cm']) if p['height_cm'] is not None else None
+            p['latest_glucose'] = float(p['latest_glucose']) if p.get('latest_glucose') is not None else None
+            p['latest_measurement_at'] = p['latest_measurement_at'].isoformat() if p.get('latest_measurement_at') else None
             p['created_at'] = p['created_at'].isoformat() if p['created_at'] else None
         return jsonify(patients)
     except Exception as e:
@@ -109,7 +125,21 @@ def get_patient(identity, id):
                    u.tenaga_medis_id, tm.name AS tenaga_medis_name, tm.phone_number AS tenaga_medis_phone,
                    tm.specialization AS tenaga_medis_specialization,
                    tm.name AS medical_staff_name, tm.phone_number AS medical_staff_phone,
-                   tm.specialization AS medical_staff_specialization
+                   tm.specialization AS medical_staff_specialization,
+                   (
+                       SELECT m.glucose_estimated 
+                       FROM measurements m 
+                       WHERE m.patient_id = u.id 
+                       ORDER BY m.created_at DESC 
+                       LIMIT 1
+                   ) AS latest_glucose,
+                   (
+                       SELECT m.created_at 
+                       FROM measurements m 
+                       WHERE m.patient_id = u.id 
+                       ORDER BY m.created_at DESC 
+                       LIMIT 1
+                   ) AS latest_measurement_at
             FROM users u
             LEFT JOIN tenaga_medis tm ON u.tenaga_medis_id = tm.id
             WHERE u.id = %s AND u.role = 'pasien'
@@ -120,6 +150,8 @@ def get_patient(identity, id):
         patient['bmi'] = str(patient['bmi']) if patient['bmi'] is not None else None
         patient['weight_kg'] = str(patient['weight_kg']) if patient['weight_kg'] is not None else None
         patient['height_cm'] = str(patient['height_cm']) if patient['height_cm'] is not None else None
+        patient['latest_glucose'] = float(patient['latest_glucose']) if patient.get('latest_glucose') is not None else None
+        patient['latest_measurement_at'] = patient['latest_measurement_at'].isoformat() if patient.get('latest_measurement_at') else None
         patient['created_at'] = patient['created_at'].isoformat() if patient['created_at'] else None
         return jsonify(patient)
     except Exception as e:
