@@ -163,9 +163,6 @@ export default function NotificationPage() {
     <div className="space-y-6">
       {/* HEADER UTAMA */}
       <div className="flex items-center gap-3">
-        <div className="text-slate-800 text-xl">
-          <FaBell />
-        </div>
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
             Notifikasi
@@ -191,7 +188,7 @@ export default function NotificationPage() {
             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
               TOTAL PERINGATAN
             </span>
-            <div className="text-3xl font-extrabold text-slate-900 mt-1">
+            <div className="text-3xl font-bold text-slate-900 mt-1">
               {metrics.total}
             </div>
             <span className="text-xs text-slate-400 mt-1 block">
@@ -216,7 +213,7 @@ export default function NotificationPage() {
             <span className="text-[11px] font-bold text-rose-500 uppercase tracking-wider block">
               HIPERGLIKEMIA
             </span>
-            <div className="text-3xl font-extrabold text-rose-600 mt-1">
+            <div className="text-3xl font-bold text-rose-600 mt-1">
               {metrics.hiperCount}
             </div>
             <span className="text-xs text-rose-400 mt-1 block">
@@ -241,7 +238,7 @@ export default function NotificationPage() {
             <span className="text-[11px] font-bold text-amber-500 uppercase tracking-wider block">
               HIPOGLIKEMIA
             </span>
-            <div className="text-3xl font-extrabold text-amber-500 mt-1">
+            <div className="text-3xl font-bold text-amber-500 mt-1">
               {metrics.hipoCount}
             </div>
             <span className="text-xs text-amber-400 mt-1 block">
