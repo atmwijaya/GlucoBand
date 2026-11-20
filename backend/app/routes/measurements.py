@@ -246,6 +246,80 @@ def add_measurement(cursor):
 
     return jsonify({'msg': 'Data tersimpan', 'id': new_id}), 201
 
+
+@measurements_bp.post('/measurements/batch')
+@db_connection
+def add_measurements_batch(cursor):
+    """
+    Endpoint untuk ESP32 mengunggah antrean data pengukuran offline secara FIFO (batch).
+    Mendukung list JSON: [ { ... }, { ... } ]
+    atau objek: { "patient_id": 1, "records": [ ... ] }
+    """
+    body = request.get_json() or {}
+    user = get_current_user()
+
+    if isinstance(body, list):
+        records = body
+        default_patient_id = user.get('id') if user and user.get('role') == 'pasien' else None
+    else:
+        records = body.get('records', [])
+        default_patient_id = user.get('id') if user and user.get('role') == 'pasien' else body.get('patient_id')
+
+    if not records:
+        return jsonify({'msg': 'Tidak ada data rekaman pengukuran dalam payload.'}), 400
+
+    from datetime import datetime
+    inserted_ids = []
+
+    sql = """
+        INSERT INTO measurements
+        (patient_id, device_id, nir_610nm, nir_680nm, nir_730nm, nir_760nm, nir_810nm, nir_860nm,
+         ppg_heart_rate, ppg_spo2, ppg_ir_value, skin_temp_celsius,
+         glucose_estimated, glucose_invasive, is_calibration, created_at, source)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """
+
+    for item in records:
+        pid = default_patient_id or item.get('patient_id')
+        if not pid:
+            continue
+
+        created_at = item.get('created_at') or datetime.now().isoformat()
+        src = str(item.get('source', 'sdcard')).lower()
+        src_val = 'sdcard' if src in ('sdcard', 'offline', 'eeprom') else 'wifi'
+
+        cursor.execute(sql, (
+            pid,
+            item.get('device_id'),
+            item.get('nir_610nm'), item.get('nir_680nm'), item.get('nir_730nm'),
+            item.get('nir_760nm'), item.get('nir_810nm'), item.get('nir_860nm'),
+            item.get('ppg_heart_rate'), item.get('ppg_spo2'), item.get('ppg_ir_value'),
+            item.get('skin_temp_celsius'),
+            item.get('glucose_estimated'), item.get('glucose_invasive'),
+            item.get('is_calibration', False),
+            created_at,
+            src_val
+        ))
+        inserted_ids.append(cursor.lastrowid)
+
+    if inserted_ids:
+        try:
+            from app import socketio
+            socketio.emit('offline_sync_completed', {
+                'count': len(inserted_ids),
+                'patient_id': default_patient_id,
+                'synced_at': datetime.now().isoformat()
+            })
+        except Exception as e:
+            print(f"[SocketIO Error] Gagal emit offline_sync_completed: {e}")
+
+    return jsonify({
+        'msg': f'{len(inserted_ids)} data pengukuran offline berhasil disinkronkan.',
+        'count': len(inserted_ids),
+        'ids': inserted_ids
+    }), 201
+
+
 @measurements_bp.post('/measurements/live-stream')
 @patient_body_owner_or_medis('patient_id')
 def stream_sensor_data():

@@ -6,6 +6,7 @@
 #include "AS726X.h"
 #include <Adafruit_MLX90614.h>
 #include "WiFiConfig.h"
+#include "EEPROMStorage.h"
 #define I2C_SDA 8
 #define I2C_SCL 9
 #define SCREEN_WIDTH 128
@@ -18,11 +19,13 @@ MAX30105 particleSensor;
 AS726X asSensor;
 Adafruit_MLX90614 mlx = Adafruit_MLX90614();
 WiFiConfig wifiConfig;
+EEPROMStorage eepromStorage;
 
 bool oledOk = false;
 bool maxOk = false;
 bool asOk = false;
 bool mlxOk = false;
+bool eepromOk = false;
 bool asBulbActive = false;
 
 const byte RATE_SIZE = 8;
@@ -115,6 +118,8 @@ void setup() {
     asBulbActive = false;
   }
 
+  eepromOk = eepromStorage.begin(Wire);
+
   showStartupStatus();
 }
 
@@ -147,6 +152,15 @@ void loop() {
   if (now - lastSerialPrint >= SERIAL_INTERVAL) {
     lastSerialPrint = now;
     printSerialData();
+  }
+
+  // Sinkronisasi data offline FIFO otomatis saat terhubung ke router internet
+  static unsigned long lastSyncCheck = 0;
+  if (now - lastSyncCheck >= 8000) {
+    lastSyncCheck = now;
+    if (wifiConfig.isConnected() && eepromStorage.isAvailable() && eepromStorage.getCount() > 0) {
+      wifiConfig.syncOfflineMeasurements(eepromStorage);
+    }
   }
 }
 
@@ -248,12 +262,36 @@ void readAS726X() {
   spectralV = asSensor.getCalibratedV();
   spectralW = asSensor.getCalibratedW();
 
-  // Integrasi AI XGBoost: Jika terhubung ke WiFi, estimasi kadar gula darah langsung via API
+  // Integrasi AI XGBoost / Offline Storage:
   if (wifiConfig.isConnected()) {
     float outGlucose = 0.0;
     if (wifiConfig.predictGlucose(spectralR, spectralS, spectralT, spectralU, spectralV, spectralW, outGlucose)) {
       estimatedGlucose = outGlucose;
       glucoseEstimatedOk = true;
+    }
+  } else {
+    // Mode Offline: Hitung estimasi lokal & simpan ke antrean EEPROM AT24C512
+    float baselineNIR = (spectralR + spectralS + spectralT + spectralU + spectralV + spectralW) / 6.0f;
+    if (baselineNIR > 0) {
+      estimatedGlucose = 90.0f + (spectralS * 0.2f);
+      if (estimatedGlucose < 65.0f) estimatedGlucose = 65.0f;
+      if (estimatedGlucose > 240.0f) estimatedGlucose = 240.0f;
+      glucoseEstimatedOk = true;
+    }
+
+    if (eepromStorage.isAvailable()) {
+      OfflineRecord rec;
+      rec.timestampMillis = millis();
+      rec.bpm = (bpmAverage > 0) ? bpmAverage : bpm;
+      rec.tempScaled = !isnan(objectTemp) ? (int16_t)(objectTemp * 100) : 3650;
+      rec.nir_R = (uint16_t)(spectralR * 10);
+      rec.nir_S = (uint16_t)(spectralS * 10);
+      rec.nir_T = (uint16_t)(spectralT * 10);
+      rec.nir_U = (uint16_t)(spectralU * 10);
+      rec.nir_V = (uint16_t)(spectralV * 10);
+      rec.nir_W = (uint16_t)(spectralW * 10);
+      rec.glucoseEst = (uint16_t)(estimatedGlucose * 10);
+      eepromStorage.enqueue(rec);
     }
   }
 }
@@ -288,7 +326,7 @@ void printSerialData() {
     } else if (wifiConfig.isConnected()) {
       Serial.println("Mengestimasi kadar gula darah");
     } else {
-      Serial.println("Menunggu WiFi untuk inferensi AI...");
+      Serial.printf("Mode Offline (Tersimpan di EEPROM FIFO. Total: %u)\n", eepromStorage.getCount());
     }
 
     if (asOk) {
@@ -317,8 +355,15 @@ void updateOLED() {
 
     display.setTextSize(1);
     if (oledPage == 0) {
-      display.setCursor(25, 4);
+      display.setCursor(10, 4);
       display.print("GlucoBand V1");
+      display.setCursor(90, 4);
+      if (wifiConfig.isPlugged()) {
+        display.print("[CHG]");
+      } else {
+        display.print(wifiConfig.getBatteryPercentage());
+        display.print("%");
+      }
       display.setCursor(14, 18);
       display.print("Tempelkan Jari...");
     } else {
@@ -335,13 +380,19 @@ void updateOLED() {
         display.setCursor(0, 12);
         display.print("IP: 192.168.4.1");
         display.setCursor(0, 23);
-        int clients = wifiConfig.getConnectedClients();
-        if (clients > 0) {
-          display.print("HP Konek: ");
-          display.print(clients);
-          display.println(" OK");
+        if (eepromStorage.isAvailable() && eepromStorage.getCount() > 0) {
+          display.print("Antrean: ");
+          display.print(eepromStorage.getCount());
+          display.println(" offline");
         } else {
-          display.println("Sambungkan HP...");
+          int clients = wifiConfig.getConnectedClients();
+          if (clients > 0) {
+            display.print("HP Konek: ");
+            display.print(clients);
+            display.println(" OK");
+          } else {
+            display.println("Sambungkan HP...");
+          }
         }
       }
     }

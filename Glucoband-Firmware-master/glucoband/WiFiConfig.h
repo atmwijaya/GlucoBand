@@ -9,6 +9,7 @@
 #include <ESPmDNS.h>
 #include <DNSServer.h>
 #include "esp_wifi.h"
+#include "EEPROMStorage.h"
 
 class WiFiConfig {
 public:
@@ -25,9 +26,15 @@ public:
   String getStatusValue();
   bool predictGlucose(float r, float s, float t, float u, float v, float w, float &outGlucose);
   bool sendData(int id, int bpm, float glucose);
+  bool syncOfflineMeasurements(EEPROMStorage &storage, int patientId = 1);
   void checkResetButton();
   void clearCredentials();
   void disconnectRouter();
+  bool isPlugged();
+  float getBatteryVoltage();
+  int getBatteryPercentage();
+  void setPowerState(bool plugged, float voltage = 4.2f);
+  void readBatteryHardware();
   
 private:
   WebServer server;
@@ -43,6 +50,11 @@ private:
   unsigned long resetButtonPressed;
   bool resetButtonState;
   bool apModeActive;
+  bool isPluggedIn;
+  float batteryVoltage;
+  int batteryPercent;
+  String powerSource;
+  void handleApiBattery();
   
   void setupRoutes();
   void startAPMode();

@@ -200,47 +200,30 @@ class _GlucoseStockChartState extends State<GlucoseStockChart> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // 1. SELECTOR PILL RENTANG WAKTU (1 HARI, 2 HARI, 3 HARI)
+        // 1. SELECTOR PILL RENTANG WAKTU (1 HARI, 2 HARI, 3 HARI) - RESPONSIVE
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                _buildPillButton('1 Hari', '24 Jam', widget.timeFilter == '1 Hari' || widget.timeFilter == '6 Jam' || widget.timeFilter == 'Harian'),
-                const SizedBox(width: 8),
-                _buildPillButton('2 Hari', '48 Jam', widget.timeFilter == '2 Hari'),
-                const SizedBox(width: 8),
-                _buildPillButton('3 Hari', '72 Jam', widget.timeFilter == '3 Hari'),
-              ],
-            ),
-            // Indikator Realtime Live Dot
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+            Expanded(
+              child: _buildPillButton(
+                '1 Hari',
+                '24 Jam',
+                widget.timeFilter == '1 Hari' || widget.timeFilter == '24 Jam',
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF10B981),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    '5m Live',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.green.shade700,
-                    ),
-                  ),
-                ],
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildPillButton(
+                '2 Hari',
+                '48 Jam',
+                widget.timeFilter == '2 Hari' || widget.timeFilter == '48 Jam',
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildPillButton(
+                '3 Hari',
+                '72 Jam',
+                widget.timeFilter == '3 Hari' || widget.timeFilter == '72 Jam',
               ),
             ),
           ],
@@ -250,7 +233,7 @@ class _GlucoseStockChartState extends State<GlucoseStockChart> {
 
         // 2. STOCK SUMMARY TOOLBAR (High, Low, Avg, Delta Fluktuasi ala Saham)
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
             color: const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(14),
@@ -260,34 +243,44 @@ class _GlucoseStockChartState extends State<GlucoseStockChart> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               // Delta Perubahan ala Saham
-              Row(
-                children: [
-                  Icon(
-                    isTrendingUp ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                    size: 18,
-                    color: isTrendingUp ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Row(
+                    children: [
+                      Icon(
+                        isTrendingUp ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                        size: 16,
+                        color: isTrendingUp ? const Color(0xFFEF4444) : const Color(0xFF10B981),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${isTrendingUp ? '+' : ''}${changeVal.toStringAsFixed(1)} mg/dL (${changePercent.toStringAsFixed(1)}%)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: isTrendingUp ? const Color(0xFFDC2626) : const Color(0xFF059669),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${isTrendingUp ? '+' : ''}${changeVal.toStringAsFixed(1)} mg/dL (${changePercent.toStringAsFixed(1)}%)',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      color: isTrendingUp ? const Color(0xFFDC2626) : const Color(0xFF059669),
-                    ),
-                  ),
-                ],
+                ),
               ),
-
+              const SizedBox(width: 8),
               // Statistik Ringkas Saham: High / Low / Avg
-              Row(
-                children: [
-                  _buildStatTag('H', highestVal.toStringAsFixed(0), const Color(0xFFEF4444)),
-                  const SizedBox(width: 8),
-                  _buildStatTag('L', lowestVal.toStringAsFixed(0), const Color(0xFF0284C7)),
-                  const SizedBox(width: 8),
-                  _buildStatTag('Avg', avgVal.toStringAsFixed(0), const Color(0xFF613EEA)),
-                ],
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerRight,
+                child: Row(
+                  children: [
+                    _buildStatTag('H', highestVal.toStringAsFixed(0), const Color(0xFFEF4444)),
+                    const SizedBox(width: 6),
+                    _buildStatTag('L', lowestVal.toStringAsFixed(0), const Color(0xFF0284C7)),
+                    const SizedBox(width: 6),
+                    _buildStatTag('Avg', avgVal.toStringAsFixed(0), const Color(0xFF613EEA)),
+                  ],
+                ),
               ),
             ],
           ),
@@ -560,27 +553,32 @@ class _GlucoseStockChartState extends State<GlucoseStockChart> {
     return GestureDetector(
       onTap: () => widget.onFilterChanged(filterKey),
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF613EEA) : const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF613EEA).withValues(alpha: 0.3),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
+                    color: const Color(0xFF613EEA).withValues(alpha: 0.25),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ]
               : null,
         ),
-        child: Text(
-          '$filterKey ($label)',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-            color: isSelected ? Colors.white : const Color(0xFF64748B),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            '$filterKey ($label)',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+              color: isSelected ? Colors.white : const Color(0xFF64748B),
+            ),
+            maxLines: 1,
           ),
         ),
       ),

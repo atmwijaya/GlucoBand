@@ -10,7 +10,7 @@ class MeasurementProvider extends ChangeNotifier {
   List<MeasurementModel> _measurements = [];
   bool _isLoading = false;
   String? _errorMessage;
-  String _timeFilter = '1 Hari'; // Pilihan: '1 Hari' (24 Jam), '2 Hari' (48 Jam), '3 Hari' (72 Jam)
+  String _timeFilter = '6 Jam'; // Pilihan untuk Statistik: '6 Jam', '1 Hari', '7 Hari'
   double _liveGlucose = 0.0;
 
   // Getters
@@ -25,17 +25,14 @@ class MeasurementProvider extends ChangeNotifier {
 
     final now = DateTime.now();
     DateTime cutoff;
-    if (_timeFilter == '1 Hari' || _timeFilter == '24 Jam' || _timeFilter == 'Harian' || _timeFilter == 'Day') {
-      cutoff = now.subtract(const Duration(hours: 24));
-    } else if (_timeFilter == '2 Hari' || _timeFilter == '48 Jam') {
-      cutoff = now.subtract(const Duration(hours: 48));
-    } else if (_timeFilter == '3 Hari' || _timeFilter == '72 Jam') {
-      cutoff = now.subtract(const Duration(hours: 72));
-    } else if (_timeFilter == '6 Jam') {
+    if (_timeFilter == '6 Jam') {
       cutoff = now.subtract(const Duration(hours: 6));
-    } else {
-      // Default fallback: 24 jam (1 Hari)
+    } else if (_timeFilter == '1 Hari' || _timeFilter == '24 Jam' || _timeFilter == 'Harian' || _timeFilter == 'Day') {
       cutoff = now.subtract(const Duration(hours: 24));
+    } else if (_timeFilter == '7 Hari' || _timeFilter == '1 Minggu' || _timeFilter == '7 Days' || _timeFilter == 'Week') {
+      cutoff = now.subtract(const Duration(days: 7));
+    } else {
+      cutoff = now.subtract(const Duration(hours: 6));
     }
 
     final filtered = _measurements

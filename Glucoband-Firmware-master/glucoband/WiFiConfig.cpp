@@ -17,7 +17,9 @@ extern bool glucoseEstimatedOk;
 
 WiFiConfig::WiFiConfig() : server(80), wifiConnected(false), failedAttempts(0),
                            lastConnectionAttempt(0), resetButtonPressed(0), 
-                           resetButtonState(false), apModeActive(false) {
+                           resetButtonState(false), apModeActive(false),
+                           isPluggedIn(true), batteryVoltage(4.20f), batteryPercent(100),
+                           powerSource("usb") {
   apiEndpoint = "https://glucobandpro.id";
   connectionStatus = "Inisialisasi";
 }
@@ -198,6 +200,10 @@ void WiFiConfig::setupRoutes() {
   server.on("/api/reset", HTTP_POST, [this]() { handleApiReset(); });
   server.on("/api/disconnect", HTTP_POST, [this]() { handleApiDisconnect(); });
   server.on("/api/disconnect", HTTP_GET, [this]() { handleApiDisconnect(); });
+  server.on("/api/battery", HTTP_GET, [this]() { handleApiBattery(); });
+  server.on("/api/battery", HTTP_POST, [this]() { handleApiBattery(); });
+  server.on("/api/power", HTTP_GET, [this]() { handleApiBattery(); });
+  server.on("/api/power", HTTP_POST, [this]() { handleApiBattery(); });
 
   server.onNotFound([this]() {
     if (server.method() == HTTP_OPTIONS) {
@@ -328,6 +334,7 @@ void WiFiConfig::handleSave() {
 // REST API: GET /api/status
 void WiFiConfig::handleApiStatus() {
   sendCorsHeader();
+  readBatteryHardware();
   String json = "{";
   json += "\"wifi_connected\":" + String(isConnected() ? "true" : "false") + ",";
   json += "\"status\":\"" + connectionStatus + "\",";
@@ -336,7 +343,17 @@ void WiFiConfig::handleApiStatus() {
   json += "\"ap_ssid\":\"GlucoBand-Setup\",";
   json += "\"ap_ip\":\"" + WiFi.softAPIP().toString() + "\",";
   json += "\"clients_connected\":" + String(getConnectedClients()) + ",";
-  json += "\"rssi\":" + String(WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0);
+  json += "\"rssi\":" + String(WiFi.status() == WL_CONNECTED ? WiFi.RSSI() : 0) + ",";
+  json += "\"power_source\":\"" + powerSource + "\",";
+  json += "\"is_plugged\":" + String(isPluggedIn ? "true" : "false") + ",";
+  json += "\"battery_voltage\":" + String(batteryVoltage, 2) + ",";
+  if (isPluggedIn) {
+    json += "\"battery\":\"Optimal\",";
+    json += "\"battery_level\":null";
+  } else {
+    json += "\"battery\":\"" + String(batteryPercent) + "%\",";
+    json += "\"battery_level\":" + String(batteryPercent);
+  }
   json += "}";
   server.send(200, "application/json", json);
 }
@@ -738,4 +755,169 @@ bool WiFiConfig::predictGlucose(float r, float s, float t, float u, float v, flo
   }
   http.end();
   return false;
+}
+
+bool WiFiConfig::syncOfflineMeasurements(EEPROMStorage &storage, int patientId) {
+  if (!isConnected() || !storage.isAvailable() || storage.getCount() == 0) {
+    return false;
+  }
+
+  Serial.printf("\n[SYNC] Memulai sinkronisasi FIFO offline: %u data antrean...\n", storage.getCount());
+
+  WiFiClientSecure client;
+  client.setInsecure();
+
+  HTTPClient http;
+  String url = apiEndpoint + "/api/measurements";
+  unsigned long nowMillis = millis();
+  uint16_t successCount = 0;
+
+  while (storage.getCount() > 0 && isConnected()) {
+    OfflineRecord rec;
+    if (!storage.peek(rec)) {
+      Serial.println("[SYNC] Data corrupt di tail, melepaskan dari antrean.");
+      storage.dequeue();
+      continue;
+    }
+
+    float glucoseVal = rec.glucoseEst / 10.0f;
+    float tempVal = rec.tempScaled / 100.0f;
+    float r = rec.nir_R / 10.0f;
+    float s = rec.nir_S / 10.0f;
+    float t = rec.nir_T / 10.0f;
+    float u = rec.nir_U / 10.0f;
+    float v = rec.nir_V / 10.0f;
+    float w = rec.nir_W / 10.0f;
+
+    String payload = "{";
+    payload += "\"patient_id\":" + String(patientId) + ",";
+    payload += "\"source\":\"sdcard\",";
+    payload += "\"glucose_estimated\":" + String(glucoseVal, 1) + ",";
+    payload += "\"ppg_heart_rate\":" + String(rec.bpm) + ",";
+    payload += "\"skin_temp_celsius\":" + String(tempVal, 2) + ",";
+    payload += "\"nir_610nm\":" + String(r, 2) + ",";
+    payload += "\"nir_680nm\":" + String(s, 2) + ",";
+    payload += "\"nir_730nm\":" + String(t, 2) + ",";
+    payload += "\"nir_760nm\":" + String(u, 2) + ",";
+    payload += "\"nir_810nm\":" + String(v, 2) + ",";
+    payload += "\"nir_860nm\":" + String(w, 2) + "}";
+
+    http.begin(client, url);
+    http.addHeader("Content-Type", "application/json");
+    http.setTimeout(4000);
+
+    int httpCode = http.POST(payload);
+    if (httpCode >= 200 && httpCode < 300) {
+      storage.dequeue();
+      successCount++;
+      Serial.printf("[SYNC] Data #%u sukses terunggah. Sisa antrean: %u\n", successCount, storage.getCount());
+    } else {
+      Serial.printf("[SYNC] Gagal mengunggah data (HTTP %d). Menghentikan sinkronisasi sementara.\n", httpCode);
+      http.end();
+      break;
+    }
+    http.end();
+    delay(50);
+  }
+
+  Serial.printf("[SYNC] Sesi sinkronisasi selesai: %u data berhasil dikirim.\n\n", successCount);
+  return (successCount > 0);
+}
+
+void WiFiConfig::readBatteryHardware() {
+#if defined(BATTERY_ADC_PIN) && (BATTERY_ADC_PIN >= 0)
+  int raw = analogRead(BATTERY_ADC_PIN);
+  // Default voltage divider R1=100k, R2=100k (factor = 2.0), ESP32 ADC fullscale 3.3V / 4095
+  float pinVolt = (raw / 4095.0f) * 3.3f;
+  float vbat = pinVolt * 2.0f;
+  if (vbat > 0.5f) {
+    batteryVoltage = vbat;
+    if (batteryVoltage >= 4.30f) {
+      isPluggedIn = true;
+      powerSource = "usb";
+    } else {
+      isPluggedIn = false;
+      powerSource = "battery";
+      if (batteryVoltage >= 4.20f) batteryPercent = 100;
+      else if (batteryVoltage <= 3.20f) batteryPercent = 0;
+      else {
+        batteryPercent = (int)(((batteryVoltage - 3.20f) / 1.0f) * 100.0f);
+      }
+    }
+  }
+#endif
+}
+
+bool WiFiConfig::isPlugged() {
+  return isPluggedIn;
+}
+
+float WiFiConfig::getBatteryVoltage() {
+  return batteryVoltage;
+}
+
+int WiFiConfig::getBatteryPercentage() {
+  return batteryPercent;
+}
+
+void WiFiConfig::setPowerState(bool plugged, float voltage) {
+  isPluggedIn = plugged;
+  batteryVoltage = voltage;
+  powerSource = plugged ? "usb" : "battery";
+  if (batteryVoltage >= 4.20f) batteryPercent = 100;
+  else if (batteryVoltage <= 3.20f) batteryPercent = 0;
+  else batteryPercent = (int)(((batteryVoltage - 3.20f) / 1.0f) * 100.0f);
+}
+
+void WiFiConfig::handleApiBattery() {
+  sendCorsHeader();
+  if (server.hasArg("mode")) {
+    String mode = server.arg("mode");
+    if (mode.equalsIgnoreCase("usb") || mode.equalsIgnoreCase("colokan") || mode.equalsIgnoreCase("plugged")) {
+      isPluggedIn = true;
+      powerSource = "usb";
+    } else if (mode.equalsIgnoreCase("battery") || mode.equalsIgnoreCase("lithium")) {
+      isPluggedIn = false;
+      powerSource = "battery";
+    }
+  }
+  if (server.hasArg("voltage") || server.hasArg("v")) {
+    String vStr = server.hasArg("voltage") ? server.arg("voltage") : server.arg("v");
+    float v = vStr.toFloat();
+    if (v > 2.0f && v < 5.5f) {
+      batteryVoltage = v;
+      if (batteryVoltage >= 4.30f) {
+        isPluggedIn = true;
+        powerSource = "usb";
+      } else {
+        isPluggedIn = false;
+        powerSource = "battery";
+        if (batteryVoltage >= 4.20f) batteryPercent = 100;
+        else if (batteryVoltage <= 3.20f) batteryPercent = 0;
+        else batteryPercent = (int)(((batteryVoltage - 3.20f) / 1.0f) * 100.0f);
+      }
+    }
+  }
+  if (server.hasArg("percent") || server.hasArg("pct")) {
+    int p = server.arg("percent").toInt();
+    if (p >= 0 && p <= 100) {
+      batteryPercent = p;
+      isPluggedIn = false;
+      powerSource = "battery";
+    }
+  }
+
+  String json = "{";
+  json += "\"power_source\":\"" + powerSource + "\",";
+  json += "\"is_plugged\":" + String(isPluggedIn ? "true" : "false") + ",";
+  json += "\"battery_voltage\":" + String(batteryVoltage, 2) + ",";
+  if (isPluggedIn) {
+    json += "\"battery\":\"Optimal\",";
+    json += "\"battery_level\":null";
+  } else {
+    json += "\"battery\":\"" + String(batteryPercent) + "%\",";
+    json += "\"battery_level\":" + String(batteryPercent);
+  }
+  json += "}";
+  server.send(200, "application/json", json);
 }
