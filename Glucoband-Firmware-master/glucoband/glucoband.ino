@@ -28,7 +28,7 @@ bool mlxOk = false;
 bool eepromOk = false;
 bool asBulbActive = false;
 
-const byte RATE_SIZE = 8;
+const byte RATE_SIZE = 4;
 byte rates[RATE_SIZE] = {0};
 byte rateSpot = 0;
 byte rateCount = 0;
@@ -54,7 +54,7 @@ unsigned long lastASRead = 0;
 unsigned long lastOLEDUpdate = 0;
 unsigned long lastSerialPrint = 0;
 unsigned long lastPageSwitch = 0;
-const unsigned long MAX_INTERVAL = 10;       
+const unsigned long MAX_INTERVAL = 4;       
 const unsigned long MLX_INTERVAL = 500;      
 const unsigned long AS_INTERVAL = 5000;      
 const unsigned long SERIAL_INTERVAL = 5000;  
@@ -103,9 +103,11 @@ void setup() {
 
   maxOk = particleSensor.begin(Wire, I2C_SPEED_STANDARD);
   if (maxOk) {
-    particleSensor.setup(60, 4, 2, 100, 411, 4096);
-    particleSensor.setPulseAmplitudeRed(0x1F);
-    particleSensor.setPulseAmplitudeIR(0x1F);
+    // Optimasi respons cepat BPM:
+    // powerLevel: 0x2A (~8.5mA), sampleAverage: 2, ledMode: 2 (Red + IR), sampleRate: 200 Hz, pulseWidth: 411 us, adcRange: 4096
+    particleSensor.setup(0x2A, 2, 2, 200, 411, 4096);
+    particleSensor.setPulseAmplitudeRed(0x2A);
+    particleSensor.setPulseAmplitudeIR(0x35); // Arus IR ditingkatkan ke ~11mA untuk penetrasi jaringan kulit/pergelangan yang lebih peka & cepat
     particleSensor.setPulseAmplitudeGreen(0);
   }
 
@@ -169,16 +171,25 @@ void readMAX30105() {
   if (!maxOk) return;
 
   irValue = particleSensor.getIR();
-  fingerPresent = (irValue > 30000);
 
-  updateSensorBulb();
+  // Debouncing & Hysteresis agar tidak mudah reset saat ada sedikit gerakan
+  static unsigned long lastFingerSeen = 0;
+  bool rawPresent = (irValue > 20000);
 
-  if (!fingerPresent) {
+  if (rawPresent) {
+    lastFingerSeen = millis();
+    fingerPresent = true;
+  } else if (millis() - lastFingerSeen > 800) {
+    fingerPresent = false;
     bpm = 0;
     bpmAverage = 0;
     rateCount = 0;
-    return;
+    lastBeat = 0;
   }
+
+  updateSensorBulb();
+
+  if (!fingerPresent) return;
 
   if (checkForBeat(irValue)) {
     unsigned long now = millis();
@@ -186,10 +197,11 @@ void readMAX30105() {
     if (lastBeat > 0) {
       long delta = now - lastBeat;
 
-      if (delta > 0) {
+      // Filter fisiologis detak jantung manusia (300ms - 1500ms = 40 - 200 BPM)
+      if (delta >= 300 && delta <= 1500) {
         float bpmValue = 60.0 / (delta / 1000.0);
 
-        if (bpmValue >= 40 && bpmValue <= 180) {
+        if (bpmValue >= 40 && bpmValue <= 190) {
           bpm = (int)bpmValue;
 
           rates[rateSpot] = (byte)bpm;
@@ -201,6 +213,7 @@ void readMAX30105() {
           for (byte i = 0; i < rateCount; i++) {
             total += rates[i];
           }
+          // Rata-rata langsung terisi dari detak pertama, stabil penuh di 4 detak (~2-3 detik)
           bpmAverage = total / rateCount;
         }
       }

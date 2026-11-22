@@ -17,6 +17,7 @@ class NotificationProvider extends ChangeNotifier {
   List<NotificationItem> get notifications => _notifications;
   int get unreadCount => _unreadCount;
   bool get isLoading => _isLoading;
+  SocketService get socketService => _socketService;
 
   NotificationProvider() {
     _loadLocalReadKeys();

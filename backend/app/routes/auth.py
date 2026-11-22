@@ -165,3 +165,49 @@ def register_pasien(cursor):
         data.get('smoking_history', 0)
     ))
     return jsonify({'msg': 'Registrasi berhasil'}), 201
+
+@auth_bp.post('/change-password')
+@jwt_required()
+@db_connection
+def change_password(cursor):
+    """Mengubah kata sandi akun pengguna (Pasien / Tenaga Medis)."""
+    from app.utils.decorators import get_current_user
+    user = get_current_user()
+    if not user:
+        return jsonify({'msg': 'Token otentikasi tidak valid'}), 401
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'msg': 'Data tidak lengkap'}), 400
+
+    old_password = str(data.get('old_password', '')).strip()
+    new_password = str(data.get('new_password', '')).strip()
+
+    if not old_password or not new_password:
+        return jsonify({'msg': 'Kata sandi lama dan baru wajib diisi'}), 400
+
+    cursor.execute("SELECT id, password FROM users WHERE id = %s", (user['id'],))
+    row = cursor.fetchone()
+    if not row:
+        return jsonify({'msg': 'Pengguna tidak ditemukan'}), 404
+
+    stored_password = str(row['password']).strip()
+    is_valid = False
+    try:
+        is_valid = check_password_hash(stored_password, old_password)
+    except Exception:
+        is_valid = False
+
+    if not is_valid and stored_password == old_password:
+        is_valid = True
+
+    if not is_valid:
+        return jsonify({'msg': 'Kata sandi saat ini (lama) tidak cocok'}), 400
+
+    is_valid_pw, pw_err = validate_password(new_password)
+    if not is_valid_pw:
+        return jsonify({'msg': pw_err}), 400
+
+    new_hash = generate_password_hash(new_password)
+    cursor.execute("UPDATE users SET password = %s WHERE id = %s", (new_hash, user['id']))
+    return jsonify({'msg': 'Kata sandi berhasil diperbarui'}), 200

@@ -5,7 +5,7 @@ import {
   FaUser, FaChartLine, FaHistory, FaChevronDown, FaChevronUp, FaSearch,
   FaChevronRight, FaHeart, FaWifi, FaSave, FaCheckCircle, FaExclamationTriangle,
   FaHandPaper, FaSyncAlt, FaBroadcastTower, FaBell, FaCloud, FaMicrochip,
-  FaSignOutAlt, FaRedoAlt, FaPlug
+  FaSignOutAlt, FaRedoAlt, FaPlug, FaSearchPlus, FaSearchMinus, FaUndo
 } from 'react-icons/fa'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import apiClient from '../../api/axios'
@@ -63,6 +63,72 @@ export default function RealtimeMonitorPage() {
   const [modal, setModal] = useState({ isOpen: false, title: '', message: '', type: 'info' })
   const intervalRef = useRef(null)
   const selectedPatientRef = useRef(null)
+  const patientLiveCacheRef = useRef({})
+  const chartContainerRef = useRef(null)
+  const [yDomain, setYDomain] = useState([0, 400])
+
+  // Zoom Meteran Glukosa (Y-Axis) via Mouse Scroll Wheel
+  useEffect(() => {
+    const container = chartContainerRef.current
+    if (!container) return
+
+    const handleWheel = (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+
+      const isZoomIn = e.deltaY < 0
+
+      setYDomain(prev => {
+        const [min, max] = prev
+        const span = max - min
+        const center = (min + max) / 2
+
+        const factor = isZoomIn ? 0.82 : 1.20
+        let newSpan = Math.round(span * factor)
+
+        // Batasi rentang minimum 40 mg/dL (zoom in detail) dan maksimum 500 mg/dL (zoom out lebar)
+        if (newSpan < 40) newSpan = 40
+        if (newSpan > 500) newSpan = 500
+
+        let newMin = Math.max(0, Math.round(center - newSpan / 2))
+        let newMax = newMin + newSpan
+        return [newMin, newMax]
+      })
+    }
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    return () => {
+      container.removeEventListener('wheel', handleWheel)
+    }
+  }, [selectedPatient])
+
+  const zoomInY = () => {
+    setYDomain(prev => {
+      const [min, max] = prev
+      const span = max - min
+      if (span <= 40) return prev
+      const center = (min + max) / 2
+      const newSpan = Math.max(40, Math.round(span * 0.8))
+      const newMin = Math.max(0, Math.round(center - newSpan / 2))
+      return [newMin, newMin + newSpan]
+    })
+  }
+
+  const zoomOutY = () => {
+    setYDomain(prev => {
+      const [min, max] = prev
+      const span = max - min
+      if (span >= 500) return prev
+      const center = (min + max) / 2
+      const newSpan = Math.min(500, Math.round(span * 1.25))
+      const newMin = Math.max(0, Math.round(center - newSpan / 2))
+      return [newMin, newMin + newSpan]
+    })
+  }
+
+  const resetZoomY = () => {
+    setYDomain([0, 400])
+  }
 
   // 2. Dual Mode: 'online' (Production Cloud) atau 'direct' (Development Direct IP)
   // Per-Device Check: Hanya aktif jika diaktifkan di Pengaturan (/admin/settings) browser perangkat ini
@@ -170,9 +236,10 @@ export default function RealtimeMonitorPage() {
 
   // 4. WebSocket (Socket.IO) Real-time Listener (Telemedicine / Mode Online)
   useEffect(() => {
-    const SOCKET_URL = import.meta.env.VITE_API_BASE_URL
-      ? import.meta.env.VITE_API_BASE_URL.replace(/\/api\/?$/, '')
-      : 'http://localhost:5000'
+    const rawApiUrl = import.meta.env.VITE_API_BASE_URL
+    const SOCKET_URL = rawApiUrl && rawApiUrl.startsWith('http')
+      ? rawApiUrl.replace(/\/api\/?$/, '')
+      : (typeof window !== 'undefined' ? window.location.origin : '')
     const socket = io(SOCKET_URL, {
       reconnectionAttempts: 15,
       reconnectionDelay: 1500,
@@ -210,26 +277,57 @@ export default function RealtimeMonitorPage() {
     socket.on('new_measurement', (data) => {
       if (connectionMode !== 'online') return
 
-      const currentPatient = selectedPatientRef.current
-      if (currentPatient && Number(currentPatient.id) === Number(data.patient_id)) {
-        const heartRateVal = Number(data.ppg_heart_rate ?? data.heartRate ?? data.bpm) || 0
-        const skinTempVal = Number(data.skin_temp_celsius ?? data.skinTemp ?? data.temperature) || 0
-        const glucoseVal = Number(data.glucose_estimated ?? data.glucose) || 0
+      const pId = Number(data.patient_id)
+      const heartRateVal = Number(data.ppg_heart_rate ?? data.heartRate ?? data.bpm) || 0
+      const skinTempVal = Number(data.skin_temp_celsius ?? data.skinTemp ?? data.temperature) || 0
+      const glucoseVal = Number(data.glucose_estimated ?? data.glucose) || 0
 
+      // 1. Seketika tandai pasien ONLINE di UI tanpa jeda polling REST
+      setOnlinePatientIds(prev => prev.map(Number).includes(pId) ? prev : [...prev, pId])
+
+      // 2. Simpan ke live cache per-pasien agar peralihan klik dokter instan
+      patientLiveCacheRef.current[pId] = {
+        glucose_estimated: glucoseVal,
+        heartRate: heartRateVal,
+        skinTemp: skinTempVal,
+        spo2: data.ppg_spo2 || 98,
+        fingerPresent: true,
+        rateCount: 4,
+        isMeasuring: false,
+        lastUpdated: Date.now()
+      }
+
+      // 3. Perbarui ringkasan kartu pasien di daftar pemantauan
+      setPatientsList(prev => prev.map(p => {
+        if (Number(p.id) === pId) {
+          return {
+            ...p,
+            latest_glucose: glucoseVal,
+            latest_bpm: heartRateVal,
+            latest_temp: skinTempVal,
+            last_measured_at: data.created_at || new Date().toISOString()
+          }
+        }
+        return p
+      }))
+
+      // 4. Jika pasien ini sedang aktif dibuka, mutakhirkan grafik & metrik
+      const currentPatient = selectedPatientRef.current
+      if (currentPatient && Number(currentPatient.id) === pId) {
         setGlucoseData({
           glucose_estimated: glucoseVal,
           heartRate: heartRateVal,
           skinTemp: skinTempVal,
           spo2: data.ppg_spo2 || 98,
           fingerPresent: true,
-          rateCount: 8,
+          rateCount: 4,
           isMeasuring: false
         })
 
         // Tambahkan ke grafik garis
         setHistory(prev => {
           const newPoint = {
-            id: data.id,
+            id: data.id || Date.now(),
             created_at: data.created_at || new Date().toISOString(),
             glucose_estimated: glucoseVal
           }
@@ -239,7 +337,7 @@ export default function RealtimeMonitorPage() {
 
         setRealtimeAlert({
           show: true,
-          message: `Data Pengukuran Diterima: ${glucoseVal} mg/dL • ${heartRateVal} BPM • ${skinTempVal}°C`,
+          message: `Data Pengukuran Diterima (${currentPatient.name}): ${glucoseVal} mg/dL • ${heartRateVal} BPM • ${skinTempVal}°C`,
           time: new Date().toLocaleTimeString('id-ID')
         })
 
@@ -253,21 +351,57 @@ export default function RealtimeMonitorPage() {
     socket.on('live_sensor_stream', (data) => {
       if (connectionMode !== 'online') return
 
-      const currentPatient = selectedPatientRef.current
-      if (currentPatient && Number(currentPatient.id) === Number(data.patient_id)) {
-        const fingerPresent = Boolean(data.finger_present)
-        const bpmAverage = Number(data.bpm) || 0
-        const rateCount = Number(data.rate_count) || 0
-        const objectTemp = data.temperature != null ? Number(data.temperature) : 36.5
-        const isMeasuring = fingerPresent && bpmAverage === 0
+      const pId = Number(data.patient_id)
+      const fingerPresent = Boolean(data.finger_present)
+      const bpmAverage = Number(data.bpm) || 0
+      const rateCount = Number(data.rate_count) || 0
+      const objectTemp = data.temperature != null ? Number(data.temperature) : 36.5
+      const isMeasuring = fingerPresent && bpmAverage === 0
 
+      // Tandai pasien online seketika
+      setOnlinePatientIds(prev => prev.map(Number).includes(pId) ? prev : [...prev, pId])
+
+      // Perbarui live cache
+      const prevCached = patientLiveCacheRef.current[pId] || {}
+      const liveGlucose = (data.glucose_estimated != null && Number(data.glucose_estimated) > 0)
+        ? Number(data.glucose_estimated)
+        : prevCached.glucose_estimated
+
+      patientLiveCacheRef.current[pId] = {
+        ...prevCached,
+        glucose_estimated: liveGlucose,
+        heartRate: bpmAverage > 0 ? bpmAverage : prevCached.heartRate || 0,
+        skinTemp: fingerPresent ? objectTemp : (prevCached.skinTemp || 0),
+        fingerPresent,
+        rateCount,
+        isMeasuring,
+        lastUpdated: Date.now()
+      }
+
+      // Perbarui ringkasan daftar pasien di kartu kiri
+      setPatientsList(prev => prev.map(p => {
+        if (Number(p.id) === pId) {
+          return {
+            ...p,
+            latest_glucose: liveGlucose || p.latest_glucose,
+            latest_bpm: bpmAverage > 0 ? bpmAverage : p.latest_bpm,
+            latest_temp: fingerPresent ? objectTemp : p.latest_temp,
+            last_measured_at: new Date().toISOString()
+          }
+        }
+        return p
+      }))
+
+      const currentPatient = selectedPatientRef.current
+      if (currentPatient && Number(currentPatient.id) === pId) {
         setGlucoseData(prev => ({
           ...prev,
           heartRate: bpmAverage,
           skinTemp: fingerPresent ? objectTemp : prev.skinTemp,
           fingerPresent,
           rateCount,
-          isMeasuring
+          isMeasuring,
+          glucose_estimated: liveGlucose || prev.glucose_estimated
         }))
       }
     })
@@ -276,9 +410,32 @@ export default function RealtimeMonitorPage() {
     socket.on('live_glucose_estimate', (data) => {
       if (connectionMode !== 'online') return
 
+      const pId = Number(data.patient_id)
+      const glucoseVal = Number(data.glucose_estimated ?? data.glucose) || 0
+
+      setOnlinePatientIds(prev => prev.map(Number).includes(pId) ? prev : [...prev, pId])
+
+      const prevCached = patientLiveCacheRef.current[pId] || {}
+      patientLiveCacheRef.current[pId] = {
+        ...prevCached,
+        glucose_estimated: glucoseVal,
+        fingerPresent: true,
+        isMeasuring: false,
+        lastUpdated: Date.now()
+      }
+
+      setPatientsList(prev => prev.map(p => {
+        if (Number(p.id) === pId) {
+          return {
+            ...p,
+            latest_glucose: glucoseVal
+          }
+        }
+        return p
+      }))
+
       const currentPatient = selectedPatientRef.current
-      if (currentPatient && Number(currentPatient.id) === Number(data.patient_id)) {
-        const glucoseVal = Number(data.glucose_estimated ?? data.glucose) || 0
+      if (currentPatient && Number(currentPatient.id) === pId) {
         setGlucoseData(prev => ({
           ...prev,
           glucose_estimated: glucoseVal,
@@ -299,44 +456,7 @@ export default function RealtimeMonitorPage() {
 
         setRealtimeAlert({
           show: true,
-          message: `Estimasi kadar gula darah: ${glucoseVal} mg/dL (${data.status || 'Normal'})`,
-          time: new Date().toLocaleTimeString('id-ID')
-        })
-
-        setTimeout(() => {
-          setRealtimeAlert(prev => ({ ...prev, show: false }))
-        }, 7000)
-      }
-    })
-
-    // B2. Event Live Glucose Estimate (Hasil estimasi model XGBoost via NIR)
-    socket.on('live_glucose_estimate', (data) => {
-      if (connectionMode !== 'online') return
-
-      const currentPatient = selectedPatientRef.current
-      if (currentPatient && Number(currentPatient.id) === Number(data.patient_id)) {
-        const glucoseVal = Number(data.glucose_estimated ?? data.glucose) || 0
-        setGlucoseData(prev => ({
-          ...prev,
-          glucose_estimated: glucoseVal,
-          fingerPresent: true,
-          isMeasuring: false
-        }))
-
-        // Tambahkan ke grafik garis
-        setHistory(prev => {
-          const newPoint = {
-            id: Date.now(),
-            created_at: new Date().toISOString(),
-            glucose_estimated: glucoseVal
-          }
-          const updated = [...prev, newPoint]
-          return updated.slice(-20)
-        })
-
-        setRealtimeAlert({
-          show: true,
-          message: `Estimasi kadar gula darah: ${glucoseVal} mg/dL (${data.status || 'Normal'})`,
+          message: `Estimasi kadar gula darah (${currentPatient.name}): ${glucoseVal} mg/dL (${data.status || 'Normal'})`,
           time: new Date().toLocaleTimeString('id-ID')
         })
 
@@ -592,15 +712,29 @@ export default function RealtimeMonitorPage() {
 
   const handleSelectPatient = (patient) => {
     setSelectedPatient(patient)
-    setGlucoseData({
-      glucose_estimated: 0,
-      heartRate: 0,
-      spo2: 0,
-      skinTemp: 0,
-      fingerPresent: false,
-      rateCount: 0,
-      isMeasuring: false
-    })
+    setYDomain([0, 400])
+    const cached = patientLiveCacheRef.current[patient.id]
+    if (cached) {
+      setGlucoseData({
+        glucose_estimated: cached.glucose_estimated || 0,
+        heartRate: cached.heartRate || 0,
+        spo2: cached.spo2 || 98,
+        skinTemp: cached.skinTemp || 0,
+        fingerPresent: cached.fingerPresent ?? false,
+        rateCount: cached.rateCount || 0,
+        isMeasuring: cached.isMeasuring ?? false
+      })
+    } else {
+      setGlucoseData({
+        glucose_estimated: 0,
+        heartRate: 0,
+        spo2: 0,
+        skinTemp: 0,
+        fingerPresent: false,
+        rateCount: 0,
+        isMeasuring: false
+      })
+    }
   }
 
   // Status koneksi keseluruhan
@@ -780,7 +914,7 @@ export default function RealtimeMonitorPage() {
             {isPatientConnected && glucoseData.fingerPresent && (
               <span className="text-slate-600 text-[11px]">
                 {glucoseData.isMeasuring
-                  ? `Menganalisis (${glucoseData.rateCount}/8 detak)...`
+                  ? `Menganalisis (${glucoseData.rateCount}/4 detak)...`
                   : `Nadi: ${glucoseData.heartRate} BPM`}
               </span>
             )}
@@ -834,7 +968,7 @@ export default function RealtimeMonitorPage() {
                   <div key={patient.id} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:border-primaryBlue/40 transition">
                     <div className="p-4 bg-white flex justify-between items-center hover:bg-slate-50 transition">
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
                           <p className="font-bold text-slate-800 text-lg">{patient.name}</p>
                           <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
@@ -842,6 +976,15 @@ export default function RealtimeMonitorPage() {
                           }`}>
                             {isOnline ? '● Online' : '○ Offline'}
                           </span>
+                          {/* Metrik Realtime Instan jika ada data dari background service / sensor gelang */}
+                          {(patientLiveCacheRef.current[patient.id]?.glucose_estimated > 0 || patient.latest_glucose > 0) && (
+                            <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200/80 font-medium px-2 py-0.5 rounded-full flex items-center gap-1.5 shadow-xs">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+                              <span className="font-semibold">{patientLiveCacheRef.current[patient.id]?.glucose_estimated || patient.latest_glucose} mg/dL</span>
+                              <span className="text-emerald-500">•</span>
+                              <span>{patientLiveCacheRef.current[patient.id]?.heartRate || patient.latest_bpm || '--'} BPM</span>
+                            </span>
+                          )}
                         </div>
                         <p className="text-sm text-slate-500 mt-1">
                           Usia: {patient.age} th • BMI: {patient.bmi} • Risiko:{' '}
@@ -1049,7 +1192,7 @@ export default function RealtimeMonitorPage() {
                       </div>
                     ) : glucoseData.isMeasuring ? (
                       <span className="text-xs font-semibold text-amber-600 animate-pulse">
-                        Menganalisis Nadi ({glucoseData.rateCount}/8 detak)...
+                        Menganalisis Nadi ({glucoseData.rateCount}/4 detak)...
                       </span>
                     ) : (
                       <div className="flex flex-col items-center">
@@ -1059,7 +1202,7 @@ export default function RealtimeMonitorPage() {
                         <span className="text-[11px] text-slate-400 mt-0.5">
                           {connectionMode === 'online'
                             ? (glucoseData.heartRate > 0 ? 'Tersinkronisasi Cloud' : 'Menunggu Sinyal Pasien')
-                            : (glucoseData.fingerPresent ? 'Buffer 8 Detak (OLED OK)' : 'Tempelkan Jari')}
+                            : (glucoseData.fingerPresent ? 'Buffer 4 Detak (OLED OK)' : 'Tempelkan Jari')}
                         </span>
                       </div>
                     )}
@@ -1097,26 +1240,71 @@ export default function RealtimeMonitorPage() {
 
               {/* Grafik Tren Glukosa Terkini */}
               <div className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-slate-100">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-base font-bold text-slate-800">
-                    Tren Glukosa Pasien (20 Pengukuran Terakhir)
-                  </h3>
-                  <span className="text-xs text-slate-400">Target Normal: 70 - 200 mg/dL</span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base font-bold text-slate-800">
+                        Tren Glukosa Pasien (20 Pengukuran Terakhir)
+                      </h3>
+                      {/* Badge skala zoom saat ini */}
+                      {(yDomain[0] !== 0 || yDomain[1] !== 400) && (
+                        <span className="text-[11px] font-semibold px-2 py-0.5 bg-blue-50 text-primaryBlue border border-blue-200/80 rounded-full flex items-center gap-1 shadow-xs">
+                          Skala: {yDomain[0]} – {yDomain[1]} mg/dL
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Target Normal: 70 - 200 mg/dL
+                    </p>
+                  </div>
+
+                  {/* Kontrol Zoom Meteran */}
+                  <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                    <button
+                      type="button"
+                      onClick={zoomInY}
+                      title="Perbesar Skala Meteran (Zoom In)"
+                      className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-primaryBlue transition shadow-xs"
+                    >
+                      <FaSearchPlus size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={zoomOutY}
+                      title="Perkecil Skala Meteran (Zoom Out)"
+                      className="p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-primaryBlue transition shadow-xs"
+                    >
+                      <FaSearchMinus size={13} />
+                    </button>
+                    {(yDomain[0] !== 0 || yDomain[1] !== 400) && (
+                      <button
+                        type="button"
+                        onClick={resetZoomY}
+                        title="Kembalikan Skala Standar (0 - 400 mg/dL)"
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-primaryBlue text-xs font-medium transition shadow-xs"
+                      >
+                        <FaUndo size={10} /> Reset
+                      </button>
+                    )}
+                  </div>
                 </div>
+
                 {chartData.length === 0 ? (
                   <p className="text-center text-slate-400 py-16 text-sm">Belum ada riwayat pengukuran yang tercatat.</p>
                 ) : (
-                  <ResponsiveContainer width="100%" height={280}>
-                    <LineChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                      <XAxis dataKey="time" tick={{ fontSize: 11 }} />
-                      <YAxis domain={[0, 400]} tick={{ fontSize: 12 }} />
-                      <Tooltip />
-                      <ReferenceLine y={200} stroke="#EF4444" strokeDasharray="5 5" label={{ value: 'Batas Hiper (200)', fill: '#EF4444', fontSize: 10 }} />
-                      <ReferenceLine y={70} stroke="#F59E0B" strokeDasharray="5 5" label={{ value: 'Batas Hipo (70)', fill: '#F59E0B', fontSize: 10 }} />
-                      <Line type="monotone" dataKey="glucose" stroke="#3B82F6" strokeWidth={2.5} dot={{ r: 3, fill: '#3B82F6' }} activeDot={{ r: 5 }} />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <div ref={chartContainerRef} className="cursor-ns-resize" title="Scroll mouse ke atas/bawah untuk memperbesar atau memperkecil meteran glukosa">
+                    <ResponsiveContainer width="100%" height={280}>
+                      <LineChart data={chartData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                        <XAxis dataKey="time" tick={{ fontSize: 11 }} />
+                        <YAxis domain={yDomain} tick={{ fontSize: 12 }} allowDataOverflow={true} />
+                        <Tooltip />
+                        <ReferenceLine y={200} stroke="#EF4444" strokeDasharray="5 5" label={{ value: 'Batas Hiper (200)', fill: '#EF4444', fontSize: 10 }} />
+                        <ReferenceLine y={70} stroke="#F59E0B" strokeDasharray="5 5" label={{ value: 'Batas Hipo (70)', fill: '#F59E0B', fontSize: 10 }} />
+                        <Line type="monotone" dataKey="glucose" stroke="#3B82F6" strokeWidth={2.5} dot={{ r: 3, fill: '#3B82F6' }} activeDot={{ r: 5 }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
                 )}
               </div>
 

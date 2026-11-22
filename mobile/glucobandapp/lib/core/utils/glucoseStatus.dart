@@ -28,10 +28,10 @@ class GlucoseStatusHelper {
   /// Subtitle rentang klinis
   static String getSubtitle(double glucose) {
     if (glucose <= 0) return 'Belum ada data pengukuran';
-    if (glucose < hypoThreshold) return '< 70 mg/dL (Rendah)';
-    if (glucose <= normalUpper) return '70-140 mg/dL (Ideal)';
-    if (glucose <= hyperThreshold) return '140-200 mg/dL (Pre-Diabetes/Waspada)';
-    return '> 200 mg/dL (Tinggi)';
+    if (glucose < hypoThreshold) return '< 70 mg/dL';
+    if (glucose <= normalUpper) return '70-140 mg/dL';
+    if (glucose <= hyperThreshold) return '140-200 mg/dL';
+    return '> 200 mg/dL';
   }
 
   /// Warna utama status glukosa

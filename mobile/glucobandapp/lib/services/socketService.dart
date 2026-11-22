@@ -6,6 +6,7 @@ class SocketService {
   IO.Socket? _socket;
   Function? onNewNotification;
   Function(Map<String, dynamic> data)? onGlucoseAlert;
+  Function(Map<String, dynamic> data)? onNewMeasurement;
 
   void connect(String token) {
     if (_socket != null && _socket!.connected) return;
@@ -35,6 +36,17 @@ class SocketService {
     _socket!.on('new_notification', (data) {
       if (onNewNotification != null) {
         onNewNotification!();
+      }
+    });
+
+    _socket!.on('new_measurement', (data) {
+      debugPrint('[SocketService] Received new_measurement: $data');
+      if (onNewMeasurement != null) {
+        if (data is Map<String, dynamic>) {
+          onNewMeasurement!(data);
+        } else if (data is Map) {
+          onNewMeasurement!(Map<String, dynamic>.from(data));
+        }
       }
     });
 
