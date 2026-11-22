@@ -4,10 +4,6 @@ from flask import request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 def get_current_user():
-    """
-    Mengambil dan mem-parsing data identitas dari JWT token aktif.
-    Format yang diharapkan: {'id': int, 'role': str}
-    """
     raw_identity = get_jwt_identity()
     if not raw_identity:
         return None
@@ -19,11 +15,6 @@ def get_current_user():
         return {'id': raw_identity, 'role': 'pasien'}
 
 def can_access_patient(user_identity, target_patient_id):
-    """
-    Validasi otorisasi data rekam medis pasien (Anti-IDOR):
-    - Tenaga Medis: Boleh mengakses rekam medis seluruh pasien.
-    - Pasien: HANYA boleh mengakses data milik dirinya sendiri.
-    """
     if not user_identity:
         return False
     role = user_identity.get('role')
@@ -37,7 +28,6 @@ def can_access_patient(user_identity, target_patient_id):
     return False
 
 def medis_only(fn):
-    """Decorator: Hanya mengizinkan akses untuk akun dengan role 'tenaga_medis'."""
     @wraps(fn)
     @jwt_required()
     def wrapper(*args, **kwargs):
@@ -48,11 +38,6 @@ def medis_only(fn):
     return wrapper
 
 def patient_owner_or_medis(patient_id_arg_name='patient_id'):
-    """
-    Decorator URL param: Memastikan pemanggil adalah tenaga medis ATAU pasien pemilik data itu sendiri.
-    Mencegah kebocoran rekam medis antar-pasien (Anti-IDOR).
-    Dijalankan sebelum koneksi database dibuka untuk menghemat resource.
-    """
     def decorator(fn):
         @wraps(fn)
         @jwt_required()
@@ -70,11 +55,6 @@ def patient_owner_or_medis(patient_id_arg_name='patient_id'):
     return decorator
 
 def patient_body_owner_or_medis(patient_id_field='patient_id'):
-    """
-    Decorator JSON body: Memastikan data JSON yang diunggah cocok dengan ID pasien di JWT token.
-    Mencegah pemalsuan identitas pasien pada request payload (Anti-IDOR).
-    Dijalankan sebelum koneksi database dibuka untuk menghemat resource.
-    """
     def decorator(fn):
         @wraps(fn)
         @jwt_required(optional=True)

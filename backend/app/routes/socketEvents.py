@@ -2,12 +2,34 @@ from flask import request
 from flask_socketio import emit, join_room, leave_room
 from flask_jwt_extended import decode_token
 import json
+import time
 from app import socketio
 
 connected_patients = {}
+patient_last_seen = {}
+
+def record_patient_heartbeat(patient_id):
+    """Mencatat aktivitas online pasien dan menyiarkan pembaruan jika pasien baru online."""
+    try:
+        p_id = int(patient_id)
+        is_new = p_id not in get_online_patient_ids()
+        patient_last_seen[p_id] = time.time()
+        if is_new:
+            broadcast_online_patients()
+    except Exception as e:
+        print(f"record_patient_heartbeat error: {e}")
 
 def get_online_patient_ids():
-    return list(set(connected_patients.values()))
+    """Mengembalikan daftar unik ID pasien yang sedang terhubung socket atau aktif dalam 30 detik terakhir."""
+    now = time.time()
+    # Bersihkan pasien yang tidak aktif lebih dari 30 detik
+    expired = [p_id for p_id, last_time in list(patient_last_seen.items()) if now - last_time > 30]
+    for p_id in expired:
+        patient_last_seen.pop(p_id, None)
+
+    all_online = set(connected_patients.values())
+    all_online.update(patient_last_seen.keys())
+    return list(all_online)
 
 def broadcast_online_patients():
     online_ids = get_online_patient_ids()
@@ -21,7 +43,8 @@ def handle_connect():
 def handle_disconnect():
     sid = request.sid
     if sid in connected_patients:
-        del connected_patients[sid]
+        user_id = connected_patients.pop(sid, None)
+        patient_last_seen.pop(user_id, None)
         broadcast_online_patients()
 
 @socketio.on('join')

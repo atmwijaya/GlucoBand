@@ -7,8 +7,6 @@ EEPROMStorage::EEPROMStorage(uint8_t i2cAddr)
 
 bool EEPROMStorage::begin(TwoWire &wire) {
   _wire = &wire;
-
-  // Tes komunikasi I2C dengan AT24C512
   _wire->beginTransmission(_i2cAddr);
   if (_wire->endTransmission() != 0) {
     Serial.println("[EEPROM] AT24C512 tidak terdeteksi pada bus I2C (0x50).");
@@ -19,7 +17,6 @@ bool EEPROMStorage::begin(TwoWire &wire) {
   _available = true;
   Serial.println("[EEPROM] AT24C512 64KB terdeteksi aktif.");
 
-  // Baca header FIFO di halaman 0 (0x0000)
   if (!readHeader() || _header.magic != EEPROM_MAGIC) {
     Serial.println("[EEPROM] Format FIFO baru terdeteksi. Melakukan inisialisasi header...");
     _header.magic = EEPROM_MAGIC;
@@ -43,7 +40,6 @@ bool EEPROMStorage::begin(TwoWire &wire) {
 uint16_t EEPROMStorage::calculateChecksum(const OfflineRecord &rec) {
   uint16_t sum = 0xAA55;
   const uint8_t *ptr = reinterpret_cast<const uint8_t*>(&rec);
-  // Hitung sampai sebelum field checksum (22 byte)
   size_t len = sizeof(OfflineRecord) - sizeof(uint16_t);
   for (size_t i = 0; i < len; i++) {
     sum = (sum << 1) ^ ptr[i];
@@ -64,8 +60,6 @@ bool EEPROMStorage::enqueue(const OfflineRecord &record) {
 
   OfflineRecord recCopy = record;
   recCopy.checksum = calculateChecksum(recCopy);
-
-  // Jika memori penuh, geser tail (overwrite data paling usang secara aman)
   if (_header.count >= _header.maxCapacity) {
     _header.tail = (_header.tail + 1) % _header.maxCapacity;
   } else {
@@ -74,7 +68,7 @@ bool EEPROMStorage::enqueue(const OfflineRecord &record) {
 
   uint16_t writeAddr = EEPROM_DATA_OFFSET + (_header.head * sizeof(OfflineRecord));
   if (!writeBytes(writeAddr, reinterpret_cast<const uint8_t*>(&recCopy), sizeof(OfflineRecord))) {
-    Serial.println("[EEPROM] Gagal menulis rekaman data ke slot memori.");
+    Serial.println("[EEPROM] Gagal menulis rekaman data ke memori.");
     return false;
   }
 
@@ -94,7 +88,6 @@ bool EEPROMStorage::peek(OfflineRecord &record) {
     return false;
   }
 
-  // Verifikasi checksum
   if (record.checksum != calculateChecksum(record)) {
     Serial.printf("[EEPROM] Peringatan: Checksum corrupt pada slot tail %u!\n", _header.tail);
     return false;
@@ -129,18 +122,16 @@ bool EEPROMStorage::writeBytes(uint16_t memAddress, const uint8_t *data, size_t 
   size_t bytesWritten = 0;
   while (bytesWritten < length) {
     uint16_t currentAddr = memAddress + bytesWritten;
-    // Hitung sisa kapasitas pada halaman EEPROM aktif (page boundary 128 byte)
     size_t pageOffset = currentAddr % EEPROM_PAGE_SIZE;
     size_t chunk = EEPROM_PAGE_SIZE - pageOffset;
     if (chunk > (length - bytesWritten)) {
       chunk = length - bytesWritten;
     }
-    // Batasi transmisi Wire maksimal 30 byte per burst agar tidak overflow I2C RX/TX buffer
     if (chunk > 28) chunk = 28;
 
     _wire->beginTransmission(_i2cAddr);
-    _wire->write((uint8_t)((currentAddr >> 8) & 0xFF)); // MSB
-    _wire->write((uint8_t)(currentAddr & 0xFF));        // LSB
+    _wire->write((uint8_t)((currentAddr >> 8) & 0xFF)); 
+    _wire->write((uint8_t)(currentAddr & 0xFF));        
 
     for (size_t i = 0; i < chunk; i++) {
       _wire->write(data[bytesWritten + i]);
@@ -150,7 +141,6 @@ bool EEPROMStorage::writeBytes(uint16_t memAddress, const uint8_t *data, size_t 
       return false;
     }
 
-    // Waktu internal write cycle EEPROM AT24C512 (maks 5ms)
     delay(5);
     bytesWritten += chunk;
   }
@@ -164,14 +154,14 @@ bool EEPROMStorage::readBytes(uint16_t memAddress, uint8_t *data, size_t length)
   size_t bytesRead = 0;
   while (bytesRead < length) {
     size_t chunk = length - bytesRead;
-    if (chunk > 28) chunk = 28; // Batas Wire read buffer
+    if (chunk > 28) chunk = 28; 
 
     uint16_t currentAddr = memAddress + bytesRead;
 
     _wire->beginTransmission(_i2cAddr);
-    _wire->write((uint8_t)((currentAddr >> 8) & 0xFF)); // MSB
-    _wire->write((uint8_t)(currentAddr & 0xFF));        // LSB
-    if (_wire->endTransmission(false) != 0) { // Repeated start
+    _wire->write((uint8_t)((currentAddr >> 8) & 0xFF)); 
+    _wire->write((uint8_t)(currentAddr & 0xFF)); 
+    if (_wire->endTransmission(false) != 0) { 
       return false;
     }
 

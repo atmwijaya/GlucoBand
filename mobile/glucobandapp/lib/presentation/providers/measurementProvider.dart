@@ -12,12 +12,19 @@ class MeasurementProvider extends ChangeNotifier {
   String? _errorMessage;
   String _timeFilter = '6 Jam'; // Pilihan untuk Statistik: '6 Jam', '1 Hari', '7 Hari'
   double _liveGlucose = 0.0;
+  int _liveBpm = 0;
+  double _liveTemp = 0.0;
+  bool _isFingerPresent = false;
 
   // Getters
   List<MeasurementModel> get measurements => _measurements;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   String get timeFilter => _timeFilter;
+  double get liveGlucose => _liveGlucose;
+  int get liveBpm => _liveBpm;
+  double get liveTemp => _liveTemp;
+  bool get isFingerPresent => _isFingerPresent;
 
   /// Daftar pengukuran yang telah difilter sesuai rentang waktu aktif
   List<MeasurementModel> get filteredMeasurements {
@@ -41,24 +48,32 @@ class MeasurementProvider extends ChangeNotifier {
     return filtered;
   }
 
-  /// Glukosa terkini (terbaru dari database atau hasil live streaming)
+  /// Glukosa terkini (utamakan data idle realtime selagi gelang terpasang di pergelangan)
   double get latestGlucose {
+    if (_isFingerPresent && _liveGlucose > 0) {
+      return _liveGlucose;
+    }
     if (_measurements.isNotEmpty) {
       return _measurements.first.glucoseEstimated;
     }
-    return _liveGlucose;
+    return _liveGlucose > 0 ? _liveGlucose : 0.0;
   }
 
-  /// Rata-rata kadar glukosa riil dalam periode yang dipilih
+  /// Rata-rata kadar glukosa riil dalam periode yang dipilih (termasuk nilai idle realtime)
   double get glucoseAvg {
     final list = filteredMeasurements.isNotEmpty
         ? filteredMeasurements
         : _measurements;
     if (list.isEmpty) {
-      return _liveGlucose > 0 ? _liveGlucose : 0.0;
+      return (_isFingerPresent && _liveGlucose > 0) ? _liveGlucose : 0.0;
     }
-    final sum = list.fold<double>(0.0, (prev, m) => prev + m.glucoseEstimated);
-    return double.parse((sum / list.length).toStringAsFixed(1));
+    double sum = list.fold<double>(0.0, (prev, m) => prev + m.glucoseEstimated);
+    int count = list.length;
+    if (_isFingerPresent && _liveGlucose > 0) {
+      sum += _liveGlucose;
+      count += 1;
+    }
+    return double.parse((sum / count).toStringAsFixed(1));
   }
 
   /// Persentase waktu dalam rentang normal (Time in Range: 70 - 140 mg/dL)
@@ -84,34 +99,46 @@ class MeasurementProvider extends ChangeNotifier {
     return 1.0;
   }
 
-  /// Rata-rata detak jantung (BPM) dalam periode yang dipilih
+  /// Rata-rata detak jantung (BPM) dalam periode yang dipilih (termasuk nilai idle realtime)
   int get heartRateAvg {
     final list = filteredMeasurements.isNotEmpty
         ? filteredMeasurements
         : _measurements;
-    if (list.isEmpty) return 0;
     final validHeartRates = list.where((m) => m.ppgHeartRate > 0).toList();
-    if (validHeartRates.isEmpty) return 0;
-    final sum = validHeartRates.fold<int>(
+    if (validHeartRates.isEmpty) {
+      return (_isFingerPresent && _liveBpm > 0) ? _liveBpm : 0;
+    }
+    int sum = validHeartRates.fold<int>(
       0,
       (prev, m) => prev + m.ppgHeartRate,
     );
-    return (sum / validHeartRates.length).round();
+    int count = validHeartRates.length;
+    if (_isFingerPresent && _liveBpm > 0) {
+      sum += _liveBpm;
+      count += 1;
+    }
+    return (sum / count).round();
   }
 
-  /// Rata-rata suhu permukaan kulit (°C) dalam periode yang dipilih
+  /// Rata-rata suhu permukaan kulit (°C) dalam periode yang dipilih (termasuk nilai idle realtime)
   double get tempAvg {
     final list = filteredMeasurements.isNotEmpty
         ? filteredMeasurements
         : _measurements;
-    if (list.isEmpty) return 0.0;
     final validTemps = list.where((m) => m.skinTempCelsius > 0).toList();
-    if (validTemps.isEmpty) return 0.0;
-    final sum = validTemps.fold<double>(
+    if (validTemps.isEmpty) {
+      return (_isFingerPresent && _liveTemp > 0) ? _liveTemp : 0.0;
+    }
+    double sum = validTemps.fold<double>(
       0.0,
       (prev, m) => prev + m.skinTempCelsius,
     );
-    return double.parse((sum / validTemps.length).toStringAsFixed(1));
+    int count = validTemps.length;
+    if (_isFingerPresent && _liveTemp > 0) {
+      sum += _liveTemp;
+      count += 1;
+    }
+    return double.parse((sum / count).toStringAsFixed(1));
   }
 
   /// Daftar model pengukuran yang ditampilkan pada grafik utama (kronologis)
@@ -370,5 +397,62 @@ class MeasurementProvider extends ChangeNotifier {
     );
     _measurements.insert(0, newEntry);
     notifyListeners();
+  }
+
+  /// Memperbarui nilai pengukuran idle realtime saat gelang terpasang di pergelangan tangan
+  void updateLiveValues({
+    required double glucose,
+    required int bpm,
+    required double temperature,
+    required bool fingerPresent,
+  }) {
+    bool hasChanged = false;
+    if (_isFingerPresent != fingerPresent) {
+      _isFingerPresent = fingerPresent;
+      hasChanged = true;
+    }
+    if (fingerPresent) {
+      if ((glucose - _liveGlucose).abs() >= 0.2 && glucose > 0) {
+        _liveGlucose = glucose;
+        hasChanged = true;
+      }
+      if (bpm != _liveBpm && bpm > 0) {
+        _liveBpm = bpm;
+        hasChanged = true;
+      }
+      if ((temperature - _liveTemp).abs() >= 0.1 && temperature > 0) {
+        _liveTemp = temperature;
+        hasChanged = true;
+      }
+    } else {
+      if (_liveGlucose != 0.0 || _liveBpm != 0 || _liveTemp != 0.0) {
+        _liveGlucose = 0.0;
+        _liveBpm = 0;
+        _liveTemp = 0.0;
+        hasChanged = true;
+      }
+    }
+    if (hasChanged) {
+      notifyListeners();
+    }
+  }
+
+  /// Menangani penerimaan data pengukuran baru via WebSocket
+  void handleNewMeasurementSocket(Map<String, dynamic> data, {int? currentUserId}) {
+    final rawPatientId = data['patient_id'];
+    final int? pId = rawPatientId is num ? rawPatientId.toInt() : int.tryParse(rawPatientId?.toString() ?? '');
+    if (currentUserId != null && pId != null && pId != currentUserId) {
+      return;
+    }
+    try {
+      final newModel = MeasurementModel.fromJson(data);
+      _measurements.removeWhere((m) => m.id != null && m.id == newModel.id);
+      _measurements.insert(0, newModel);
+      _measurements.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      _liveGlucose = newModel.glucoseEstimated;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[MeasurementProvider] Gagal parse socket new_measurement: $e');
+    }
   }
 }

@@ -92,7 +92,6 @@ export default function Sidebar({
               }`}
             >
               <h1 className="text-lg font-bold tracking-tight text-white leading-none">GlucoBand</h1>
-              <span className="text-[10px] text-slate-400 font-medium tracking-wider uppercase">Medic Portal</span>
             </div>
           </div>
 

@@ -5,6 +5,7 @@ import '../providers/profileProvider.dart';
 import '../providers/notificationProvider.dart';
 import 'editHealthProfile.dart';
 import 'loginPage.dart';
+import 'settingsPage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../services/updateService.dart';
 import '../../core/constants/appConstant.dart';
@@ -63,7 +64,10 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: IconButton(
                         icon: const Icon(Icons.settings_outlined, color: Colors.white),
                         onPressed: () {
-                          // Settings action
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const SettingsPage()),
+                          );
                         },
                       ),
                     ),
@@ -358,54 +362,31 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Account Security Section
-                      Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.04),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      // Pengaturan & Izin Sistem Card (Pengaturan Keamanan Dipindahkan ke Sini)
+                      _buildSingleCardMenu(
+                        icon: Icons.tune_rounded,
+                        title: 'Pengaturan & Izin Sistem',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const SettingsPage()),
+                          );
+                        },
+                        iconColor: const Color(0xFF613EEA),
+                        iconBgColor: const Color(0xFF613EEA).withValues(alpha: 0.1),
+                        trailing: const Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Padding(
-                              padding: EdgeInsets.fromLTRB(16, 20, 16, 8),
-                              child: Text(
-                                'Account Security',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.grey,
-                                ),
+                            Text(
+                              'Kelola',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF613EEA),
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            _buildModernMenuItem(
-                              icon: Icons.lock_outline,
-                              title: 'Change Password',
-                              onTap: () {},
-                              iconColor: const Color(0xFF613EEA),
-                              iconBgColor: const Color(0xFF613EEA).withValues(alpha: 0.1),
-                            ),
-                            const Divider(height: 1, indent: 68, endIndent: 16, color: Color(0xFFE2E8F0)),
-                            _buildModernMenuItem(
-                              icon: Icons.shield_outlined,
-                              title: 'Two-Factor Authentication',
-                              onTap: () {},
-                              iconColor: const Color(0xFF613EEA),
-                              iconBgColor: const Color(0xFF613EEA).withValues(alpha: 0.1),
-                              trailing: Switch(
-                                value: false,
-                                onChanged: (val) {},
-                                activeThumbColor: const Color(0xFF613EEA),
-                              ),
-                            ),
+                            SizedBox(width: 4),
+                            Icon(Icons.chevron_right, color: Color(0xFF613EEA), size: 20),
                           ],
                         ),
                       ),

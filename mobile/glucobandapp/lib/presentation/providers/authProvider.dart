@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/apiService.dart';
 import '../../services/secureStorageService.dart';
+import '../../services/backgroundMonitoringService.dart';
 import '../../data/models/userModel.dart';
 import '../../core/utils/jwtHelper.dart';
 
@@ -104,6 +105,12 @@ class AuthProvider extends ChangeNotifier {
         role: _user!.role,
       );
 
+      // Jalankan foreground monitoring service agar pengukuran tetap berjalan di background
+      BackgroundMonitoringService.startService(
+        patientId: _user!.id,
+        token: _token,
+      );
+
       // Reset lockout jika login berhasil
       _countdownTimer?.cancel();
       _lockoutSeconds = 0;
@@ -198,6 +205,7 @@ class AuthProvider extends ChangeNotifier {
     _token = null;
     _user = null;
     await _secureStorage.clearAll();
+    await BackgroundMonitoringService.stopService();
     _isInitialized = true;
     notifyListeners();
   }
@@ -234,6 +242,12 @@ class AuthProvider extends ChangeNotifier {
           name: userData['name'] ?? '',
           email: userData['email'] ?? '',
           role: userData['role'] ?? 'pasien',
+        );
+
+        // Pastikan background monitoring service aktif jika pengguna sudah login
+        BackgroundMonitoringService.startService(
+          patientId: _user!.id,
+          token: _token,
         );
 
         _isInitialized = true;

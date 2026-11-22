@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash
 from db import get_connection
 from app.utils.validators import validate_password       
+from app.utils.decorators import get_current_user       
 
 patients_bp = Blueprint('patients', __name__)
 
@@ -12,13 +13,9 @@ def medis_required(fn):
     @wraps(fn)
     @jwt_required()
     def wrapper(*args, **kwargs):
-        identity_json = get_jwt_identity()
-        if not identity_json:
+        identity = get_current_user()
+        if not identity:
             return jsonify({'msg': 'Token tidak valid'}), 422
-        try:
-            identity = json.loads(identity_json)
-        except json.JSONDecodeError:
-            return jsonify({'msg': 'Token rusak'}), 422
         if identity.get('role') != 'tenaga_medis':
             return jsonify({'msg': 'Hanya tenaga medis yang dapat mengakses'}), 403
         return fn(identity, *args, **kwargs)
@@ -114,6 +111,29 @@ def get_online_patients():
     except Exception as e:
         print("Error in get_online_patients:", e)
         return jsonify([]), 200
+
+
+@patients_bp.post('/patients/heartbeat')
+@jwt_required()
+def patient_heartbeat():
+    """Endpoint heartbeat berkala dari background service aplikasi mobile pasien."""
+    try:
+        user = get_current_user()
+        patient_id = None
+        if user:
+            patient_id = user.get('id')
+        if not patient_id:
+            req_data = request.get_json(silent=True) or {}
+            patient_id = req_data.get('patient_id')
+
+        if patient_id:
+            from app.routes.socketEvents import record_patient_heartbeat
+            record_patient_heartbeat(patient_id)
+            return jsonify({'status': 'ok', 'patient_id': int(patient_id)}), 200
+        return jsonify({'msg': 'patient_id tidak terdeteksi'}), 400
+    except Exception as e:
+        print("Error in patient_heartbeat:", e)
+        return jsonify({'status': 'error', 'detail': str(e)}), 500
 
 
 @patients_bp.get('/patients/<int:id>')

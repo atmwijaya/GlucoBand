@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'backgroundMonitoringService.dart';
 
 class WifiConfigResult {
   final bool success;
@@ -78,6 +79,7 @@ class EspService {
     }
     if (cleanIp.isNotEmpty) {
       await prefs.setString(_prefKeyIp, cleanIp);
+      BackgroundMonitoringService.updateConfig(espIp: cleanIp);
     }
   }
 

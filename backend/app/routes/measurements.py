@@ -188,6 +188,9 @@ def add_measurement(cursor):
 
     try:
         from app import socketio
+        from app.routes.socketEvents import record_patient_heartbeat
+        record_patient_heartbeat(patient_id)
+
         glucose_val = float(data.get('glucose_estimated') or 0)
         status_calc = 'Normal'
         notif_type = None
